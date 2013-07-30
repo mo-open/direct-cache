@@ -3,11 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>org.apache.directmemory</groupId>
-        <artifactId>directmemory-parent</artifactId>
-        <version>1-SNAPSHOT</version>
-    </parent>
+    <groupId>org.apache.directmemory</groupId>
 
     <artifactId>directmemory</artifactId>
     <version>0.2-SNAPSHOT</version>
@@ -23,31 +19,12 @@
         <module>directmemory-ehcache</module>
     </modules>
 
-    <scm>
-        <connection>scm:svn:https://svn.apache.org/repos/asf/directmemory/trunk/</connection>
-        <developerConnection>scm:svn:https://svn.apache.org/repos/asf/directmemory/trunk/</developerConnection>
-        <url>https://svn.apache.org/viewvc/directmemory/trunk/</url>
-    </scm>
-    <issueManagement>
-        <system>jira</system>
-        <url>https://issues.apache.org/jira/browse/DIRECTMEMORY</url>
-    </issueManagement>
-    <ciManagement>
-        <system>Jenkins</system>
-        <url>https://builds.apache.org/job/directmemory-trunk/</url>
-    </ciManagement>
-    <distributionManagement>
-        <site>
-            <id>apache.website</id>
-            <url>scm:svn:https://svn.apache.org/repos/asf/directmemory/site-content/</url>
-        </site>
-    </distributionManagement>
-
     <properties>
-
-        <scmSkipDeletedFiles>false</scmSkipDeletedFiles>
-        <directmemory.scmPubCheckoutDirectory>${user.home}/directmemory-site</directmemory.scmPubCheckoutDirectory>
-
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
+        <maven.compile.encoding>UTF-8</maven.compile.encoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <java.version>1.6</java.version>
         <!-- Dependency Versions -->
         <ant.bundle.version>1.7.0_1</ant.bundle.version>
         <aspectj.bundle.version>1.6.8_2</aspectj.bundle.version>
@@ -69,24 +46,10 @@
     <build>
         <pluginManagement>
             <plugins>
-
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-site-plugin</artifactId>
-                    <version>${site-plugin.version}</version>
-                </plugin>
-
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-release-plugin</artifactId>
-                    <configuration>
-                        <mavenExecutorId>forked-path</mavenExecutorId>
-                        <useReleaseProfile>false</useReleaseProfile>
-                        <preparationGoals>clean install</preparationGoals>
-                        <goals>deploy</goals>
-                        <arguments>-Prelease</arguments>
-                        <tagBase>https://svn.apache.org/repos/asf/directmemory/tags</tagBase>
-                    </configuration>
+                    <version>3.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -95,26 +58,22 @@
                         <argLine>-Xmx1024m -Xms512m -XX:MaxDirectMemorySize=512m</argLine>
                     </configuration>
                 </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-scm-publish-plugin</artifactId>
-                    <configuration>
-                        <pubScmUrl>scm:svn:https://svn.apache.org/repos/asf/directmemory/site-content/</pubScmUrl>
-                        <checkoutDirectory>${directmemory.scmPubCheckoutDirectory}</checkoutDirectory>
-                        <skipDeletedFiles>${scmSkipDeletedFiles}</skipDeletedFiles>
-                        <ignorePathsToDelete>
-                            <ignorePathToDelete>lightning**</ignorePathToDelete>
-                        </ignorePathsToDelete>
-                    </configuration>
-                </plugin>
             </plugins>
         </pluginManagement>
 
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>${jar-plugin.version}</version>
                 <configuration>
                     <archive>
                         <manifestEntries>
@@ -125,23 +84,14 @@
                             <Implementation-Version>${project.version}</Implementation-Version>
                             <Implementation-Vendor>${project.organization.name}</Implementation-Vendor>
                             <Implementation-Vendor-Id>org.apache</Implementation-Vendor-Id>
-                            <Implementation-Build>${implementation.build}</Implementation-Build>
-                            <X-Compile-Source-JDK>${maven.compile.source}</X-Compile-Source-JDK>
-                            <X-Compile-Target-JDK>${maven.compile.target}</X-Compile-Target-JDK>
+                            <X-Compile-Source-JDK>${java.version}</X-Compile-Source-JDK>
+                            <X-Compile-Target-JDK>${java.version}</X-Compile-Target-JDK>
                         </manifestEntries>
                     </archive>
                 </configuration>
             </plugin>
         </plugins>
     </build>
-    <dependencies>
-        <dependency>
-            <groupId>geronimo-spec</groupId>
-            <artifactId>geronimo-spec-jta</artifactId>
-            <version>1.0.1B-rc4</version>
-            <scope>provided</scope>
-        </dependency>
-    </dependencies>
     <dependencyManagement>
         <dependencies>
             <!-- Internal Project Artifacts -->
@@ -209,11 +159,6 @@
                 <artifactId>slf4j-simple</artifactId>
                 <version>${slf4j.version}</version>
                 <type>jar</type>
-            </dependency>
-            <dependency>
-                <groupId>com.google.code.findbugs</groupId>
-                <artifactId>jsr305</artifactId>
-                <version>2.0.1</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
