@@ -73,8 +73,7 @@ public class MemoryManagerServiceImpl<V>
     }
 
     @Override
-    public void close()
-            throws IOException {
+    public void close() throws IOException {
         Iterator<Allocator> iterator = allocators.iterator();
         while (iterator.hasNext()) {
             Allocator allocator = iterator.next();

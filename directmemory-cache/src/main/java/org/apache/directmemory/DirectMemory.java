@@ -141,13 +141,14 @@ public final class DirectMemory<K, V> {
         }
 
         logger.info("initializing");
+        logger.info(format("number of buffer(s): \t%1d  with %2s each", numberOfBuffers, Ram.inMb(size)));
+        logger.info(format("initial capacity: \t%1d", initialCapacity));
+        logger.info(format("concurrency level: \t%1d", concurrencyLevel));
 
         memoryManager.init(numberOfBuffers, size);
 
         logger.info("initialized");
-        logger.info(format("number of buffer(s): \t%1d  with %2s each", numberOfBuffers, Ram.inMb(size)));
-        logger.info(format("initial capacity: \t%1d", initialCapacity));
-        logger.info(format("concurrency level: \t%1d", concurrencyLevel));
+
 
         CacheService<K, V> cacheService = new CacheServiceImpl<K, V>(map, memoryManager, serializer);
         cacheService.scheduleDisposalEvery(disposalTime);

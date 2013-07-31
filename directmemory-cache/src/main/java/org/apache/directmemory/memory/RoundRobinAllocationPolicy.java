@@ -31,8 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author bperroud
  */
-public class RoundRobinAllocationPolicy
-        implements AllocationPolicy {
+public class RoundRobinAllocationPolicy implements AllocationPolicy {
 
     // Increment the counter and get the value. Need to start at -1 to have 0'index at first call.
     private static final int BUFFERS_INDEX_INITIAL_VALUE = -1;

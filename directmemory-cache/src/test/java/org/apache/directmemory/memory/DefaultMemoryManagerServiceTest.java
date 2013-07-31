@@ -32,8 +32,7 @@ public class DefaultMemoryManagerServiceTest
 
     @Parameters
     public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][]{{MemoryManagerServiceImpl.class},
-                {UnsafeMemoryManagerServiceImpl.class}});
+        return Arrays.asList(new Object[][]{{MemoryManagerServiceImpl.class}});
     }
 
     private final Class<? extends MemoryManagerService<Object>> memoryManagerServiceClass;

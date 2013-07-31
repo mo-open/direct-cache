@@ -34,7 +34,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     private static Logger logger = LoggerFactory.getLogger(CacheServiceImpl.class);
 
-    public static final int SINGLE_BUFFER_SIZE = Ram.Mb(256);
+    public static final int SINGLE_BUFFER_SIZE = Ram.Mb(512);
 
     private final List<ReentrantLock> bufferLocks;
 
@@ -59,7 +59,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         long offHeapSizeBytes = cache.getCacheConfiguration().getMaxMemoryOffHeapInBytes();
         this.cache = cache;
 
-        int numberOfBuffers = (int) ((offHeapSizeBytes - 1)/ SINGLE_BUFFER_SIZE + 1);
+        int numberOfBuffers = (int) ((offHeapSizeBytes - 1) / SINGLE_BUFFER_SIZE + 1);
 
         this.bufferLocks = new ArrayList<ReentrantLock>(numberOfBuffers);
         for (int i = 0; i < numberOfBuffers; i++) {
