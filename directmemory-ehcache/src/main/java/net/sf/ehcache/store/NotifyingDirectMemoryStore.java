@@ -1,12 +1,11 @@
-package org.apache.directmemory.ehcache;
+package net.sf.ehcache.store;
 
 import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
 import net.sf.ehcache.pool.Pool;
 import net.sf.ehcache.pool.PoolableStore;
 
-public class NotifyingDirectMemoryStore
-        extends DirectMemoryStore {
+public class NotifyingDirectMemoryStore extends DirectMemoryStore {
 
     private final Ehcache cache;
 
@@ -32,6 +31,7 @@ public class NotifyingDirectMemoryStore
         this.cache.getCacheEventNotificationService().notifyElementEvicted(element, false);
     }
 
+    @Override
     public void expireElements() {
         for (Object key : this.getKeys()) {
             //expire element check if it is expired, if it is expired remove from cache and return element

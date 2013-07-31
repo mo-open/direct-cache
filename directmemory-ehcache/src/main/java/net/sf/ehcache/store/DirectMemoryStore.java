@@ -1,16 +1,21 @@
-package org.apache.directmemory.ehcache;
+package net.sf.ehcache.store;
 
 import net.sf.ehcache.*;
+import net.sf.ehcache.concurrent.CacheLockProvider;
+import net.sf.ehcache.concurrent.ReadWriteLockSync;
+import net.sf.ehcache.concurrent.Sync;
 import net.sf.ehcache.pool.Pool;
 import net.sf.ehcache.pool.PoolableStore;
-import net.sf.ehcache.store.AbstractStore;
-import net.sf.ehcache.store.ElementValueComparator;
-import net.sf.ehcache.store.Policy;
-import net.sf.ehcache.store.TierableStore;
 import net.sf.ehcache.store.disk.StoreUpdateException;
+import net.sf.ehcache.util.ratestatistics.AtomicRateStatistic;
+import net.sf.ehcache.util.ratestatistics.RateStatistic;
 import net.sf.ehcache.writer.CacheWriterManager;
+import org.apache.directmemory.DirectMemory;
+import org.apache.directmemory.cache.CacheService;
 import org.apache.directmemory.cache.CacheServiceImpl;
 import org.apache.directmemory.measures.Ram;
+import org.apache.directmemory.memory.MemoryManagerService;
+import org.apache.directmemory.memory.MemoryManagerServiceImpl;
 import org.apache.directmemory.memory.Pointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,106 +25,105 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static java.lang.String.format;
-
-public class DirectMemoryStore
-        extends AbstractStore
-        implements TierableStore, PoolableStore {
+public class DirectMemoryStore extends AbstractStore implements TierableStore, PoolableStore {
 
     private static Logger logger = LoggerFactory.getLogger(CacheServiceImpl.class);
 
-    public static final int DEFAULT_NUMBER_BYTE_BUFFERS = 64;
+    public static final int SINGLE_BUFFER_SIZE = Ram.Mb(256);
 
-    public static final int DEFAULT_BUFFER_SIZE = Ram.Mb(40);
+    private final List<ReentrantLock> bufferLocks;
 
-    private List<ReentrantLock> bufferLocks;
+    private final RateStatistic hitRate = new AtomicRateStatistic(1000, TimeUnit.MILLISECONDS);
+    private final RateStatistic missRate = new AtomicRateStatistic(1000, TimeUnit.MILLISECONDS);
+    private volatile Status status;
 
-    DirectMemoryCache<Object, Element> directMemoryCache;
+    protected CacheService<Object, Element> cacheService;
 
-    public DirectMemoryStore(Ehcache cache, Pool<PoolableStore> offHeapPool) {
-        this(cache, offHeapPool, false);
+    private final Ehcache cache;
+
+    public static DirectMemoryStore create(Ehcache cache, Pool<PoolableStore> offHeapPool) {
+        return new DirectMemoryStore(cache, offHeapPool, false);
     }
 
-    public DirectMemoryStore(Ehcache cache, Pool<PoolableStore> offHeapPool, boolean doNotifications) {
-        long offHeapSizeBytes;
-        if (cache == null || cache.getCacheConfiguration() == null) {
-            offHeapSizeBytes = Ram.Mb(64);
-        } else {
-            offHeapSizeBytes = cache.getCacheConfiguration().getMaxMemoryOffHeapInBytes();
-        }
-        init(offHeapSizeBytes);
-    }
+    protected DirectMemoryStore(Ehcache cache, Pool<PoolableStore> offHeapPool,
+                                boolean doNotifications) {
+        //TODO: implemets and use offHeapPool
+        this.status = Status.STATUS_UNINITIALISED;
+        // we have checked the offHeapBytes setting before creatint DirectMemoryStore.
+        // asume it's all right here.
+        long offHeapSizeBytes = cache.getCacheConfiguration().getMaxMemoryOffHeapInBytes();
+        this.cache = cache;
 
-    public DirectMemoryStore(long offHeapSizeBytes) {
-        init(offHeapSizeBytes);
-    }
-
-    private void init(long offHeapSizeBytes) {
-        logger.info("	  ___   __  __ _   _                 ____  _                 ");
-        logger.info("	 / _ \\ / _|/ _| | | | ___  __ _ _ __/ ___|| |_ ___  _ __ ___ ");
-        logger.info("	| | | | |_| |_| |_| |/ _ \\/ _` | '_ \\___ \\| __/ _ \\| '__/ _ \\");
-        logger.info("	| |_| |  _|  _|  _  |  __/ (_| | |_) |__) | || (_) | | |  __/");
-        logger.info("	 \\___/|_| |_| |_| |_|\\___|\\__,_| .__/____/ \\__\\___/|_|  \\___|");
-        logger.info("	                               |_|                           ");
-
-        logger.info("default buffer size = " + DEFAULT_BUFFER_SIZE);
-        logger.info("off heap size = " + offHeapSizeBytes);
-        int numberOfBuffers = (int) (offHeapSizeBytes / DEFAULT_BUFFER_SIZE);
-//        numberOfBuffers = DEFAULT_NUMBER_BYTE_BUFFERS;
-        logger.info("no of buffers = " + numberOfBuffers);
+        int numberOfBuffers = (int) ((offHeapSizeBytes - 1)/ SINGLE_BUFFER_SIZE + 1);
 
         this.bufferLocks = new ArrayList<ReentrantLock>(numberOfBuffers);
         for (int i = 0; i < numberOfBuffers; i++) {
             this.bufferLocks.add(new ReentrantLock());
         }
 
-        // workaround, when offsetheapsize == 0, make numberOfBuffers=0
-        if (numberOfBuffers <= 0) {
-            directMemoryCache =
-                    new DirectMemoryCache<Object, Element>(1, Ram.Mb(16));
-        } else {
-            directMemoryCache =
-                    new DirectMemoryCache<Object, Element>(numberOfBuffers, (int) (offHeapSizeBytes / numberOfBuffers));
-        }
+        cacheService = createCacheService(numberOfBuffers, (int) (offHeapSizeBytes / numberOfBuffers));
 
+        this.status = Status.STATUS_ALIVE;
+    }
+
+    private CacheService<Object, Element> createCacheService(int numberOfBuffers, int size) {
+        MemoryManagerService<Element> memoryManager = new MemoryManagerServiceImpl<Element>(false);
+        CacheService<Object, Element> cacheService = new DirectMemory<Object, Element>()
+                .setMemoryManager(memoryManager)
+                .setNumberOfBuffers(numberOfBuffers)
+                .setSize(size)
+                .setInitialCapacity(DirectMemory.DEFAULT_INITIAL_CAPACITY)
+                .setConcurrencyLevel(DirectMemory.DEFAULT_CONCURRENCY_LEVEL)
+                .newCacheService();
+        return cacheService;
     }
 
     @Override
     public void unpinAll() {
-        //no operation
-
+        //to be implemeted.
     }
 
     @Override
     public boolean isPinned(Object key) {
+        //to be implemeted.
         return false;
     }
 
     @Override
     public void setPinned(Object key, boolean pinned) {
-        //no operation
-
+        //TODO: pinned to be implemeted.
     }
 
     @Override
-    public boolean put(Element element)
-            throws CacheException {
+    public boolean put(Element element) throws CacheException {
+        if (element == null) {
+            return true;
+        }
+        boolean exists = cacheService.getMap().containsKey(element.getKey());
         Pointer<Element> pointer = null;
         try {
-            pointer = directMemoryCache.put(element.getObjectKey(), element);
-        } catch (BufferOverflowException boe) {
-            dump();
-            throw new CacheException("DirectMemory OffHeap Memory Exceeded", boe);
+            pointer = cacheService.put(element.getObjectKey(), element);
+        } catch (BufferOverflowException e) {
+            logger.info("Not enough ram for put", e);
+            //TODO: LRU
         }
-        return null == pointer ? false : true;
+
+        if (pointer == null) {
+            throw new CacheException("Put element failed.");
+        }
+
+        return !exists;
     }
 
     @Override
     public boolean putWithWriter(Element element, CacheWriterManager writerManager)
             throws CacheException {
+        //need synchronized?
         boolean newPut = put(element);
         if (writerManager != null) {
             try {
@@ -133,30 +137,45 @@ public class DirectMemoryStore
 
     @Override
     public Element get(Object key) {
-        return directMemoryCache.retrieve(key);
+        if (key == null) {
+            return null;
+        }
+
+        final Element e = cacheService.retrieve(key);
+        if (e == null) {
+            missRate.event();
+        } else {
+            hitRate.event();
+        }
+        return e;
     }
 
     @Override
     public Element getQuiet(Object key) {
-        return get(key);
+        return cacheService.retrieve(key);
     }
 
     @Override
     public List<Object> getKeys() {
-        return new ArrayList<Object>(directMemoryCache.getKeys());
+        return new ArrayList<Object>(cacheService.getMap().keySet());
     }
 
     @Override
     public Element remove(Object key) {
-        Element element = get(key);
-        directMemoryCache.free(key);
+        if (key == null) {
+            return null;
+        }
+        Element element = getQuiet(key);
+        cacheService.free(key);
         return element;
-
     }
 
     @Override
-    public Element removeWithWriter(Object key, CacheWriterManager writerManager)
-            throws CacheException {
+    public Element removeWithWriter(Object key, CacheWriterManager writerManager) throws CacheException {
+        //need synchronized?
+        if (key == null) {
+            return null;
+        }
         Element removed = remove(key);
         if (writerManager != null) {
             writerManager.remove(new CacheEntry(key, removed));
@@ -165,18 +184,16 @@ public class DirectMemoryStore
     }
 
     @Override
-    public void removeAll()
-            throws CacheException {
-        directMemoryCache.clear();
+    public void removeAll() throws CacheException {
+        cacheService.clear();
     }
 
     @Override
-    public Element putIfAbsent(Element element)
-            throws NullPointerException {
+    public Element putIfAbsent(Element element) throws NullPointerException {
+        //need synchronized?
         Element returnElement = get(element.getObjectKey());
-        if (null == returnElement) {
+        if (returnElement == null) {
             put(element);
-            returnElement = element;
         }
         return returnElement;
     }
@@ -187,7 +204,7 @@ public class DirectMemoryStore
         if (element == null || element.getObjectKey() == null) {
             return null;
         }
-        Pointer<Element> pointer = directMemoryCache.getPointer(element.getObjectKey());
+        Pointer<Element> pointer = cacheService.getPointer(element.getObjectKey());
         if (pointer == null) {
             return null;
         }
@@ -195,9 +212,9 @@ public class DirectMemoryStore
         Lock lock = bufferLocks.get(pointer.getBufferNumber());
         lock.lock();
         try {
-            Element toRemove = directMemoryCache.retrieve(element.getObjectKey());
+            Element toRemove = cacheService.retrieve(element.getObjectKey());
             if (comparator.equals(element, toRemove)) {
-                directMemoryCache.free(element.getObjectKey());
+                cacheService.free(element.getObjectKey());
                 return toRemove;
             } else {
                 return null;
@@ -213,7 +230,7 @@ public class DirectMemoryStore
         if (element == null || element.getObjectKey() == null) {
             return false;
         }
-        Pointer<Element> pointer = directMemoryCache.getPointer(element.getObjectKey());
+        Pointer<Element> pointer = cacheService.getPointer(element.getObjectKey());
         if (pointer == null) {
             return false;
         }
@@ -221,28 +238,25 @@ public class DirectMemoryStore
         Lock lock = bufferLocks.get(pointer.getBufferNumber());
         lock.lock();
         try {
-            Element toUpdate = directMemoryCache.retrieve(element.getObjectKey());
+            Element toUpdate = cacheService.retrieve(element.getObjectKey());
             if (comparator.equals(old, toUpdate)) {
-                directMemoryCache.put(element.getObjectKey(), element);
+                cacheService.put(element.getObjectKey(), element);
                 return true;
             } else {
                 return false;
             }
-        } catch (BufferOverflowException boe) {
-            dump();
-            throw new CacheException("DirectMemory OffHeap Memory Exceeded", boe);
+        } catch (BufferOverflowException e) {
+            logger.info("Not enough ram for replace", e);
+            //TODO: evict expired entries.
+            return false;
         } finally {
             lock.unlock();
         }
     }
 
     @Override
-    public Element replace(Element element)
-            throws NullPointerException {
-        if (element == null || element.getObjectKey() == null) {
-            return null;
-        }
-        Pointer<Element> pointer = directMemoryCache.getPointer(element.getObjectKey());
+    public Element replace(Element element) throws NullPointerException {
+        Pointer<Element> pointer = cacheService.getPointer(element.getObjectKey());
         if (pointer == null) {
             return null;
         }
@@ -250,16 +264,16 @@ public class DirectMemoryStore
         Lock lock = bufferLocks.get(pointer.getBufferNumber());
         lock.lock();
         try {
-            Element toUpdate = directMemoryCache.retrieve(element.getObjectKey());
-            if (null != toUpdate) {
-                directMemoryCache.put(element.getObjectKey(), element);
+            Element toUpdate = cacheService.retrieve(element.getObjectKey());
+            if (toUpdate != null) {
+                cacheService.put(element.getObjectKey(), element);
                 return toUpdate;
             } else {
                 return null;
             }
-        } catch (BufferOverflowException boe) {
-            dump();
-            throw new CacheException("DirectMemory OffHeap Memory Exceeded", boe);
+        } catch (BufferOverflowException e) {
+            logger.info("Not enough ram for replace", e);
+            return null;
         } finally {
             lock.unlock();
         }
@@ -267,6 +281,10 @@ public class DirectMemoryStore
 
     @Override
     public synchronized void dispose() {
+        if (status.equals(Status.STATUS_SHUTDOWN)) {
+            return;
+        }
+        status = Status.STATUS_SHUTDOWN;
         flush();
     }
 
@@ -275,15 +293,15 @@ public class DirectMemoryStore
         return getOffHeapSize();
     }
 
+    // inMemory means on heap here and below.
     @Override
     public int getInMemorySize() {
-        //no operation
         return 0;
     }
 
     @Override
     public int getOffHeapSize() {
-        long size = directMemoryCache.size();
+        long size = cacheService.entries();
         if (size > Integer.MAX_VALUE) {
             return Integer.MAX_VALUE;
         } else {
@@ -293,37 +311,32 @@ public class DirectMemoryStore
 
     @Override
     public int getOnDiskSize() {
-        //no operation
         return 0;
     }
 
     @Override
     public int getTerracottaClusteredSize() {
-        //no operation
         return 0;
     }
 
     @Override
     public long getInMemorySizeInBytes() {
-        //no operation
         return 0;
     }
 
     @Override
     public long getOffHeapSizeInBytes() {
-        return directMemoryCache.sizeInBytes();
+        return cacheService.getMemoryManager().used();
     }
 
     @Override
     public long getOnDiskSizeInBytes() {
-        //no operation
         return 0;
     }
 
     @Override
     public Status getStatus() {
-        //no operation
-        return null;
+        return status;
     }
 
     @Override
@@ -333,30 +346,27 @@ public class DirectMemoryStore
 
     @Override
     public boolean containsKeyOnDisk(Object key) {
-        //no operation
         return false;
     }
 
     @Override
     public boolean containsKeyOffHeap(Object key) {
-        return directMemoryCache.containsKey(key);
+        return cacheService.getMap().containsKey(key);
     }
 
     @Override
     public boolean containsKeyInMemory(Object key) {
-        //no operation
         return false;
     }
 
     @Override
     public void expireElements() {
-        //no operation
-
+        //to be implemented.
     }
 
     @Override
     public void flush() {
-        directMemoryCache.clear();
+        cacheService.clear();
     }
 
     @Override
@@ -367,96 +377,96 @@ public class DirectMemoryStore
 
     @Override
     public Policy getInMemoryEvictionPolicy() {
-        //no operation
         return null;
     }
 
     @Override
     public void setInMemoryEvictionPolicy(Policy policy) {
-        //no operation
-
+        //
     }
 
     @Override
     public Object getInternalContext() {
-        //no operation
+        // This should not be used, and will generally return null
         return null;
     }
 
     @Override
     public Object getMBean() {
-        //no operation
         return null;
     }
 
+// -------------------------- implements  PoolableStore ---------------------------------------
+// seems that  PoolableStore not suitable for offheap.
+
     @Override
     public boolean evictFromOnHeap(int count, long size) {
-        //no operation
         return false;
     }
 
     @Override
     public boolean evictFromOnDisk(int count, long size) {
-        //no operation
         return false;
     }
 
     @Override
     public float getApproximateDiskHitRate() {
-        //no operation
         return 0;
     }
 
     @Override
     public float getApproximateDiskMissRate() {
-        //no operation
         return 0;
     }
 
     @Override
     public long getApproximateDiskCountSize() {
-        //no operation
         return 0;
     }
 
     @Override
     public long getApproximateDiskByteSize() {
-        //no operation
         return 0;
     }
 
     @Override
     public float getApproximateHeapHitRate() {
-        //no operation
         return 0;
     }
 
     @Override
     public float getApproximateHeapMissRate() {
-        //no operation
         return 0;
     }
 
     @Override
     public long getApproximateHeapCountSize() {
-        //no operation
         return 0;
     }
 
     @Override
     public long getApproximateHeapByteSize() {
-        //no operation
         return 0;
     }
 
+// -------------------------- implements TierableStore ---------------------------------------
+
     @Override
-    public void fill(Element e) {
-        put(e);
+    public void fill(Element element) {
+        if (element == null) {
+            return;
+        }
+        Pointer<Element> pointer = null;
+        try {
+            pointer = cacheService.put(element.getObjectKey(), element);
+        } catch (BufferOverflowException ignored) {
+        }
     }
 
     @Override
     public boolean removeIfNotPinned(Object key) {
-        return false;
+        remove(key);
+        return true;
     }
 
     @Override
@@ -476,24 +486,19 @@ public class DirectMemoryStore
 
     @Override
     public void removeNoReturn(Object key) {
-        //no operation
-
+        remove(key);
     }
 
-    public void dump() {
-        directMemoryCache.dump();
+    /**
+     * LockProvider implementation that uses the segment locks.
+     */
+    private class LockProvider implements CacheLockProvider {
+
+        @Override
+        public Sync getSyncForKey(Object key) {
+            Pointer<Element> pointer = cacheService.getPointer(key);
+            return new ReadWriteLockSync(new ReentrantReadWriteLock());
+        }
     }
 
-    public void dumpTotal() {
-        long capacity = directMemoryCache.getMemoryManager().capacity();
-        long used = directMemoryCache.getMemoryManager().used();
-
-        logger.info("***Totals***************************************");
-        logger.info(format("off-heap - allocated: \t%1s", Ram.inMb(capacity)));
-        logger.info(format("off-heap - used:      \t%1s", Ram.inMb(used)));
-        logger.info(format("heap     - max: \t%1s", Ram.inMb(Runtime.getRuntime().maxMemory())));
-        logger.info(format("heap     - allocated: \t%1s", Ram.inMb(Runtime.getRuntime().totalMemory())));
-        logger.info(format("heap     - free : \t%1s", Ram.inMb(Runtime.getRuntime().freeMemory())));
-        logger.info("************************************************");
-    }
 }

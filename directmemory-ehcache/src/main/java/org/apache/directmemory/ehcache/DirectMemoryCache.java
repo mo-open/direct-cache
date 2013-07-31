@@ -16,6 +16,7 @@ import static org.apache.directmemory.DirectMemory.DEFAULT_INITIAL_CAPACITY;
  * @param <V>
  * @author michaelandrepearce
  */
+@Deprecated
 public class DirectMemoryCache<K, V> {
 
     private final CacheService<K, V> cacheService;

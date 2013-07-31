@@ -29,8 +29,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-public interface CacheService<K, V>
-        extends Closeable {
+public interface CacheService<K, V> extends Closeable {
 
     /**
      * Schedules the disposal event with the given period in milliseconds.

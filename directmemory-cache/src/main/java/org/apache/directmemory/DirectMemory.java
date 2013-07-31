@@ -140,14 +140,7 @@ public final class DirectMemory<K, V> {
             serializer = createNewSerializer();
         }
 
-        logger.info("******************************** initializing *******************************");
-        logger.info("         ____  _                 __  __  ___");
-        logger.info("        / __ \\(_)________  _____/ /_/  |/  /___  ____ ___  ____  _______  __");
-        logger.info("       / / / / // ___/ _ \\/ ___/ __/ /|_/ // _ \\/ __ `__ \\/ __ \\/ ___/ / / /");
-        logger.info("      / /_/ / // /  /  __/ /__/ /_/ /  / //  __/ / / / / / /_/ / /  / /_/ / ");
-        logger.info("     /_____/_//_/   \\___/\\___/\\__/_/  /_/ \\___/_/ /_/ /_/\\____/_/   \\__, /");
-        logger.info("                                                                   /____/   ");
-        logger.info("********************************************************************************");
+        logger.info("initializing");
 
         memoryManager.init(numberOfBuffers, size);
 
