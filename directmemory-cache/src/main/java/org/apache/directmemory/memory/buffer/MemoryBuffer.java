@@ -21,8 +21,7 @@ package org.apache.directmemory.memory.buffer;
 
 import java.nio.ByteOrder;
 
-public interface MemoryBuffer
-        extends ReadableMemoryBuffer, WritableMemoryBuffer {
+public interface MemoryBuffer extends ReadableMemoryBuffer, WritableMemoryBuffer {
 
     long capacity();
 

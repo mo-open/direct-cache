@@ -13,7 +13,7 @@
     </parent>
 
     <artifactId>directmemory-cache</artifactId>
-    <name>Apache DirectMemory :: DirectMemory Cache</name>
+    <name>DirectMemory :: DirectMemory Cache</name>
     <packaging>jar</packaging>
 
     <build>

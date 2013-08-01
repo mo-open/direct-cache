@@ -14,8 +14,8 @@ import org.apache.directmemory.DirectMemory;
 import org.apache.directmemory.cache.CacheService;
 import org.apache.directmemory.cache.CacheServiceImpl;
 import org.apache.directmemory.measures.Ram;
-import org.apache.directmemory.memory.MemoryManagerService;
-import org.apache.directmemory.memory.MemoryManagerServiceImpl;
+import org.apache.directmemory.memory.MemoryManager;
+import org.apache.directmemory.memory.MemoryManagerImpl;
 import org.apache.directmemory.memory.Pointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +72,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
     }
 
     private CacheService<Object, Element> createCacheService(int numberOfBuffers, int size) {
-        MemoryManagerService<Element> memoryManager = new MemoryManagerServiceImpl<Element>(false);
+        MemoryManager<Element> memoryManager = new MemoryManagerImpl<Element>(false);
         CacheService<Object, Element> cacheService = new DirectMemory<Object, Element>()
                 .setMemoryManager(memoryManager)
                 .setNumberOfBuffers(numberOfBuffers)

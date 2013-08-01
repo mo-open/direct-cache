@@ -19,7 +19,7 @@ package org.apache.directmemory.memory.allocator;
  * under the License.
  */
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.apache.directmemory.memory.buffer.MemoryBuffer;
 import org.junit.Test;
 
@@ -27,8 +27,7 @@ import java.io.IOException;
 
 public class FixedSizeByteBufferAllocatorImplTest {
     @Test
-    public void allocationTest()
-            throws IOException {
+    public void allocationTest() throws IOException {
 
         Allocator allocator = new FixedSizeByteBufferAllocatorImpl(0, 5000, 256, 1);
 
@@ -58,8 +57,7 @@ public class FixedSizeByteBufferAllocatorImplTest {
     }
 
     @Test
-    public void releaseTest()
-            throws IOException {
+    public void releaseTest() throws IOException {
 
         Allocator allocator = new FixedSizeByteBufferAllocatorImpl(0, 1000, 256, 1);
 
@@ -96,8 +94,7 @@ public class FixedSizeByteBufferAllocatorImplTest {
     }
 
     @Test
-    public void allocateAndFreeTest()
-            throws IOException {
+    public void allocateAndFreeTest() throws IOException {
 
         Allocator allocator = new FixedSizeByteBufferAllocatorImpl(0, 1000, 256, 1);
 

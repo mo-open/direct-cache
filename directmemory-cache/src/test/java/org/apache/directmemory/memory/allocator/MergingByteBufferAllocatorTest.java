@@ -21,7 +21,7 @@ package org.apache.directmemory.memory.allocator;
 
 import org.apache.directmemory.DirectMemory;
 import org.apache.directmemory.cache.CacheService;
-import org.apache.directmemory.memory.MemoryManagerServiceImpl;
+import org.apache.directmemory.memory.MemoryManagerImpl;
 import org.apache.directmemory.memory.buffer.MemoryBuffer;
 import org.junit.Test;
 
@@ -197,7 +197,7 @@ public class MergingByteBufferAllocatorTest {
         CacheService<String, Object> cacheService = new DirectMemory<String, Object>()
                 .setNumberOfBuffers(1)
                 .setInitialCapacity(1)
-                .setMemoryManager(new MemoryManagerServiceImpl<Object>(true))
+                .setMemoryManager(new MemoryManagerImpl<Object>(true))
                 .setSize(350 * (1024 * 1024))
                 .setConcurrencyLevel(1)
                 .newCacheService();

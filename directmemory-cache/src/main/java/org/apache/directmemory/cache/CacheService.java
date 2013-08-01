@@ -1,25 +1,6 @@
 package org.apache.directmemory.cache;
 
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
-import org.apache.directmemory.memory.MemoryManagerService;
+import org.apache.directmemory.memory.MemoryManager;
 import org.apache.directmemory.memory.Pointer;
 import org.apache.directmemory.serialization.Serializer;
 import org.slf4j.Logger;
@@ -27,8 +8,14 @@ import org.slf4j.Logger;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Provide all cache functions.
+ * @param <K>
+ * @param <V>
+ */
 public interface CacheService<K, V> extends Closeable {
 
     /**
@@ -149,7 +136,7 @@ public interface CacheService<K, V> extends Closeable {
     void collectAll();
 
     /**
-     * Clears the whole cache by removing all stored keys. It is up to the underlying {@link MemoryManagerService}
+     * Clears the whole cache by removing all stored keys. It is up to the underlying {@link org.apache.directmemory.memory.MemoryManager}
      * implementation to free allocated memory or not.
      */
     void clear();
@@ -162,7 +149,7 @@ public interface CacheService<K, V> extends Closeable {
     long entries();
 
     /**
-     * Dumps information about the actual internal {@link MemoryManagerService} to the configured {@link Logger} with
+     * Dumps information about the actual internal {@link org.apache.directmemory.memory.MemoryManager} to the configured {@link Logger} with
      * info loglevel.
      */
     void dump();
@@ -184,11 +171,11 @@ public interface CacheService<K, V> extends Closeable {
     Serializer getSerializer();
 
     /**
-     * Retrieves the internally used {@link MemoryManagerService} implementation.
+     * Retrieves the internally used {@link org.apache.directmemory.memory.MemoryManager} implementation.
      *
      * @return The used memory manager
      */
-    MemoryManagerService<V> getMemoryManager();
+    MemoryManager<V> getMemoryManager();
 
     /**
      * Explicitly allocated a bunch of bytes in the cache using a given key and type and returns the created
@@ -201,4 +188,9 @@ public interface CacheService<K, V> extends Closeable {
      */
     <T extends V> Pointer<V> allocate(K key, Class<T> type, int size);
 
+    void setMemoryManager(MemoryManager<V> memoryManager);
+
+    void setSerializer(Serializer serializer);
+
+    void setMap(ConcurrentMap<K, Pointer<V>> map);
 }

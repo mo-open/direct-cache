@@ -31,8 +31,8 @@ public class SlabMemoryManagerServiceTest
         extends AbstractMemoryManagerServiceTest {
 
     @Override
-    protected MemoryManagerService<Object> instanciateMemoryManagerService(int bufferSize) {
-        final MemoryManagerService<Object> mms = new MemoryManagerServiceImpl<Object>() {
+    protected MemoryManager<Object> instanciateMemoryManagerService(int bufferSize) {
+        final MemoryManager<Object> mms = new MemoryManagerImpl<Object>() {
 
             @Override
             protected Allocator instanciateByteBufferAllocator(int allocatorNumber, int size) {

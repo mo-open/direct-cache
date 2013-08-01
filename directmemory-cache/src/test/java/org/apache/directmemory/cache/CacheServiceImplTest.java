@@ -35,7 +35,7 @@ public class CacheServiceImplTest {
     public void testOffHeapExceedMemoryReturnNullWhenTrue()
             throws IOException {
         AllocationPolicy allocationPolicy = new RoundRobinAllocationPolicy();
-        MemoryManagerService<byte[]> memoryManager = new MemoryManagerServiceImpl<byte[]>(allocationPolicy, true);
+        MemoryManager<byte[]> memoryManager = new MemoryManagerImpl<byte[]>(allocationPolicy, true);
         CacheService<Integer, byte[]> cache =
                 new DirectMemory<Integer, byte[]>().setMemoryManager(memoryManager).setNumberOfBuffers(1).setSize(Ram.Mb(1)).newCacheService();
 
@@ -76,7 +76,7 @@ public class CacheServiceImplTest {
     public void testEntryIsNoMoreAvailableAfterExpiry()
             throws InterruptedException, IOException {
         AllocationPolicy allocationPolicy = new RoundRobinAllocationPolicy();
-        MemoryManagerService<MyBean> memoryManager = new MemoryManagerServiceImpl<MyBean>(allocationPolicy, true);
+        MemoryManager<MyBean> memoryManager = new MemoryManagerImpl<MyBean>(allocationPolicy, true);
         CacheService<Integer, MyBean> cache =
                 new DirectMemory<Integer, MyBean>().setMemoryManager(memoryManager).setNumberOfBuffers(1).setSize(Ram.Mb(1)).newCacheService();
         /*

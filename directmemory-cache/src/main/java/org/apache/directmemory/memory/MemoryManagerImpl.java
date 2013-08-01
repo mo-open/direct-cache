@@ -1,24 +1,5 @@
 package org.apache.directmemory.memory;
 
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 import org.apache.directmemory.measures.Ram;
 import org.apache.directmemory.memory.allocator.Allocator;
 import org.apache.directmemory.memory.allocator.MergingByteBufferAllocator;
@@ -34,23 +15,28 @@ import java.util.List;
 
 import static java.lang.String.format;
 
-public class MemoryManagerServiceImpl<V> extends AbstractMemoryManager<V> implements MemoryManagerService<V> {
+/**
+ * Default implement of MemoryManager.
+ * Store, retrive, update and remove object with a memory buffer.
+ * @param <V>
+ */
+public class MemoryManagerImpl<V> extends AbstractMemoryManager<V> implements MemoryManager<V> {
 
-    protected static final Logger logger = LoggerFactory.getLogger(MemoryManager.class);
+    protected static final Logger logger = LoggerFactory.getLogger(MemoryManagerImpl.class);
 
     List<Allocator> allocators;
 
     protected final AllocationPolicy allocationPolicy;
 
-    public MemoryManagerServiceImpl() {
+    public MemoryManagerImpl() {
         this(true);
     }
 
-    public MemoryManagerServiceImpl(final boolean returnNullWhenFull) {
+    public MemoryManagerImpl(final boolean returnNullWhenFull) {
         this(new RoundRobinAllocationPolicy(), returnNullWhenFull);
     }
 
-    public MemoryManagerServiceImpl(final AllocationPolicy allocationPolicy, final boolean returnNullWhenFull) {
+    public MemoryManagerImpl(final AllocationPolicy allocationPolicy, final boolean returnNullWhenFull) {
         this.allocationPolicy = allocationPolicy;
         this.returnNullWhenFull = returnNullWhenFull;
     }

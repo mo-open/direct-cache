@@ -19,7 +19,7 @@ package org.apache.directmemory.memory.allocator;
  * under the License.
  */
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.apache.directmemory.memory.buffer.MemoryBuffer;
 import org.junit.Test;
 

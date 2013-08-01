@@ -56,7 +56,7 @@ public class Starter {
     }
 
 
-    private static void dump(MemoryManagerService<Object> mms) {
+    private static void dump(MemoryManager<Object> mms) {
         logger.info("off-heap - allocated: " + Ram.inMb(mms.capacity()));
         logger.info("off-heap - used:      " + Ram.inMb(mms.used()));
         logger.info("heap    - max: " + Ram.inMb(Runtime.getRuntime().maxMemory()));
@@ -97,8 +97,9 @@ public class Starter {
 
 
     public void rawInsertMultipleBuffers(int buffers, int megabytes, int howMany) {
-        MemoryManager.init(buffers, Ram.Mb(megabytes));
-        int size = (int) (MemoryManager.capacity() / (howMany));
+        MemoryManager<Object> memoryManager = new MemoryManagerImpl<Object>();
+        memoryManager.init(buffers, Ram.Mb(megabytes));
+        int size = (int) (memoryManager.capacity() / (howMany));
         size -= size / 100 * 1;
         logger.info("payload size=" + size);
         logger.info("entries=" + howMany);
@@ -109,13 +110,13 @@ public class Starter {
 
         byte[] payload = new byte[size];
         for (int i = 0; i < howMany; i++) {
-            MemoryManager.store(payload);
+            memoryManager.store(payload);
         }
 
         logger.info("...done in " + (System.currentTimeMillis() - start) + " msecs.");
         logger.info("---------------------------------");
 
-        dump(MemoryManager.getMemoryManager());
+        dump(memoryManager);
     }
 
 

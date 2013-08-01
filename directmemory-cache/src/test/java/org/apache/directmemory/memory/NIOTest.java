@@ -21,10 +21,7 @@ package org.apache.directmemory.memory;
 
 import org.apache.directmemory.measures.Ram;
 import org.apache.directmemory.memory.buffer.MemoryBuffer;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,38 +35,34 @@ import static org.junit.Assert.assertNotNull;
 public class NIOTest {
 
     private static Logger logger = LoggerFactory.getLogger(NIOTest.class);
+    private MemoryManager<Object> memoryManager;
 
-    @BeforeClass
+    @Before
     public static void init() {
         byte[] payload = "012345678901234567890123456789012345678901234567890123456789".getBytes();
 
         logger.info("init");
-        MemoryManager.init(1, Ram.Mb(100));
+        MemoryManager<Object> memoryManager = new MemoryManagerImpl<Object>();
+        memoryManager.init(1, Ram.Mb(100));
 
         logger.info("payload size=" + Ram.inKb(payload.length));
-        long howMany = (MemoryManager.capacity() / payload.length);
+        long howMany = (memoryManager.capacity() / payload.length);
         howMany = (howMany * 50) / 100;
 
         for (int i = 0; i < howMany; i++) {
-            Pointer<Object> p = MemoryManager.store(payload);
+            Pointer<Object> p = memoryManager.store(payload);
             assertNotNull(p);
         }
 
         logger.info("" + howMany + " items stored");
     }
 
-    @AfterClass
-    public static void cleanup()
-            throws IOException {
-        MemoryManager.close();
-    }
-
     @Test
     public void nioTest() {
         Random rnd = new Random();
-        int size = rnd.nextInt(10) * (int) MemoryManager.capacity() / 100;
+        int size = rnd.nextInt(10) * (int) memoryManager.capacity() / 100;
         logger.info("payload size=" + Ram.inKb(size));
-        Pointer<Object> p = MemoryManager.allocate(size);
+        Pointer<Object> p = memoryManager.allocate(Object.class,size);
         MemoryBuffer b = p.getMemoryBuffer();
         logger.info("allocated");
         assertNotNull(p);
@@ -79,7 +72,7 @@ public class NIOTest {
         assertEquals(0, b.readerIndex());
         assertEquals(size, b.capacity());
 
-        byte[] check = MemoryManager.retrieve(p);
+        byte[] check = memoryManager.retrieve(p);
 
         assertNotNull(check);
 
@@ -87,4 +80,8 @@ public class NIOTest {
         logger.info("end");
     }
 
+    @After
+    public void cleanup() throws IOException {
+        memoryManager.close();
+    }
 }

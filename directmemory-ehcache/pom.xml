@@ -13,7 +13,7 @@
 
     <artifactId>directmemory-ehcache</artifactId>
     <packaging>jar</packaging>
-    <name>Apache DirectMemory :: Integrations Ehcache</name>
+    <name>DirectMemory :: Ehcache Integration</name>
     <description>EHCache CacheStore Implementation to integrate DirectMemory Cache as OffHeapStore.</description>
 
     <dependencyManagement>

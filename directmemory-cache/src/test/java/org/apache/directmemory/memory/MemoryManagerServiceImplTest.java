@@ -40,16 +40,16 @@ public class MemoryManagerServiceImplTest {
 
     @Parameters
     public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][]{{MemoryManagerServiceImpl.class}});
+        return Arrays.asList(new Object[][]{{MemoryManagerImpl.class}});
     }
 
-    private final Class<? extends MemoryManagerService<Object>> memoryManagerServiceClass;
+    private final Class<? extends MemoryManager<Object>> memoryManagerServiceClass;
 
-    public MemoryManagerServiceImplTest(Class<? extends MemoryManagerService<Object>> memoryManagerServiceClass) {
+    public MemoryManagerServiceImplTest(Class<? extends MemoryManager<Object>> memoryManagerServiceClass) {
         this.memoryManagerServiceClass = memoryManagerServiceClass;
     }
 
-    protected MemoryManagerService<Object> getMemoryManagerService() {
+    protected MemoryManager<Object> getMemoryManagerService() {
         try {
             return memoryManagerServiceClass.newInstance();
         } catch (Exception e) {
@@ -67,41 +67,41 @@ public class MemoryManagerServiceImplTest {
 
         final int BUFFER_SIZE = 5;
 
-        final MemoryManagerService<Object> memoryManagerService = getMemoryManagerService();
+        final MemoryManager<Object> memoryManager = getMemoryManagerService();
 
-        memoryManagerService.init(1, BUFFER_SIZE);
+        memoryManager.init(1, BUFFER_SIZE);
 
-        Pointer<Object> pointer1 = memoryManagerService.store(SMALL_PAYLOAD);
+        Pointer<Object> pointer1 = memoryManager.store(SMALL_PAYLOAD);
         assertNotNull(pointer1);
 
-        Pointer<Object> pointer2 = memoryManagerService.store(SMALL_PAYLOAD);
+        Pointer<Object> pointer2 = memoryManager.store(SMALL_PAYLOAD);
         assertNull(pointer2);
 
-        memoryManagerService.close();
+        memoryManager.close();
     }
 
     @Test
     public void testAllocateMultipleBuffers()
             throws IOException {
 
-        // Initializing 4 buffers of 4 bytes, MemoryManagerService should search
+        // Initializing 4 buffers of 4 bytes, MemoryManager should search
         // for available space in another buffer.
 
         final int NUMBER_OF_OBJECTS = 4;
 
-        final MemoryManagerService<Object> memoryManagerService = getMemoryManagerService();
+        final MemoryManager<Object> memoryManager = getMemoryManagerService();
 
-        memoryManagerService.init(NUMBER_OF_OBJECTS, SMALL_PAYLOAD.length);
+        memoryManager.init(NUMBER_OF_OBJECTS, SMALL_PAYLOAD.length);
 
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
-            Pointer<Object> pointer = memoryManagerService.store(SMALL_PAYLOAD);
+            Pointer<Object> pointer = memoryManager.store(SMALL_PAYLOAD);
             assertNotNull(pointer);
         }
 
-        Pointer<Object> pointerNull = memoryManagerService.store(SMALL_PAYLOAD);
+        Pointer<Object> pointerNull = memoryManager.store(SMALL_PAYLOAD);
         assertNull(pointerNull);
 
-        memoryManagerService.close();
+        memoryManager.close();
     }
 
     @Test
@@ -113,18 +113,18 @@ public class MemoryManagerServiceImplTest {
 
         final int NUMBER_OF_OBJECTS = 10;
 
-        final MemoryManagerService<Object> memoryManagerService = getMemoryManagerService();
-        memoryManagerService.init(1, NUMBER_OF_OBJECTS * SMALL_PAYLOAD.length);
+        final MemoryManager<Object> memoryManager = getMemoryManagerService();
+        memoryManager.init(1, NUMBER_OF_OBJECTS * SMALL_PAYLOAD.length);
 
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
-            Pointer<Object> pointer = memoryManagerService.store(SMALL_PAYLOAD);
+            Pointer<Object> pointer = memoryManager.store(SMALL_PAYLOAD);
             assertNotNull(pointer);
         }
 
-        Pointer<Object> pointerNull = memoryManagerService.store(SMALL_PAYLOAD);
+        Pointer<Object> pointerNull = memoryManager.store(SMALL_PAYLOAD);
         assertNull(pointerNull);
 
-        memoryManagerService.close();
+        memoryManager.close();
     }
 
     @Test
@@ -137,30 +137,30 @@ public class MemoryManagerServiceImplTest {
         final int NUMBER_OF_OBJECTS = 4;
         final int BUFFER_SIZE = NUMBER_OF_OBJECTS * SMALL_PAYLOAD.length;
 
-        final MemoryManagerService<Object> memoryManagerService = getMemoryManagerService();
+        final MemoryManager<Object> memoryManager = getMemoryManagerService();
 
-        memoryManagerService.init(1, BUFFER_SIZE);
+        memoryManager.init(1, BUFFER_SIZE);
 
         Pointer<Object> lastPointer = null;
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
-            Pointer<Object> pointer = memoryManagerService.store(SMALL_PAYLOAD);
+            Pointer<Object> pointer = memoryManager.store(SMALL_PAYLOAD);
             assertNotNull(pointer);
             lastPointer = pointer;
         }
 
         // Buffer is fully used.
-        assertEquals(BUFFER_SIZE, memoryManagerService.used());
+        assertEquals(BUFFER_SIZE, memoryManager.used());
 
         assertNotNull(lastPointer);
-        memoryManagerService.free(lastPointer);
+        memoryManager.free(lastPointer);
 
-        Pointer<Object> pointerNotNull = memoryManagerService.store(SMALL_PAYLOAD);
+        Pointer<Object> pointerNotNull = memoryManager.store(SMALL_PAYLOAD);
         assertNotNull(pointerNotNull);
 
         // Buffer again fully used.
-        assertEquals(BUFFER_SIZE, memoryManagerService.used());
+        assertEquals(BUFFER_SIZE, memoryManager.used());
 
-        memoryManagerService.close();
+        memoryManager.close();
     }
 
     @Test
@@ -170,48 +170,48 @@ public class MemoryManagerServiceImplTest {
         final int NUMBER_OF_OBJECTS = 10;
         final int BUFFER_SIZE = NUMBER_OF_OBJECTS * SMALL_PAYLOAD.length;
 
-        final MemoryManagerService<Object> memoryManagerService = getMemoryManagerService();
+        final MemoryManager<Object> memoryManager = getMemoryManagerService();
 
-        memoryManagerService.init(1, BUFFER_SIZE);
+        memoryManager.init(1, BUFFER_SIZE);
 
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
             byte[] payload = MemoryTestUtils.generateRandomPayload(SMALL_PAYLOAD.length);
-            Pointer<Object> pointer = memoryManagerService.store(payload);
+            Pointer<Object> pointer = memoryManager.store(payload);
             assertNotNull(pointer);
-            byte[] fetchedPayload = memoryManagerService.retrieve(pointer);
+            byte[] fetchedPayload = memoryManager.retrieve(pointer);
             assertEquals(new String(payload), new String(fetchedPayload));
             if (R.nextBoolean()) {
-                memoryManagerService.free(pointer);
+                memoryManager.free(pointer);
             }
         }
 
-        memoryManagerService.clear();
+        memoryManager.clear();
 
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
             byte[] payload = MemoryTestUtils.generateRandomPayload(SMALL_PAYLOAD.length);
-            Pointer<Object> pointer = memoryManagerService.store(payload);
+            Pointer<Object> pointer = memoryManager.store(payload);
             assertNotNull(pointer);
-            byte[] fetchedPayload = memoryManagerService.retrieve(pointer);
+            byte[] fetchedPayload = memoryManager.retrieve(pointer);
             assertEquals(new String(payload), new String(fetchedPayload));
             if (R.nextBoolean()) {
-                memoryManagerService.free(pointer);
+                memoryManager.free(pointer);
                 i--;
             }
         }
 
-        memoryManagerService.clear();
+        memoryManager.clear();
 
         Pointer<Object> pointer = null;
         do {
             byte[] payload = MemoryTestUtils.generateRandomPayload(R.nextInt(BUFFER_SIZE / 4 + 1));
-            pointer = memoryManagerService.store(payload);
+            pointer = memoryManager.store(payload);
             if (pointer != null && R.nextBoolean()) {
-                memoryManagerService.free(pointer);
+                memoryManager.free(pointer);
             }
         }
         while (pointer != null);
 
-        memoryManagerService.close();
+        memoryManager.close();
     }
 
 }

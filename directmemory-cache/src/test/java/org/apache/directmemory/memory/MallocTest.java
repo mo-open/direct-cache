@@ -68,11 +68,11 @@ public class MallocTest
         }
     }
 
-    MemoryManagerService<Object> mem;
+    MemoryManager<Object> mem;
 
     @Before
     public void initMMS() {
-        mem = new MemoryManagerServiceImpl<Object>();
+        mem = new MemoryManagerImpl<Object>();
         mem.init(1, 512 * 1024 * 1024);
     }
 

@@ -32,19 +32,19 @@ public class DefaultMemoryManagerServiceTest
 
     @Parameters
     public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][]{{MemoryManagerServiceImpl.class}});
+        return Arrays.asList(new Object[][]{{MemoryManagerImpl.class}});
     }
 
-    private final Class<? extends MemoryManagerService<Object>> memoryManagerServiceClass;
+    private final Class<? extends MemoryManager<Object>> memoryManagerServiceClass;
 
-    public DefaultMemoryManagerServiceTest(Class<? extends MemoryManagerService<Object>> memoryManagerServiceClass) {
+    public DefaultMemoryManagerServiceTest(Class<? extends MemoryManager<Object>> memoryManagerServiceClass) {
         this.memoryManagerServiceClass = memoryManagerServiceClass;
     }
 
     @Override
-    protected MemoryManagerService<Object> instanciateMemoryManagerService(int bufferSize) {
+    protected MemoryManager<Object> instanciateMemoryManagerService(int bufferSize) {
         try {
-            final MemoryManagerService<Object> mms = memoryManagerServiceClass.newInstance();
+            final MemoryManager<Object> mms = memoryManagerServiceClass.newInstance();
             mms.init(1, bufferSize);
             return mms;
         } catch (Exception e) {
