@@ -1,5 +1,6 @@
 package net.sf.ehcache.store;
 
+import net.dongliu.directmemory.serialization.SerializerFactory;
 import net.sf.ehcache.*;
 import net.sf.ehcache.concurrent.CacheLockProvider;
 import net.sf.ehcache.concurrent.ReadWriteLockSync;
@@ -10,41 +11,40 @@ import net.sf.ehcache.store.disk.StoreUpdateException;
 import net.sf.ehcache.util.ratestatistics.AtomicRateStatistic;
 import net.sf.ehcache.util.ratestatistics.RateStatistic;
 import net.sf.ehcache.writer.CacheWriterManager;
-import org.apache.directmemory.DirectMemory;
-import org.apache.directmemory.cache.CacheService;
-import org.apache.directmemory.cache.CacheServiceImpl;
-import org.apache.directmemory.measures.Ram;
-import org.apache.directmemory.memory.MemoryManager;
-import org.apache.directmemory.memory.MemoryManagerImpl;
-import org.apache.directmemory.memory.Pointer;
+import net.dongliu.directmemory.cache.BytesCache;
+import net.dongliu.directmemory.cache.BytesCacheBuilder;
+import net.dongliu.directmemory.measures.Ram;
+import net.dongliu.directmemory.memory.MemoryManager;
+import net.dongliu.directmemory.memory.MemoryManagerImpl;
+import net.dongliu.directmemory.memory.Pointer;
+import net.dongliu.directmemory.serialization.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class DirectMemoryStore extends AbstractStore implements TierableStore, PoolableStore {
 
-    private static Logger logger = LoggerFactory.getLogger(CacheServiceImpl.class);
+    private static Logger logger = LoggerFactory.getLogger(BytesCache.class);
 
     public static final int SINGLE_BUFFER_SIZE = Ram.Mb(512);
-
-    private final List<ReentrantLock> bufferLocks;
 
     private final RateStatistic hitRate = new AtomicRateStatistic(1000, TimeUnit.MILLISECONDS);
     private final RateStatistic missRate = new AtomicRateStatistic(1000, TimeUnit.MILLISECONDS);
     private volatile Status status;
 
-    protected CacheService<Object, Element> cacheService;
+    protected BytesCache bytesCache;
 
     private final Ehcache cache;
+
+    private Serializer serializer;
 
     public static DirectMemoryStore create(Ehcache cache, Pool<PoolableStore> offHeapPool) {
         return new DirectMemoryStore(cache, offHeapPool, false);
@@ -61,26 +61,22 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
         int numberOfBuffers = (int) ((offHeapSizeBytes - 1) / SINGLE_BUFFER_SIZE + 1);
 
-        this.bufferLocks = new ArrayList<ReentrantLock>(numberOfBuffers);
-        for (int i = 0; i < numberOfBuffers; i++) {
-            this.bufferLocks.add(new ReentrantLock());
-        }
+        bytesCache = createCacheService(numberOfBuffers, (int) (offHeapSizeBytes / numberOfBuffers));
 
-        cacheService = createCacheService(numberOfBuffers, (int) (offHeapSizeBytes / numberOfBuffers));
-
+        serializer = SerializerFactory.createNewSerializer();
         this.status = Status.STATUS_ALIVE;
     }
 
-    private CacheService<Object, Element> createCacheService(int numberOfBuffers, int size) {
-        MemoryManager<Element> memoryManager = new MemoryManagerImpl<Element>(false);
-        CacheService<Object, Element> cacheService = new DirectMemory<Object, Element>()
+    private BytesCache createCacheService(int numberOfBuffers, int size) {
+        MemoryManager memoryManager = new MemoryManagerImpl();
+        BytesCache bytesCache = new BytesCacheBuilder()
                 .setMemoryManager(memoryManager)
                 .setNumberOfBuffers(numberOfBuffers)
                 .setSize(size)
-                .setInitialCapacity(DirectMemory.DEFAULT_INITIAL_CAPACITY)
-                .setConcurrencyLevel(DirectMemory.DEFAULT_CONCURRENCY_LEVEL)
+                .setInitialCapacity(BytesCacheBuilder.DEFAULT_INITIAL_CAPACITY)
+                .setConcurrencyLevel(BytesCacheBuilder.DEFAULT_CONCURRENCY_LEVEL)
                 .newCacheService();
-        return cacheService;
+        return bytesCache;
     }
 
     @Override
@@ -104,10 +100,10 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null) {
             return true;
         }
-        boolean exists = cacheService.getMap().containsKey(element.getKey());
-        Pointer<Element> pointer = null;
+        boolean exists = bytesCache.getMap().containsKey(element.getKey());
+        Pointer pointer = null;
         try {
-            pointer = cacheService.put(element.getObjectKey(), element);
+            pointer = bytesCache.put(element.getObjectKey(), ElementToBytes(element));
         } catch (BufferOverflowException e) {
             logger.info("Not enough ram for put", e);
             //TODO: LRU
@@ -141,23 +137,27 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
 
-        final Element e = cacheService.retrieve(key);
-        if (e == null) {
+        byte[] bytes = bytesCache.retrieve(key);
+        if (bytes == null) {
             missRate.event();
         } else {
             hitRate.event();
         }
-        return e;
+        return BytesToElement(bytes);
     }
 
     @Override
     public Element getQuiet(Object key) {
-        return cacheService.retrieve(key);
+        byte[] bytes = bytesCache.retrieve(key);
+        if (bytes == null) {
+            return null;
+        }
+        return BytesToElement(bytes);
     }
 
     @Override
     public List<Object> getKeys() {
-        return new ArrayList<Object>(cacheService.getMap().keySet());
+        return new ArrayList<Object>(bytesCache.getMap().keySet());
     }
 
     @Override
@@ -166,7 +166,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
         Element element = getQuiet(key);
-        cacheService.free(key);
+        bytesCache.free(key);
         return element;
     }
 
@@ -185,7 +185,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public void removeAll() throws CacheException {
-        cacheService.clear();
+        bytesCache.clear();
     }
 
     @Override
@@ -204,23 +204,17 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null || element.getObjectKey() == null) {
             return null;
         }
-        Pointer<Element> pointer = cacheService.getPointer(element.getObjectKey());
+        Pointer pointer = bytesCache.getPointer(element.getObjectKey());
         if (pointer == null) {
             return null;
         }
 
-        Lock lock = bufferLocks.get(pointer.getBufferNumber());
-        lock.lock();
-        try {
-            Element toRemove = cacheService.retrieve(element.getObjectKey());
-            if (comparator.equals(element, toRemove)) {
-                cacheService.free(element.getObjectKey());
-                return toRemove;
-            } else {
-                return null;
-            }
-        } finally {
-            lock.unlock();
+        Element toRemove = getQuiet(element.getObjectKey());
+        if (comparator.equals(element, toRemove)) {
+            bytesCache.free(element.getObjectKey());
+            return toRemove;
+        } else {
+            return null;
         }
     }
 
@@ -230,17 +224,15 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null || element.getObjectKey() == null) {
             return false;
         }
-        Pointer<Element> pointer = cacheService.getPointer(element.getObjectKey());
+        Pointer pointer = bytesCache.getPointer(element.getObjectKey());
         if (pointer == null) {
             return false;
         }
 
-        Lock lock = bufferLocks.get(pointer.getBufferNumber());
-        lock.lock();
         try {
-            Element toUpdate = cacheService.retrieve(element.getObjectKey());
+            Element toUpdate = getQuiet(element.getObjectKey());
             if (comparator.equals(old, toUpdate)) {
-                cacheService.put(element.getObjectKey(), element);
+                bytesCache.put(element.getObjectKey(), ElementToBytes(element));
                 return true;
             } else {
                 return false;
@@ -249,33 +241,22 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             logger.info("Not enough ram for replace", e);
             //TODO: evict expired entries.
             return false;
-        } finally {
-            lock.unlock();
         }
     }
 
     @Override
     public Element replace(Element element) throws NullPointerException {
-        Pointer<Element> pointer = cacheService.getPointer(element.getObjectKey());
+        Pointer pointer = bytesCache.getPointer(element.getObjectKey());
         if (pointer == null) {
             return null;
         }
 
-        Lock lock = bufferLocks.get(pointer.getBufferNumber());
-        lock.lock();
-        try {
-            Element toUpdate = cacheService.retrieve(element.getObjectKey());
-            if (toUpdate != null) {
-                cacheService.put(element.getObjectKey(), element);
-                return toUpdate;
-            } else {
-                return null;
-            }
-        } catch (BufferOverflowException e) {
-            logger.info("Not enough ram for replace", e);
+        Element toUpdate = getQuiet(element.getObjectKey());
+        if (toUpdate != null) {
+            bytesCache.put(element.getObjectKey(), ElementToBytes(element));
+            return toUpdate;
+        } else {
             return null;
-        } finally {
-            lock.unlock();
         }
     }
 
@@ -301,7 +282,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public int getOffHeapSize() {
-        long size = cacheService.entries();
+        long size = bytesCache.entries();
         if (size > Integer.MAX_VALUE) {
             return Integer.MAX_VALUE;
         } else {
@@ -326,7 +307,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public long getOffHeapSizeInBytes() {
-        return cacheService.getMemoryManager().used();
+        return bytesCache.getMemoryManager().used();
     }
 
     @Override
@@ -351,7 +332,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public boolean containsKeyOffHeap(Object key) {
-        return cacheService.getMap().containsKey(key);
+        return bytesCache.getMap().containsKey(key);
     }
 
     @Override
@@ -366,12 +347,12 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public void flush() {
-        cacheService.clear();
+        bytesCache.clear();
     }
 
     @Override
     public boolean bufferFull() {
-        //never backs up/ no buffer used.
+        //never backs up/ no buffer usedMemory.
         return false;
     }
 
@@ -387,7 +368,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public Object getInternalContext() {
-        // This should not be used, and will generally return null
+        // This should not be usedMemory, and will generally return null
         return null;
     }
 
@@ -456,9 +437,9 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null) {
             return;
         }
-        Pointer<Element> pointer = null;
+        Pointer pointer = null;
         try {
-            pointer = cacheService.put(element.getObjectKey(), element);
+            pointer = bytesCache.put(element.getObjectKey(), ElementToBytes(element));
         } catch (BufferOverflowException ignored) {
         }
     }
@@ -496,9 +477,25 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
         @Override
         public Sync getSyncForKey(Object key) {
-            Pointer<Element> pointer = cacheService.getPointer(key);
+            Pointer pointer = bytesCache.getPointer(key);
             return new ReadWriteLockSync(new ReentrantReadWriteLock());
         }
     }
 
+    private byte[] ElementToBytes(Element element) {
+        try {
+            return serializer.serialize(element);
+        } catch (IOException e) {
+            // should not happen.
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Element BytesToElement(byte[] bytes) {
+        try {
+            return serializer.deserialize(bytes, Element.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
