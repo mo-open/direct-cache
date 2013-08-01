@@ -36,8 +36,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  *
  * @since 0.6
  */
-public class SlabByteBufferAllocator
-        extends AbstractByteBufferAllocator {
+public class SlabByteBufferAllocator extends AbstractByteBufferAllocator {
 
     // Tells if it returns null when no buffers are available
     private final boolean returnNullWhenNoBufferAvailable = true;

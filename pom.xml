@@ -20,7 +20,6 @@
     <properties>
         <java.version>1.6</java.version>
         <!-- Dependency Versions -->
-        <aspectj.version>1.6.12</aspectj.version>
         <ehcache.version>2.6.0</ehcache.version>
         <guava.version>r09</guava.version>
         <junit.version>4.11</junit.version>
@@ -28,9 +27,6 @@
 
         <slf4j.version>1.7.5</slf4j.version>
         <log4j2.version>2.0-beta7</log4j2.version>
-
-        <!-- properties for web site -->
-        <currentRelease>0.1-incubating</currentRelease>
 
     </properties>
 
@@ -84,11 +80,6 @@
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>${guava.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.aspectj</groupId>
-                <artifactId>aspectjrt</artifactId>
-                <version>${aspectj.version}</version>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>

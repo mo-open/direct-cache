@@ -34,9 +34,7 @@ import java.util.List;
 
 import static java.lang.String.format;
 
-public class MemoryManagerServiceImpl<V>
-        extends AbstractMemoryManager<V>
-        implements MemoryManagerService<V> {
+public class MemoryManagerServiceImpl<V> extends AbstractMemoryManager<V> implements MemoryManagerService<V> {
 
     protected static final Logger logger = LoggerFactory.getLogger(MemoryManager.class);
 
@@ -230,8 +228,8 @@ public class MemoryManagerServiceImpl<V>
         used.set(0L);
     }
 
-    protected Pointer<V> instanciatePointer(final MemoryBuffer buffer, final int allocatorIndex, final long expiresIn,
-                                            final long expires) {
+    protected Pointer<V> instanciatePointer(final MemoryBuffer buffer, final int allocatorIndex,
+                                            final long expiresIn, final long expires) {
 
         Pointer<V> p = new PointerImpl<V>(buffer, allocatorIndex);
 
