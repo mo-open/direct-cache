@@ -15,11 +15,6 @@
     <artifactId>directmemory-cache</artifactId>
     <name>Apache DirectMemory :: DirectMemory Cache</name>
     <packaging>jar</packaging>
-    <description>DirectMemory Cache is a multi layered cache implementation featuring off-heap memory management (a-la
-        BigMemory) to enable efficient handling of a large number of java objects without affecting jvm garbage
-        collection
-        performance
-    </description>
 
     <build>
         <plugins>

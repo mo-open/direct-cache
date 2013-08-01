@@ -19,27 +19,22 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>${project.parent.groupId}</groupId>
+                <groupId>net.dongliu</groupId>
                 <artifactId>directmemory-cache</artifactId>
-                <version>${project.parent.version}</version>
+                <version>0.2-SNAPSHOT</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
-        <!-- DirectMemory Dependency -->
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>net.dongliu</groupId>
             <artifactId>directmemory-cache</artifactId>
         </dependency>
-
-        <!-- EHCache Dependency -->
         <dependency>
             <groupId>net.sf.ehcache</groupId>
             <artifactId>ehcache-core</artifactId>
         </dependency>
-
-        <!-- Testing Dependencies -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -52,9 +47,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <argLine>-Xmx512m -Xms512m -XX:MaxDirectMemorySize=512m</argLine>
-                </configuration>
             </plugin>
         </plugins>
     </build>

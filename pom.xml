@@ -11,8 +11,6 @@
 
     <name>Apache DirectMemory</name>
     <description>Apache DirectMemory Cache :: Parent pom</description>
-    <url>http://directmemory.apache.org/</url>
-    <inceptionYear>2011</inceptionYear>
 
     <modules>
         <module>directmemory-cache</module>
@@ -20,16 +18,9 @@
     </modules>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
-        <maven.compile.encoding>UTF-8</maven.compile.encoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>1.6</java.version>
         <!-- Dependency Versions -->
-        <ant.bundle.version>1.7.0_1</ant.bundle.version>
-        <aspectj.bundle.version>1.6.8_2</aspectj.bundle.version>
         <aspectj.version>1.6.12</aspectj.version>
-        <doclava.version>1.0.5</doclava.version>
         <ehcache.version>2.6.0</ehcache.version>
         <guava.version>r09</guava.version>
         <junit.version>4.11</junit.version>
@@ -54,9 +45,6 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <configuration>
-                        <argLine>-Xmx1024m -Xms512m -XX:MaxDirectMemorySize=512m</argLine>
-                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -65,6 +53,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
@@ -74,21 +63,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <archive>
-                        <manifestEntries>
-                            <Specification-Title>${project.name}</Specification-Title>
-                            <Specification-Version>${project.version}</Specification-Version>
-                            <Specification-Vendor>${project.organization.name}</Specification-Vendor>
-                            <Implementation-Title>${project.name}</Implementation-Title>
-                            <Implementation-Version>${project.version}</Implementation-Version>
-                            <Implementation-Vendor>${project.organization.name}</Implementation-Vendor>
-                            <Implementation-Vendor-Id>org.apache</Implementation-Vendor-Id>
-                            <X-Compile-Source-JDK>${java.version}</X-Compile-Source-JDK>
-                            <X-Compile-Target-JDK>${java.version}</X-Compile-Target-JDK>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
+                <version>2.4</version>
             </plugin>
         </plugins>
     </build>
