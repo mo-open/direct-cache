@@ -19,7 +19,6 @@ package org.apache.directmemory.memory;
  * under the License.
  */
 
-import junit.framework.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -29,6 +28,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
+
+import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class MemoryManagerServiceImplTest {
@@ -71,10 +72,10 @@ public class MemoryManagerServiceImplTest {
         memoryManagerService.init(1, BUFFER_SIZE);
 
         Pointer<Object> pointer1 = memoryManagerService.store(SMALL_PAYLOAD);
-        Assert.assertNotNull(pointer1);
+        assertNotNull(pointer1);
 
         Pointer<Object> pointer2 = memoryManagerService.store(SMALL_PAYLOAD);
-        Assert.assertNull(pointer2);
+        assertNull(pointer2);
 
         memoryManagerService.close();
     }
@@ -94,11 +95,11 @@ public class MemoryManagerServiceImplTest {
 
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
             Pointer<Object> pointer = memoryManagerService.store(SMALL_PAYLOAD);
-            Assert.assertNotNull(pointer);
+            assertNotNull(pointer);
         }
 
         Pointer<Object> pointerNull = memoryManagerService.store(SMALL_PAYLOAD);
-        Assert.assertNull(pointerNull);
+        assertNull(pointerNull);
 
         memoryManagerService.close();
     }
@@ -117,11 +118,11 @@ public class MemoryManagerServiceImplTest {
 
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
             Pointer<Object> pointer = memoryManagerService.store(SMALL_PAYLOAD);
-            Assert.assertNotNull(pointer);
+            assertNotNull(pointer);
         }
 
         Pointer<Object> pointerNull = memoryManagerService.store(SMALL_PAYLOAD);
-        Assert.assertNull(pointerNull);
+        assertNull(pointerNull);
 
         memoryManagerService.close();
     }
@@ -143,21 +144,21 @@ public class MemoryManagerServiceImplTest {
         Pointer<Object> lastPointer = null;
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
             Pointer<Object> pointer = memoryManagerService.store(SMALL_PAYLOAD);
-            Assert.assertNotNull(pointer);
+            assertNotNull(pointer);
             lastPointer = pointer;
         }
 
         // Buffer is fully used.
-        Assert.assertEquals(BUFFER_SIZE, memoryManagerService.used());
+        assertEquals(BUFFER_SIZE, memoryManagerService.used());
 
-        Assert.assertNotNull(lastPointer);
+        assertNotNull(lastPointer);
         memoryManagerService.free(lastPointer);
 
         Pointer<Object> pointerNotNull = memoryManagerService.store(SMALL_PAYLOAD);
-        Assert.assertNotNull(pointerNotNull);
+        assertNotNull(pointerNotNull);
 
         // Buffer again fully used.
-        Assert.assertEquals(BUFFER_SIZE, memoryManagerService.used());
+        assertEquals(BUFFER_SIZE, memoryManagerService.used());
 
         memoryManagerService.close();
     }
@@ -176,9 +177,9 @@ public class MemoryManagerServiceImplTest {
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
             byte[] payload = MemoryTestUtils.generateRandomPayload(SMALL_PAYLOAD.length);
             Pointer<Object> pointer = memoryManagerService.store(payload);
-            Assert.assertNotNull(pointer);
+            assertNotNull(pointer);
             byte[] fetchedPayload = memoryManagerService.retrieve(pointer);
-            Assert.assertEquals(new String(payload), new String(fetchedPayload));
+            assertEquals(new String(payload), new String(fetchedPayload));
             if (R.nextBoolean()) {
                 memoryManagerService.free(pointer);
             }
@@ -189,9 +190,9 @@ public class MemoryManagerServiceImplTest {
         for (int i = 0; i < NUMBER_OF_OBJECTS; i++) {
             byte[] payload = MemoryTestUtils.generateRandomPayload(SMALL_PAYLOAD.length);
             Pointer<Object> pointer = memoryManagerService.store(payload);
-            Assert.assertNotNull(pointer);
+            assertNotNull(pointer);
             byte[] fetchedPayload = memoryManagerService.retrieve(pointer);
-            Assert.assertEquals(new String(payload), new String(fetchedPayload));
+            assertEquals(new String(payload), new String(fetchedPayload));
             if (R.nextBoolean()) {
                 memoryManagerService.free(pointer);
                 i--;

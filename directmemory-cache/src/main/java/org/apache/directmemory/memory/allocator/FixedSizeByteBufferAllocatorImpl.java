@@ -38,8 +38,7 @@ import static com.google.common.base.Preconditions.checkState;
  *
  * @since 0.6
  */
-public class FixedSizeByteBufferAllocatorImpl
-        extends AbstractByteBufferAllocator {
+public class FixedSizeByteBufferAllocatorImpl extends AbstractByteBufferAllocator {
 
     // Collection that keeps track of the parent buffers (segments) where slices are allocated
     private final List<ByteBuffer> segmentsBuffers;

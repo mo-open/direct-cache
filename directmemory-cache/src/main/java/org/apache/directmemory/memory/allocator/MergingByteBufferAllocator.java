@@ -372,8 +372,7 @@ public class MergingByteBufferAllocator
     }
 
     @Override
-    public void close()
-            throws IOException {
+    public void close() throws IOException {
         clear();
 
         try {
