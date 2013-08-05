@@ -35,8 +35,8 @@ public class Pointer {
         return (float) (currentTimeMillis() - created) / hits;
     }
 
-    public long getCapacity() {
-        return memoryBuffer == null ? -1 : memoryBuffer.getCapacity();
+    public int getCapacity() {
+        return memoryBuffer.getCapacity();
     }
 
     @Override
@@ -48,8 +48,8 @@ public class Pointer {
         return expiration > 0 && expiration < System.currentTimeMillis();
     }
 
-    public long getSize() {
-        return memoryBuffer.getCapacity();
+    public int getSize() {
+        return memoryBuffer.getSize();
     }
 
     public void hit() {

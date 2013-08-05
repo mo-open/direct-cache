@@ -14,7 +14,8 @@ import java.util.Queue;
 public class SlabsAllocator implements Allocator {
 
     private static final float expandFactor = 1.25f;
-    private static final int CLASS_NUM = 20;
+    private static final int CLASS_NUM = 59;
+
     /** 16byte. */
     private static final int CHUNK_SIZE = 2 << 4;
     /** 8M. it is also the max Chunk Size */
@@ -44,23 +45,55 @@ public class SlabsAllocator implements Allocator {
     @Override
     public void free(MemoryBuffer memoryBuffer) {
         Chunk chunk = (Chunk)memoryBuffer;
-        for (SlabClass slabClass : this.slabClasses) {
-            if (slabClass.chunkSize == chunk.getSize()) {
-                slabClass.freeChunk(chunk);
-                break;
-            }
-        }
+        SlabClass slabClass = locateSlabClass(chunk.getSize());
+        slabClass.freeChunk(chunk);
     }
 
     @Override
     public MemoryBuffer allocate(int size) {
-        for (SlabClass slabClass : this.slabClasses) {
-            if (size < slabClass.chunkSize) {
-                return slabClass.newChunk();
+        SlabClass slabClass = locateSlabClass(size);
+        if (slabClass == null) {
+            return null;
+        }
+        return slabClass.newChunk();
+    }
+
+    /**
+     * locate the slabClass index with right size.
+     */
+    private SlabClass locateSlabClass(int size) {
+        int left = 0;
+        int right = this.slabClasses.length - 1;
+
+        if (size > this.slabClasses[right].chunkSize) {
+            return null;
+        }
+
+        // binary search.
+        int mid = 0;
+        while (left <= right) {
+            mid = left + (right - left) / 2;
+            if (size > this.slabClasses[mid].chunkSize) {
+                left = mid + 1;
+            } else if (size < this.slabClasses[mid].chunkSize) {
+                right = mid - 1;
+            } else {
+                return this.slabClasses[mid];
             }
         }
-        // size is too large.
-        return null;
+
+        // chose one from left & right
+        if (this.slabClasses[mid].chunkSize < size) {
+            do {
+                mid++;
+            } while(this.slabClasses[mid].chunkSize < size);
+            return this.slabClasses[mid];
+        } else {
+            do {
+                mid--;
+            } while( mid >= 0 && this.slabClasses[mid].chunkSize > size);
+            return this.slabClasses[mid + 1];
+        }
     }
 
     @Override
@@ -173,8 +206,4 @@ public class SlabsAllocator implements Allocator {
         }
     }
 
-    public static void main(String[] args) {
-        System.out.println(CHUNK_SIZE_MASK);
-        System.out.println(4101 & CHUNK_SIZE_MASK);
-    }
 }
