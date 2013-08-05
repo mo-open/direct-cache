@@ -1,6 +1,5 @@
 package net.dongliu.directmemory.cache;
 
-import net.dongliu.directmemory.measures.Ram;
 import net.dongliu.directmemory.memory.MemoryManager;
 import net.dongliu.directmemory.memory.struct.Pointer;
 import org.slf4j.Logger;
@@ -9,20 +8,18 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.lang.String.format;
 
 /**
  * Default implemnts of cacheService
  *
  * @author dongliu
  */
-public class BytesCache {
+public class BinaryCache {
 
-    private static final Logger logger = LoggerFactory.getLogger(BytesCache.class);
+    private static final Logger logger = LoggerFactory.getLogger(BinaryCache.class);
 
     private ConcurrentMap<Object, Pointer> map;
 
@@ -33,8 +30,8 @@ public class BytesCache {
     /**
      * Constructor
      */
-    public BytesCache(ConcurrentMap<Object, Pointer> map, MemoryManager memoryManager) {
-        this.map = map;
+    public BinaryCache(MemoryManager memoryManager) {
+        this.map = new ConcurrentHashMap<Object, Pointer>();
         this.memoryManager = memoryManager;
     }
 
@@ -83,9 +80,9 @@ public class BytesCache {
         if (ptr == null) {
             return null;
         }
-        if (ptr.isExpired() || ptr.isFree()) {
+        if (ptr.isExpired() || !ptr.getLive().get()) {
             map.remove(key);
-            if (!ptr.isFree()) {
+            if (ptr.getLive().get()) {
                 memoryManager.free(ptr);
             }
             return null;
@@ -109,13 +106,12 @@ public class BytesCache {
         memoryManager.free(pointer);
     }
 
+    //TODO: LFU & expired, to be implemented.
     public void collectExpired() {
-        memoryManager.collectExpired();
         // still have to look for orphan (storing references to freed pointers) map entries
     }
 
     public void collectLFU() {
-        memoryManager.collectLFU();
         // can possibly clear one whole buffer if it's too fragmented - investigate
     }
 
@@ -133,8 +129,8 @@ public class BytesCache {
 
 
     public void clear() {
+        memoryManager.free(map.values());
         map.clear();
-        memoryManager.clear();
         logger.info("Cache cleared");
     }
 
@@ -145,24 +141,6 @@ public class BytesCache {
 
     public long entries() {
         return map.size();
-    }
-
-    public void dump(MemoryManager mms) {
-        logger.info(format("off-heap - allocated: \t%1s", Ram.inMb(mms.capacity())));
-        logger.info(format("off-heap - usedMemory:      \t%1s", Ram.inMb(mms.used())));
-        logger.info(format("heap  - max: \t%1s", Ram.inMb(Runtime.getRuntime().maxMemory())));
-        logger.info(format("heap     - allocated: \t%1s", Ram.inMb(Runtime.getRuntime().totalMemory())));
-        logger.info(format("heap     - free : \t%1s", Ram.inMb(Runtime.getRuntime().freeMemory())));
-    }
-
-    public void dump() {
-        if (!logger.isInfoEnabled()) {
-            return;
-        }
-
-        logger.info("*** BytesCacheBuilder statistics ********************");
-
-        dump(memoryManager);
     }
 
     public ConcurrentMap<Object, Pointer> getMap() {
@@ -180,4 +158,5 @@ public class BytesCache {
     public void setMemoryManager(MemoryManager memoryManager) {
         this.memoryManager = memoryManager;
     }
+
 }

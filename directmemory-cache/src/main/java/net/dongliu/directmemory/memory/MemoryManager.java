@@ -1,100 +1,136 @@
 package net.dongliu.directmemory.memory;
 
+import net.dongliu.directmemory.memory.allocator.Allocator;
+import net.dongliu.directmemory.memory.allocator.SlabsAllocator;
+import net.dongliu.directmemory.memory.struct.MemoryBuffer;
 import net.dongliu.directmemory.memory.struct.Pointer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
+import java.io.IOException;
 import java.util.Date;
-import java.util.Set;
 
 /**
- * Store, retrive, update and remove object with a memory buffer.
+ * MemoryManager, wrap Allocators.
+ * Store, retrieve, update and remove object with a memory buffer.
+ * we do not do synchronizing here, but on the BinaryCache.
  * @author dongliu
  */
-public interface MemoryManager extends Closeable {
+public class MemoryManager {
 
-    /**
-     * Initialize the internal structure. Need to be called before the service can be usedMemory.
-     *
-     * @param size            : size in B of internal buckets
-     */
-    void init(int size);
+    private static final Logger logger = LoggerFactory.getLogger(MemoryManager.class);
 
+    private final Allocator allocator;
 
-    /**
-     * Store function family. Store the given payload at a certain offset in a MemoryBuffer, returning the pointer to
-     * the value.
-     * @param payload   : the data to store
-     * @return the pointer to the value, or null if not enough space has been found.
-     */
-    Pointer store(byte[] payload);
+    public MemoryManager(final long size) {
+        super();
+        this.allocator = SlabsAllocator.getSlabsAllocator(size);
+    }
 
-    /**
-     * Same function as {@link #store(byte[])}, but add an relative expiration delta in milliseconds
-     *
-     * @param payload : the data to store
-     * @param expiresIn : expire in expiresIn milliseconds.
-     * @return the pointer to the value, or null if not enough space has been found.
-     */
-    Pointer store(byte[] payload, long expiresIn);
+    public Pointer store(byte[] payload) {
+        MemoryBuffer buffer = allocator.allocate(payload.length);
+        if (buffer == null) {
+            return null;
+        }
 
-    /**
-     * Same function as {@link #store(byte[])}, but add an relative expiration delta in milliseconds
-     *
-     * @param payload : the data to store
-     * @param expirestill : store till expiresTill time.
-     * @return the pointer to the value, or null if not enough space has been found.
-     */
-    Pointer store(byte[] payload, Date expirestill);
+        Pointer p = makePointer(buffer);
+        buffer.write(payload);
+        return p;
+    }
 
-    /**
-     * Update value of a {@link Pointer}
-     *
-     * @return new point if payload is larger than origin payload, null if failed, else the same poiter passed in.
-     */
-    Pointer update(Pointer pointer, byte[] payload);
+    //TODO: all store with expires need to be synchronized.
+    public Pointer store(byte[] payload, long expiresIn) {
+        Pointer pointer = store(payload);
+        if (pointer == null) {
+            return pointer;
+        }
+        expire(pointer, expiresIn);
+        return pointer;
+    }
 
-    /**
-     * Update value of a {@link Pointer}
-     *
-     * @return new point if payload is larger than origin payload, null if failed, else the same poiter passed in.
-     */
-    Pointer update(Pointer pointer, byte[] payload, long expiresIn);
+    public Pointer store(byte[] payload, Date expiresTill) {
+        Pointer pointer = store(payload);
+        if (pointer == null) {
+            return pointer;
+        }
+        expire(pointer, expiresTill);
+        return pointer;
+    }
 
-    /**
-     * Update value of a {@link Pointer}
-     *
-     * @return new point if payload is larger than origin payload, null if failed, else the same poiter passed in.
-     */
-    Pointer update(Pointer pointer, byte[] payload, Date expirestill);
+    //TODO: all update method need to be synchronized.
+    public Pointer update(Pointer pointer, byte[] payload) {
+        if (pointer.getCapacity() >= payload.length) {
+            pointer.getMemoryBuffer().write(payload);
+            pointer.hit();
+            return pointer;
+        }
 
-    byte[] retrieve(Pointer pointer);
+        // free first, the value is set to null if update failed.
+        free(pointer);
+        return store(payload);
+    }
 
-    /**
-     * set the entry's expireIn time.
-     * @param pointer could not be null
-     * @param expiresIn milliseconds
-     */
-    void expire(Pointer pointer, long expiresIn);
+    public Pointer update(Pointer pointer, byte[] payload, long expiresIn) {
+        Pointer newPointer = update(pointer, payload);
+        if (newPointer == null) {
+            return newPointer;
+        }
+        expire(newPointer, expiresIn);
+        return newPointer;
+    }
 
-    /**
-     * set the entry's expireIn time.
-     * @param pointer could not be null
-     * @param expirestill expire time.
-     */
-    void expire(Pointer pointer, Date expirestill);
+    public Pointer update(Pointer pointer, byte[] payload, Date expirestill) {
+        Pointer newPointer = update(pointer, payload);
+        if (newPointer == null) {
+            return newPointer;
+        }
+        expire(newPointer, expirestill);
+        return newPointer;
+    }
 
-    void free(Pointer pointer);
+    public byte[] retrieve(final Pointer pointer) {
+        // check if pointer has not been freed before
+        pointer.hit();
+        final MemoryBuffer buf = pointer.getMemoryBuffer();
+        return buf.read();
+    }
 
-    void clear();
+    public void free(final Pointer pointer) {
+        if (pointer.getLive().compareAndSet(true, false)) {
+            this.allocator.free(pointer.getMemoryBuffer());
+        }
+    }
 
-    long capacity();
+    public long capacity() {
+        return allocator.getCapacity();
+    }
 
-    long used();
+    public long used() {
+        return this.allocator.used();
+    }
 
-    void collectExpired();
+    public void close() throws IOException {
+        allocator.close();
+    }
 
-    void collectLFU();
+    private Pointer makePointer(final MemoryBuffer buffer) {
+        return new Pointer(buffer);
+    }
 
-    Set<Pointer> getPointers();
+    public long free(Iterable<Pointer> pointers) {
+        long howMuch = 0;
+        for (Pointer expired : pointers) {
+            howMuch += expired.getCapacity();
+            free(expired);
+        }
+        return howMuch;
+    }
 
+    public void expire(Pointer pointer, long expiresIn) {
+        pointer.setExpiration(pointer.created + expiresIn);
+    }
+
+    public void expire(Pointer pointer, Date expirestill) {
+        pointer.setExpiration(expirestill.getTime());
+    }
 }

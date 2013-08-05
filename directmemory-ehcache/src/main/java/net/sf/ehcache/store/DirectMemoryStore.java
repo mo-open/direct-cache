@@ -1,5 +1,7 @@
 package net.sf.ehcache.store;
 
+import net.dongliu.directmemory.cache.BinaryCache;
+import net.dongliu.directmemory.cache.BinaryCacheBuilder;
 import net.dongliu.directmemory.serialization.SerializerFactory;
 import net.sf.ehcache.*;
 import net.sf.ehcache.concurrent.CacheLockProvider;
@@ -11,11 +13,6 @@ import net.sf.ehcache.store.disk.StoreUpdateException;
 import net.sf.ehcache.util.ratestatistics.AtomicRateStatistic;
 import net.sf.ehcache.util.ratestatistics.RateStatistic;
 import net.sf.ehcache.writer.CacheWriterManager;
-import net.dongliu.directmemory.cache.BytesCache;
-import net.dongliu.directmemory.cache.BytesCacheBuilder;
-import net.dongliu.directmemory.measures.Ram;
-import net.dongliu.directmemory.memory.MemoryManager;
-import net.dongliu.directmemory.memory.MemoryManagerImpl;
 import net.dongliu.directmemory.memory.struct.Pointer;
 import net.dongliu.directmemory.serialization.Serializer;
 import org.slf4j.Logger;
@@ -31,15 +28,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class DirectMemoryStore extends AbstractStore implements TierableStore, PoolableStore {
 
-    private static Logger logger = LoggerFactory.getLogger(BytesCache.class);
-
-    public static final int SINGLE_BUFFER_SIZE = Ram.Mb(512);
+    private static Logger logger = LoggerFactory.getLogger(BinaryCache.class);
 
     private final RateStatistic hitRate = new AtomicRateStatistic(1000, TimeUnit.MILLISECONDS);
     private final RateStatistic missRate = new AtomicRateStatistic(1000, TimeUnit.MILLISECONDS);
     private volatile Status status;
 
-    protected BytesCache bytesCache;
+    protected BinaryCache binaryCache;
 
     private final Ehcache cache;
 
@@ -58,22 +53,16 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         long offHeapSizeBytes = cache.getCacheConfiguration().getMaxMemoryOffHeapInBytes();
         this.cache = cache;
 
-        int numberOfBuffers = (int) ((offHeapSizeBytes - 1) / SINGLE_BUFFER_SIZE + 1);
-
-        bytesCache = createCacheService(numberOfBuffers, (int) (offHeapSizeBytes / numberOfBuffers));
+        binaryCache = createCacheService(offHeapSizeBytes);
 
         serializer = SerializerFactory.createNewSerializer();
         this.status = Status.STATUS_ALIVE;
     }
 
-    private BytesCache createCacheService(int numberOfBuffers, int size) {
-        MemoryManager memoryManager = new MemoryManagerImpl();
-        return new BytesCacheBuilder()
-                .setMemoryManager(memoryManager)
-                .setNumberOfBuffers(numberOfBuffers)
+    private BinaryCache createCacheService(long size) {
+        return new BinaryCacheBuilder()
                 .setSize(size)
-                .setInitialCapacity(BytesCacheBuilder.DEFAULT_INITIAL_CAPACITY)
-                .setConcurrencyLevel(BytesCacheBuilder.DEFAULT_CONCURRENCY_LEVEL)
+                .setInitialCapacity(BinaryCacheBuilder.DEFAULT_INITIAL_CAPACITY)
                 .newCacheService();
     }
 
@@ -98,8 +87,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null) {
             return true;
         }
-        boolean exists = bytesCache.getMap().containsKey(element.getKey());
-        Pointer pointer = bytesCache.put(element.getObjectKey(), ElementToBytes(element));
+        boolean exists = binaryCache.getMap().containsKey(element.getKey());
+        Pointer pointer = binaryCache.put(element.getObjectKey(), ElementToBytes(element));
 
         if (pointer == null) {
             throw new CacheException("Put element failed.");
@@ -129,7 +118,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
 
-        byte[] bytes = bytesCache.retrieve(key);
+        byte[] bytes = binaryCache.retrieve(key);
         if (bytes == null) {
             missRate.event();
         } else {
@@ -140,7 +129,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public Element getQuiet(Object key) {
-        byte[] bytes = bytesCache.retrieve(key);
+        byte[] bytes = binaryCache.retrieve(key);
         if (bytes == null) {
             return null;
         }
@@ -149,7 +138,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public List<Object> getKeys() {
-        return new ArrayList<Object>(bytesCache.getMap().keySet());
+        return new ArrayList<Object>(binaryCache.getMap().keySet());
     }
 
     @Override
@@ -158,7 +147,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
         Element element = getQuiet(key);
-        bytesCache.free(key);
+        binaryCache.free(key);
         return element;
     }
 
@@ -177,7 +166,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public void removeAll() throws CacheException {
-        bytesCache.clear();
+        binaryCache.clear();
     }
 
     @Override
@@ -196,14 +185,14 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null || element.getObjectKey() == null) {
             return null;
         }
-        Pointer pointer = bytesCache.getPointer(element.getObjectKey());
+        Pointer pointer = binaryCache.getPointer(element.getObjectKey());
         if (pointer == null) {
             return null;
         }
 
         Element toRemove = getQuiet(element.getObjectKey());
         if (comparator.equals(element, toRemove)) {
-            bytesCache.free(element.getObjectKey());
+            binaryCache.free(element.getObjectKey());
             return toRemove;
         } else {
             return null;
@@ -216,14 +205,14 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null || element.getObjectKey() == null) {
             return false;
         }
-        Pointer pointer = bytesCache.getPointer(element.getObjectKey());
+        Pointer pointer = binaryCache.getPointer(element.getObjectKey());
         if (pointer == null) {
             return false;
         }
 
         Element toUpdate = getQuiet(element.getObjectKey());
         if (comparator.equals(old, toUpdate)) {
-            bytesCache.put(element.getObjectKey(), ElementToBytes(element));
+            binaryCache.put(element.getObjectKey(), ElementToBytes(element));
             return true;
         } else {
             return false;
@@ -232,14 +221,14 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public Element replace(Element element) throws NullPointerException {
-        Pointer pointer = bytesCache.getPointer(element.getObjectKey());
+        Pointer pointer = binaryCache.getPointer(element.getObjectKey());
         if (pointer == null) {
             return null;
         }
 
         Element toUpdate = getQuiet(element.getObjectKey());
         if (toUpdate != null) {
-            bytesCache.put(element.getObjectKey(), ElementToBytes(element));
+            binaryCache.put(element.getObjectKey(), ElementToBytes(element));
             return toUpdate;
         } else {
             return null;
@@ -268,7 +257,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public int getOffHeapSize() {
-        long size = bytesCache.entries();
+        long size = binaryCache.entries();
         if (size > Integer.MAX_VALUE) {
             return Integer.MAX_VALUE;
         } else {
@@ -293,7 +282,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public long getOffHeapSizeInBytes() {
-        return bytesCache.getMemoryManager().used();
+        return binaryCache.getMemoryManager().used();
     }
 
     @Override
@@ -318,7 +307,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public boolean containsKeyOffHeap(Object key) {
-        return bytesCache.getMap().containsKey(key);
+        return binaryCache.getMap().containsKey(key);
     }
 
     @Override
@@ -333,7 +322,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public void flush() {
-        bytesCache.clear();
+        binaryCache.clear();
     }
 
     @Override
@@ -423,7 +412,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null) {
             return;
         }
-        bytesCache.put(element.getObjectKey(), ElementToBytes(element));
+        binaryCache.put(element.getObjectKey(), ElementToBytes(element));
     }
 
     @Override
@@ -459,7 +448,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
         @Override
         public Sync getSyncForKey(Object key) {
-            Pointer pointer = bytesCache.getPointer(key);
+            Pointer pointer = binaryCache.getPointer(key);
             return new ReadWriteLockSync(new ReentrantReadWriteLock());
         }
     }

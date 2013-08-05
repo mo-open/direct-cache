@@ -19,4 +19,5 @@ public interface Allocator extends Closeable {
 
     long getCapacity();
 
+    long used();
 }

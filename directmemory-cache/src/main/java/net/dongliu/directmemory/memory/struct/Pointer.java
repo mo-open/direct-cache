@@ -1,5 +1,6 @@
 package net.dongliu.directmemory.memory.struct;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.String.format;
@@ -23,6 +24,8 @@ public class Pointer {
     public long hits;
 
     public final AtomicLong lastHit;
+
+    private final AtomicBoolean live = new AtomicBoolean();
 
     public Pointer(MemoryBuffer memoryBuffer) {
         this.memoryBuffer = memoryBuffer;
@@ -57,14 +60,6 @@ public class Pointer {
         hits++;
     }
 
-    public boolean isFree() {
-        return expiration == -1;
-    }
-
-    public void free() {
-        expiration = -1;
-    }
-
     public MemoryBuffer getMemoryBuffer() {
         return memoryBuffer;
     }
@@ -77,5 +72,7 @@ public class Pointer {
         return this.expiration;
     }
 
-
+    public AtomicBoolean getLive() {
+        return live;
+    }
 }
