@@ -3,7 +3,7 @@ package net.dongliu.directmemory.cache;
 import com.google.common.collect.MapMaker;
 import net.dongliu.directmemory.memory.MemoryManager;
 import net.dongliu.directmemory.memory.MemoryManagerImpl;
-import net.dongliu.directmemory.memory.Pointer;
+import net.dongliu.directmemory.memory.struct.Pointer;
 import net.dongliu.directmemory.serialization.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

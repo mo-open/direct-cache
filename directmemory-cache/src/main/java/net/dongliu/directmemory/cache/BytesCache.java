@@ -2,7 +2,7 @@ package net.dongliu.directmemory.cache;
 
 import net.dongliu.directmemory.measures.Ram;
 import net.dongliu.directmemory.memory.MemoryManager;
-import net.dongliu.directmemory.memory.Pointer;
+import net.dongliu.directmemory.memory.struct.Pointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,7 +153,6 @@ public class BytesCache {
         logger.info(format("heap  - max: \t%1s", Ram.inMb(Runtime.getRuntime().maxMemory())));
         logger.info(format("heap     - allocated: \t%1s", Ram.inMb(Runtime.getRuntime().totalMemory())));
         logger.info(format("heap     - free : \t%1s", Ram.inMb(Runtime.getRuntime().freeMemory())));
-        logger.info("************************************************");
     }
 
     public void dump() {

@@ -1,5 +1,7 @@
 package net.dongliu.directmemory.memory;
 
+import net.dongliu.directmemory.memory.struct.Pointer;
+
 import java.io.Closeable;
 import java.util.Date;
 import java.util.Set;

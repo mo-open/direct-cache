@@ -2,8 +2,9 @@ package net.dongliu.directmemory.memory;
 
 import net.dongliu.directmemory.measures.Ram;
 import net.dongliu.directmemory.memory.allocator.Allocator;
-import net.dongliu.directmemory.memory.allocator.MergingByteBufferAllocator;
-import net.dongliu.directmemory.memory.buffer.MemoryBuffer;
+import net.dongliu.directmemory.memory.allocator.SlabsAllocator;
+import net.dongliu.directmemory.memory.struct.MemoryBuffer;
+import net.dongliu.directmemory.memory.struct.Pointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +39,8 @@ public class MemoryManagerImpl extends AbstractMemoryManager implements MemoryMa
         usedMemory.set(0);
     }
 
-    private Allocator getByteBufferAllocator(final int size) {
-        return new MergingByteBufferAllocator(size);
+    private Allocator getByteBufferAllocator(final long size) {
+        return SlabsAllocator.allocate(size);
     }
 
     public Pointer store(byte[] payload) {
@@ -49,8 +50,7 @@ public class MemoryManagerImpl extends AbstractMemoryManager implements MemoryMa
         }
 
         Pointer p = instanciatePointer(buffer);
-        buffer.writerIndex(0);
-        buffer.writeBytes(payload);
+        buffer.write(payload);
 
         usedMemory.addAndGet(payload.length);
 
@@ -60,7 +60,7 @@ public class MemoryManagerImpl extends AbstractMemoryManager implements MemoryMa
     @Override
     public Pointer update(Pointer pointer, byte[] payload) {
         if (pointer.getCapacity() >= payload.length) {
-            pointer.getMemoryBuffer().writeBytes(payload);
+            pointer.getMemoryBuffer().write(payload);
             pointer.hit();
             return pointer;
         }
@@ -80,11 +80,7 @@ public class MemoryManagerImpl extends AbstractMemoryManager implements MemoryMa
         pointer.hit();
 
         final MemoryBuffer buf = pointer.getMemoryBuffer();
-        buf.readerIndex(0);
-
-        final byte[] swp = new byte[(int) buf.readableBytes()];
-        buf.readBytes(swp);
-        return swp;
+        return buf.read();
     }
 
     @Override
@@ -104,7 +100,7 @@ public class MemoryManagerImpl extends AbstractMemoryManager implements MemoryMa
     @Override
     public void clear() {
         pointers.clear();
-        allocator.clear();
+        allocator.close();
         usedMemory.set(0L);
     }
 

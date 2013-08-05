@@ -1,6 +1,4 @@
-package net.dongliu.directmemory.memory;
-
-import net.dongliu.directmemory.memory.buffer.MemoryBuffer;
+package net.dongliu.directmemory.memory.struct;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -38,7 +36,7 @@ public class Pointer {
     }
 
     public long getCapacity() {
-        return memoryBuffer == null ? -1 : memoryBuffer.capacity();
+        return memoryBuffer == null ? -1 : memoryBuffer.getCapacity();
     }
 
     @Override
@@ -51,7 +49,7 @@ public class Pointer {
     }
 
     public long getSize() {
-        return memoryBuffer.capacity();
+        return memoryBuffer.getCapacity();
     }
 
     public void hit() {

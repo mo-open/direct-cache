@@ -16,13 +16,12 @@ import net.dongliu.directmemory.cache.BytesCacheBuilder;
 import net.dongliu.directmemory.measures.Ram;
 import net.dongliu.directmemory.memory.MemoryManager;
 import net.dongliu.directmemory.memory.MemoryManagerImpl;
-import net.dongliu.directmemory.memory.Pointer;
+import net.dongliu.directmemory.memory.struct.Pointer;
 import net.dongliu.directmemory.serialization.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.BufferOverflowException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -69,14 +68,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     private BytesCache createCacheService(int numberOfBuffers, int size) {
         MemoryManager memoryManager = new MemoryManagerImpl();
-        BytesCache bytesCache = new BytesCacheBuilder()
+        return new BytesCacheBuilder()
                 .setMemoryManager(memoryManager)
                 .setNumberOfBuffers(numberOfBuffers)
                 .setSize(size)
                 .setInitialCapacity(BytesCacheBuilder.DEFAULT_INITIAL_CAPACITY)
                 .setConcurrencyLevel(BytesCacheBuilder.DEFAULT_CONCURRENCY_LEVEL)
                 .newCacheService();
-        return bytesCache;
     }
 
     @Override
@@ -101,13 +99,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return true;
         }
         boolean exists = bytesCache.getMap().containsKey(element.getKey());
-        Pointer pointer = null;
-        try {
-            pointer = bytesCache.put(element.getObjectKey(), ElementToBytes(element));
-        } catch (BufferOverflowException e) {
-            logger.info("Not enough ram for put", e);
-            //TODO: LRU
-        }
+        Pointer pointer = bytesCache.put(element.getObjectKey(), ElementToBytes(element));
 
         if (pointer == null) {
             throw new CacheException("Put element failed.");
@@ -229,17 +221,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return false;
         }
 
-        try {
-            Element toUpdate = getQuiet(element.getObjectKey());
-            if (comparator.equals(old, toUpdate)) {
-                bytesCache.put(element.getObjectKey(), ElementToBytes(element));
-                return true;
-            } else {
-                return false;
-            }
-        } catch (BufferOverflowException e) {
-            logger.info("Not enough ram for replace", e);
-            //TODO: evict expired entries.
+        Element toUpdate = getQuiet(element.getObjectKey());
+        if (comparator.equals(old, toUpdate)) {
+            bytesCache.put(element.getObjectKey(), ElementToBytes(element));
+            return true;
+        } else {
             return false;
         }
     }
@@ -437,11 +423,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null) {
             return;
         }
-        Pointer pointer = null;
-        try {
-            pointer = bytesCache.put(element.getObjectKey(), ElementToBytes(element));
-        } catch (BufferOverflowException ignored) {
-        }
+        bytesCache.put(element.getObjectKey(), ElementToBytes(element));
     }
 
     @Override

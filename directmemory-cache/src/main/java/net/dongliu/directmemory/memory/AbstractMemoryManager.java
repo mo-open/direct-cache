@@ -1,10 +1,11 @@
 package net.dongliu.directmemory.memory;
 
+import net.dongliu.directmemory.memory.struct.Pointer;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.google.common.collect.Iterables.filter;
 import static com.google.common.collect.Iterables.limit;
 import static com.google.common.collect.Ordering.from;
 
