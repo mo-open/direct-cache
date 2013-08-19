@@ -1,4 +1,4 @@
-package net.dongliu.directmemory.memory.allocator;
+package net.dongliu.directmemory.memory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;

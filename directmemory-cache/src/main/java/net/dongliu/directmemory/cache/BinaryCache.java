@@ -1,141 +1,119 @@
 package net.dongliu.directmemory.cache;
 
-import net.dongliu.directmemory.memory.MemoryManager;
-import net.dongliu.directmemory.memory.struct.Pointer;
+import net.dongliu.directmemory.memory.Allocator;
+import net.dongliu.directmemory.struct.MemoryBuffer;
+import net.dongliu.directmemory.struct.Pointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
+import java.util.Collection;
 
 /**
- * Default implemnts of cacheService
+ * A cache store binary values.The base for all caches.
  *
  * @author dongliu
  */
-public class BinaryCache {
+public class BinaryCache implements Cloneable {
 
     private static final Logger logger = LoggerFactory.getLogger(BinaryCache.class);
 
-    private ConcurrentMap<Object, Pointer> map;
+    private SelectableConcurrentHashMap map;
 
-    private MemoryManager memoryManager;
-
-    private final Timer timer = new Timer(true);
+    private final Allocator allocator;
 
     /**
      * Constructor
      */
-    public BinaryCache(MemoryManager memoryManager) {
-        this.map = new ConcurrentHashMap<Object, Pointer>();
-        this.memoryManager = memoryManager;
-    }
-
-    public void scheduleDisposalEvery(long period, TimeUnit unit) {
-        scheduleDisposalEvery(unit.toMillis(period));
-    }
-
-    public void scheduleDisposalEvery(long period) {
-        timer.schedule(new TimerTask() {
-            public void run() {
-                logger.info("begin scheduled disposal");
-
-                collectExpired();
-                collectLFU();
-
-                logger.info("scheduled disposal complete");
-            }
-        }, period, period);
-
-        logger.info("disposal scheduled every {} milliseconds", period);
+    public BinaryCache(Allocator allocator) {
+        //TODO: add cache builder to set parameters.
+        this.map = new SelectableConcurrentHashMap(false, 1000, 0.75f, 256, 0, null);
+        this.allocator = allocator;
     }
 
     public Pointer put(Object key, byte[] payload) {
-        return store(key, payload, 0);
+        return put(key, payload, 0);
     }
 
+    /**
+     * whether the key exists.
+     *
+     * @param key
+     * @return true if key exists.if key is expired still return true.
+     */
+    public boolean exists(Object key) {
+        return this.map.containsKey(key);
+    }
+
+    /**
+     * return all keys cached.
+     *
+     * @return
+     */
+    public Collection<Object> keys() {
+        return this.map.keySet();
+    }
+
+    /**
+     * store the value, return pointer.
+     *
+     * @param key
+     * @param payload
+     * @param expiresIn
+     * @return pointer to value, null if failed.
+     */
     public Pointer put(Object key, byte[] payload, long expiresIn) {
-        return store(key, payload, expiresIn);
-    }
-
-    private Pointer store(Object key, byte[] payload, long expiresIn) {
         // need synchronized?
         Pointer pointer = map.get(key);
         if (pointer != null) {
-            memoryManager.free(pointer);
+//            if (pointer.getCapacity() > payload.length) {
+//                pointer.getMemoryBuffer().write(payload);
+//                return pointer;
+//            }
         }
-        pointer = memoryManager.store(payload, expiresIn);
+        pointer = store(key, payload);
         if (pointer != null) {
-            map.put(key, pointer);
+            if (expiresIn != 0) {
+                pointer.setExpiration(System.currentTimeMillis() + expiresIn);
+            } else {
+                pointer.setExpiration(0);
+            }
+            map.put(key, pointer, pointer.getMemoryBuffer().getSize());
         }
         return pointer;
     }
 
+    /**
+     * retrive value by key from cache.
+     *
+     * @param key
+     * @return
+     */
     public byte[] retrieve(Object key) {
-        Pointer ptr = getPointer(key);
-        if (ptr == null) {
+        Pointer pointer = map.get(key);
+        if (pointer == null) {
             return null;
         }
-        if (ptr.isExpired() || !ptr.getLive().get()) {
+        if (pointer.isExpired() || !pointer.getLive().get()) {
+            //TODO: need sync
             map.remove(key);
-            if (ptr.getLive().get()) {
-                memoryManager.free(ptr);
-            }
             return null;
         } else {
-            return memoryManager.retrieve(ptr);
+            return pointer.getValue();
         }
     }
-
-    public Pointer getPointer(Object key) {
-        return map.get(key);
-    }
-
-    public void free(Object key) {
-        Pointer p = map.remove(key);
-        if (p != null) {
-            memoryManager.free(p);
-        }
-    }
-
-    public void free(Pointer pointer) {
-        memoryManager.free(pointer);
-    }
-
-    //TODO: LFU & expired, to be implemented.
-    public void collectExpired() {
-        // still have to look for orphan (storing references to freed pointers) map entries
-    }
-
-    public void collectLFU() {
-        // can possibly clear one whole buffer if it's too fragmented - investigate
-    }
-
-    public void collectAll() {
-        Thread thread = new Thread() {
-            public void run() {
-                logger.info("begin disposal");
-                collectExpired();
-                collectLFU();
-                logger.info("disposal complete");
-            }
-        };
-        thread.start();
-    }
-
 
     public void clear() {
-        memoryManager.free(map.values());
+        for (Pointer pointer : map.values()) {
+            pointer.free();
+        }
         map.clear();
         logger.info("Cache cleared");
     }
 
     public void close() throws IOException {
-        memoryManager.close();
+        map.clear();
+        this.allocator.close();
         logger.info("Cache closed");
     }
 
@@ -143,20 +121,27 @@ public class BinaryCache {
         return map.size();
     }
 
-    public ConcurrentMap<Object, Pointer> getMap() {
-        return map;
+    public void remove(Object key) {
+        this.map.remove(key);
     }
 
-    public void setMap(ConcurrentMap<Object, Pointer> map) {
-        this.map = map;
+    private Pointer store(Object key, byte[] payload) {
+        MemoryBuffer buffer = allocator.allocate(payload.length);
+        if (buffer == null) {
+            return null;
+        }
+
+        Pointer p = new Pointer(buffer, allocator);
+        buffer.write(payload);
+        p.setKey(key);
+        return p;
     }
 
-    public MemoryManager getMemoryManager() {
-        return memoryManager;
+    public long used() {
+        return this.allocator.used();
     }
 
-    public void setMemoryManager(MemoryManager memoryManager) {
-        this.memoryManager = memoryManager;
+    public Pointer getPointer(Object key) {
+        return map.get(key);
     }
-
 }

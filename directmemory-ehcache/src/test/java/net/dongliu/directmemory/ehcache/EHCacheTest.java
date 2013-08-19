@@ -11,16 +11,6 @@ import java.io.IOException;
 public class EHCacheTest {
 
     @Test
-    public void testPutRetreive() {
-        CacheManager cacheManager = CacheManager.getInstance();
-        Ehcache ehcache = cacheManager.getEhcache("testCache");
-
-        ehcache.put(new Element("testKey", "testValue"));
-        stats(ehcache);
-        Assert.assertEquals("testValue", ehcache.get("testKey").getObjectValue());
-    }
-
-    @Test
     public void testSizing() {
         CacheManager cacheManager = CacheManager.getInstance();
         Ehcache ehcache = cacheManager.getEhcache("testCache");
@@ -49,7 +39,21 @@ public class EHCacheTest {
             element = new Element(i, new byte[1024]);
             ehcache.put(element);
         }
+    }
 
+    @Test
+    public void testPutRetreive() {
+        CacheManager cacheManager = CacheManager.getInstance();
+        Ehcache ehcache = cacheManager.getEhcache("testCache");
+
+        ehcache.put(new Element("testKey", "testValue"));
+        stats(ehcache);
+        Assert.assertEquals("testValue", ehcache.get("testKey").getObjectValue());
+
+
+        ehcache.put(new Element("testKey", 1));
+        stats(ehcache);
+        Assert.assertEquals(1, ehcache.get("testKey").getObjectValue());
     }
 
     private void stats(Ehcache ehcache) {

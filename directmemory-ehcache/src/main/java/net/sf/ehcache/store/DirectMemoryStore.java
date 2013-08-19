@@ -13,7 +13,7 @@ import net.sf.ehcache.store.disk.StoreUpdateException;
 import net.sf.ehcache.util.ratestatistics.AtomicRateStatistic;
 import net.sf.ehcache.util.ratestatistics.RateStatistic;
 import net.sf.ehcache.writer.CacheWriterManager;
-import net.dongliu.directmemory.memory.struct.Pointer;
+import net.dongliu.directmemory.struct.Pointer;
 import net.dongliu.directmemory.serialization.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +87,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null) {
             return true;
         }
-        boolean exists = binaryCache.getMap().containsKey(element.getKey());
+        boolean exists = binaryCache.exists(element.getKey());
         Pointer pointer = binaryCache.put(element.getObjectKey(), ElementToBytes(element));
 
         if (pointer == null) {
@@ -138,7 +138,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public List<Object> getKeys() {
-        return new ArrayList<Object>(binaryCache.getMap().keySet());
+        return new ArrayList<Object>(binaryCache.keys());
     }
 
     @Override
@@ -147,7 +147,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
         Element element = getQuiet(key);
-        binaryCache.free(key);
+        binaryCache.remove(key);
         return element;
     }
 
@@ -192,7 +192,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
         Element toRemove = getQuiet(element.getObjectKey());
         if (comparator.equals(element, toRemove)) {
-            binaryCache.free(element.getObjectKey());
+            binaryCache.remove(element.getObjectKey());
             return toRemove;
         } else {
             return null;
@@ -282,7 +282,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public long getOffHeapSizeInBytes() {
-        return binaryCache.getMemoryManager().used();
+        return binaryCache.used();
     }
 
     @Override
@@ -307,7 +307,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public boolean containsKeyOffHeap(Object key) {
-        return binaryCache.getMap().containsKey(key);
+        return binaryCache.exists(key);
     }
 
     @Override

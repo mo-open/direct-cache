@@ -1,6 +1,6 @@
-package net.dongliu.directmemory.memory.struct;
+package net.dongliu.directmemory.struct;
 
-import net.dongliu.directmemory.memory.allocator.MergedMemory;
+import net.dongliu.directmemory.memory.MergedMemory;
 
 import java.nio.BufferOverflowException;
 

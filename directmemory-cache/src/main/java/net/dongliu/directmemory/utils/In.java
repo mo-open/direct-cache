@@ -1,4 +1,4 @@
-package net.dongliu.directmemory.measures;
+package net.dongliu.directmemory.utils;
 
 public class In {
 

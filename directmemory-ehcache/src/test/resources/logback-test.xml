@@ -31,7 +31,7 @@
 
     </logger>
 
-    <logger name="net.dongliu.directmemory.measures" level="info">
+    <logger name="net.dongliu.directmemory.utils" level="info">
         <appender-ref ref="STDOUT"/>
 
     </logger>

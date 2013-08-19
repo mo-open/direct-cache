@@ -1,28 +1,28 @@
-package net.dongliu.directmemory.memory.allocator;
+package net.dongliu.directmemory.memory;
 
-import net.dongliu.directmemory.memory.struct.MemoryBuffer;
+import net.dongliu.directmemory.struct.MemoryBuffer;
+import net.dongliu.directmemory.utils.Ram;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Memory Allocator use slabList, as memcached.
+ * TODO: add rebalance.
  * @author dongliu
  */
 public class SlabsAllocator implements Allocator {
 
     private static final float expandFactor = 1.25f;
-    private static final int CLASS_NUM = 59;
+    private static final int CLASS_NUM = 49;
 
     /** 16byte. */
-    private static final int CHUNK_SIZE = 2 << 4;
+    private static final int CHUNK_SIZE = 128;
     /** 8M. it is also the max Chunk Size */
-    private static final int SLAB_SIZE = 1<<23;
+    private static final int SLAB_SIZE = Ram.Mb(8);
 
     private static final int CHUNK_SIZE_MASK = ~3;
 

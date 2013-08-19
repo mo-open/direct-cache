@@ -1,4 +1,4 @@
-package net.dongliu.directmemory.memory.allocator;
+package net.dongliu.directmemory.memory;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;

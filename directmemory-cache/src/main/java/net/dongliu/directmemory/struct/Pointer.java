@@ -1,4 +1,6 @@
-package net.dongliu.directmemory.memory.struct;
+package net.dongliu.directmemory.struct;
+
+import net.dongliu.directmemory.memory.Allocator;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -15,6 +17,8 @@ public class Pointer {
 
     public final MemoryBuffer memoryBuffer;
 
+    public final Allocator allocator;
+
     /** the timestamp when this point constructed. */
     public long created;
 
@@ -27,8 +31,11 @@ public class Pointer {
 
     private final AtomicBoolean live = new AtomicBoolean();
 
-    public Pointer(MemoryBuffer memoryBuffer) {
+    private Object key;
+
+    public Pointer(MemoryBuffer memoryBuffer, Allocator allocator) {
         this.memoryBuffer = memoryBuffer;
+        this.allocator = allocator;
         this.created = System.currentTimeMillis();
         expiration = 0;
         lastHit = new AtomicLong(0);
@@ -74,5 +81,23 @@ public class Pointer {
 
     public AtomicBoolean getLive() {
         return live;
+    }
+
+    public Object getKey() {
+        return key;
+    }
+
+    public void setKey(Object key) {
+        this.key = key;
+    }
+
+    public void free() {
+        if (this.live.compareAndSet(true, false)) {
+            this.allocator.free(this.memoryBuffer);
+        }
+    }
+
+    public byte[] getValue() {
+        return memoryBuffer.read();
     }
 }
