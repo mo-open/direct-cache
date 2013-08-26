@@ -21,14 +21,16 @@ package net.dongliu.directmemory.serialization;
 
 import java.io.*;
 
+/**
+ * Default serializer using java object stream.
+ */
 public final class StandardSerializer implements Serializer {
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public <T> byte[] serialize(T obj)
-            throws IOException {
+    public <T> byte[] serialize(T obj) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(baos);
         oos.writeObject(obj);
@@ -41,8 +43,7 @@ public final class StandardSerializer implements Serializer {
      * {@inheritDoc}
      */
     @Override
-    public <T> T deserialize(byte[] source, final Class<T> clazz)
-            throws IOException, ClassNotFoundException {
+    public <T> T deserialize(byte[] source, final Class<T> clazz) throws IOException, ClassNotFoundException {
         ByteArrayInputStream bis = new ByteArrayInputStream(source);
         ObjectInputStream ois = new ObjectInputStream(bis) {
 

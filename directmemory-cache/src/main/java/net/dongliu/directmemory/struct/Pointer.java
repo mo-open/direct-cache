@@ -15,30 +15,32 @@ import static java.lang.System.currentTimeMillis;
  */
 public class Pointer {
 
+    private Object key;
+
     public final MemoryBuffer memoryBuffer;
 
     public final Allocator allocator;
 
-    /** the timestamp when this point constructed. */
-    public long created;
-
-    /** expire timestamp */
-    public long expiration;
-
     public long hits;
 
-    public final AtomicLong lastHit;
+    /**
+     * the timestamp when this point constructed.
+     */
+    public long created;
+
+    /**
+     * expire timestamp
+     */
+    public long expiration;
 
     private final AtomicBoolean live = new AtomicBoolean();
 
-    private Object key;
 
     public Pointer(MemoryBuffer memoryBuffer, Allocator allocator) {
         this.memoryBuffer = memoryBuffer;
         this.allocator = allocator;
         this.created = System.currentTimeMillis();
         expiration = 0;
-        lastHit = new AtomicLong(0);
     }
 
     public float getFrequency() {
@@ -63,7 +65,6 @@ public class Pointer {
     }
 
     public void hit() {
-        lastHit.set(System.currentTimeMillis());
         hits++;
     }
 
@@ -97,7 +98,7 @@ public class Pointer {
         }
     }
 
-    public byte[] getValue() {
+    public byte[] readValue() {
         return memoryBuffer.read();
     }
 }

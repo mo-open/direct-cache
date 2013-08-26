@@ -12,7 +12,7 @@ import java.io.Serializable;
  * combine memory store and offheapstore.
  * @author dongliu
  */
-public class OffHeapBackendStore  extends FrontEndCacheTier<MemoryStore, DirectMemoryStore> {
+public class OffHeapBackendStore extends FrontEndCacheTier<MemoryStore, DirectMemoryStore> {
 
     /**
      * Constructor for FrontEndCacheTier

@@ -8,14 +8,13 @@ import java.io.Closeable;
  * Allocator
  * @author dongliu
  */
-public interface Allocator extends Closeable {
+public interface Allocator {
 
     void free(final MemoryBuffer memoryBuffer);
 
     MemoryBuffer allocate(final int size);
 
-    @Override
-    void close();
+    void dispose();
 
     long getCapacity();
 

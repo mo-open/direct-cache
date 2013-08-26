@@ -6,8 +6,9 @@ import net.dongliu.directmemory.struct.Pointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Collection;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * A cache store binary values.The base for all caches.
@@ -27,12 +28,36 @@ public class BinaryCache implements Cloneable {
      */
     public BinaryCache(Allocator allocator) {
         //TODO: add cache builder to set parameters.
-        this.map = new SelectableConcurrentHashMap(false, 1000, 0.75f, 256, 0, null);
+        this.map = new SelectableConcurrentHashMap(1000, 0.75f, 256, 0, null);
         this.allocator = allocator;
     }
 
     public Pointer put(Object key, byte[] payload) {
         return put(key, payload, 0);
+    }
+
+    /**
+     * Put an element in the store if no element is currently mapped to the elements key.
+     * @param key
+     * @param payload
+     * @return the Pointer previously cached for this key, or null if none.
+     */
+    public byte[] putIfAbsent(Object key, byte[] payload) {
+        Lock lock = getWriteLock(key);
+        lock.lock();
+        try {
+            Pointer oldPointer = null;
+            Pointer pointer = store(key, payload);
+            if (pointer != null) {
+                oldPointer = map.putIfAbsent(key, pointer, pointer.getMemoryBuffer().getSize());
+                //TODO: we need read value, but oldPointer is already freed.
+                //byte[] oldValue = oldPointer.readValue();
+                return null;
+            }
+            return null;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -60,27 +85,34 @@ public class BinaryCache implements Cloneable {
      * @param key
      * @param payload
      * @param expiresIn
-     * @return pointer to value, null if failed.
+     * @return the old pointer, null if no old value.
      */
     public Pointer put(Object key, byte[] payload, long expiresIn) {
-        // need synchronized?
-        Pointer pointer = map.get(key);
-        if (pointer != null) {
+//        Pointer oldPointer = map.get(key);
+//        if (oldPointer != null) {
+//            TODO:
 //            if (pointer.getCapacity() > payload.length) {
 //                pointer.getMemoryBuffer().write(payload);
 //                return pointer;
 //            }
-        }
-        pointer = store(key, payload);
-        if (pointer != null) {
-            if (expiresIn != 0) {
-                pointer.setExpiration(System.currentTimeMillis() + expiresIn);
-            } else {
-                pointer.setExpiration(0);
+//        }
+        Lock lock = getWriteLock(key);
+        lock.lock();
+        try {
+            Pointer oldPointer = null;
+            Pointer pointer = store(key, payload);
+            if (pointer != null) {
+                if (expiresIn != 0) {
+                    pointer.setExpiration(System.currentTimeMillis() + expiresIn);
+                } else {
+                    pointer.setExpiration(0);
+                }
+                oldPointer = map.put(key, pointer, pointer.getMemoryBuffer().getSize());
             }
-            map.put(key, pointer, pointer.getMemoryBuffer().getSize());
+            return oldPointer;
+        } finally {
+            lock.unlock();
         }
-        return pointer;
     }
 
     /**
@@ -90,30 +122,49 @@ public class BinaryCache implements Cloneable {
      * @return
      */
     public byte[] retrieve(Object key) {
+        Pointer pointer = retrievePointer(key);
+        if (pointer == null) {
+            return null;
+        }
+        return pointer.readValue();
+    }
+
+    /**
+     * retrive value by key from cache.
+     *
+     * @param key
+     * @return
+     */
+    public Pointer retrievePointer(Object key) {
         Pointer pointer = map.get(key);
         if (pointer == null) {
             return null;
         }
         if (pointer.isExpired() || !pointer.getLive().get()) {
-            //TODO: need sync
-            map.remove(key);
+            Lock lock = getWriteLock(key);
+            lock.lock();
+            try {
+                pointer = map.get(key);
+                if (pointer.isExpired() || !pointer.getLive().get()) {
+                    map.remove(key);
+                }
+            } finally {
+                lock.unlock();
+            }
             return null;
         } else {
-            return pointer.getValue();
+            return pointer;
         }
     }
 
     public void clear() {
-        for (Pointer pointer : map.values()) {
-            pointer.free();
-        }
         map.clear();
         logger.info("Cache cleared");
     }
 
-    public void close() throws IOException {
+    public void dispose() {
         map.clear();
-        this.allocator.close();
+        this.allocator.dispose();
         logger.info("Cache closed");
     }
 
@@ -125,6 +176,12 @@ public class BinaryCache implements Cloneable {
         this.map.remove(key);
     }
 
+    /**
+     * allocate memory and store the payload, return the pointer.
+     * @param key
+     * @param payload
+     * @return the point.null if failed.
+     */
     private Pointer store(Object key, byte[] payload) {
         MemoryBuffer buffer = allocator.allocate(payload.length);
         if (buffer == null) {
@@ -137,11 +194,19 @@ public class BinaryCache implements Cloneable {
         return p;
     }
 
+    private Lock getWriteLock(Object key) {
+        return map.lockFor(key).writeLock();
+    }
+
     public long used() {
         return this.allocator.used();
     }
 
     public Pointer getPointer(Object key) {
         return map.get(key);
+    }
+
+    public ReentrantReadWriteLock lockFor(Object key) {
+        return map.lockFor(key);
     }
 }

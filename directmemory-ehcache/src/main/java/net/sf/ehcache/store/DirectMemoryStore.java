@@ -24,8 +24,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * direct memory store impl.
+ * @author dongliu
+ */
 public class DirectMemoryStore extends AbstractStore implements TierableStore, PoolableStore {
 
     private static Logger logger = LoggerFactory.getLogger(BinaryCache.class);
@@ -40,13 +45,14 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     private Serializer serializer;
 
+    private volatile CacheLockProvider lockProvider;
+
     public static DirectMemoryStore create(Ehcache cache, Pool<PoolableStore> offHeapPool) {
         return new DirectMemoryStore(cache, offHeapPool, false);
     }
 
     protected DirectMemoryStore(Ehcache cache, Pool<PoolableStore> offHeapPool,
                                 boolean doNotifications) {
-        //TODO: implemets and use offHeapPool
         this.status = Status.STATUS_UNINITIALISED;
         // we have checked the offHeapBytes setting before creatint DirectMemoryStore.
         // asume it's all right here.
@@ -68,18 +74,16 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public void unpinAll() {
-        //to be implemeted.
     }
 
     @Override
     public boolean isPinned(Object key) {
-        //to be implemeted.
         return false;
     }
 
     @Override
     public void setPinned(Object key, boolean pinned) {
-        //TODO: pinned to be implemeted.
+        throw new UnsupportedOperationException("Pinned element is not support.");
     }
 
     @Override
@@ -87,20 +91,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null) {
             return true;
         }
-        boolean exists = binaryCache.exists(element.getKey());
-        Pointer pointer = binaryCache.put(element.getObjectKey(), ElementToBytes(element));
-
-        if (pointer == null) {
-            throw new CacheException("Put element failed.");
-        }
-
-        return !exists;
+        Pointer oldPointer = binaryCache.put(element.getObjectKey(), ElementToBytes(element));
+        return oldPointer == null;
     }
 
     @Override
     public boolean putWithWriter(Element element, CacheWriterManager writerManager)
             throws CacheException {
-        //need synchronized?
         boolean newPut = put(element);
         if (writerManager != null) {
             try {
@@ -127,6 +124,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         return BytesToElement(bytes);
     }
 
+    /**
+     * Gets an Element from the Store, without updating statistics.
+     * @param key
+     * @return
+     */
     @Override
     public Element getQuiet(Object key) {
         byte[] bytes = binaryCache.retrieve(key);
@@ -153,7 +155,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public Element removeWithWriter(Object key, CacheWriterManager writerManager) throws CacheException {
-        //need synchronized?
         if (key == null) {
             return null;
         }
@@ -161,6 +162,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (writerManager != null) {
             writerManager.remove(new CacheEntry(key, removed));
         }
+
+        if (removed == null && logger.isDebugEnabled()) {
+            logger.debug(cache.getName() + "Cache: Cannot remove entry as key " + key + " was not found");
+        }
+
         return removed;
     }
 
@@ -171,12 +177,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public Element putIfAbsent(Element element) throws NullPointerException {
-        //need synchronized?
-        Element returnElement = get(element.getObjectKey());
-        if (returnElement == null) {
-            put(element);
+        byte[] bytes = binaryCache.putIfAbsent(element.getKey(), ElementToBytes(element));
+        if (bytes != null) {
+            return BytesToElement(bytes);
         }
-        return returnElement;
+        return null;
     }
 
     @Override
@@ -185,53 +190,77 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null || element.getObjectKey() == null) {
             return null;
         }
-        Pointer pointer = binaryCache.getPointer(element.getObjectKey());
-        if (pointer == null) {
-            return null;
-        }
 
-        Element toRemove = getQuiet(element.getObjectKey());
-        if (comparator.equals(element, toRemove)) {
-            binaryCache.remove(element.getObjectKey());
-            return toRemove;
-        } else {
-            return null;
+        Lock lock = getWriteLock(element.getObjectKey());
+        lock.lock();
+
+        try {
+            Element toRemove = getQuiet(element.getObjectKey());
+            if (comparator.equals(element, toRemove)) {
+                binaryCache.remove(element.getObjectKey());
+                return toRemove;
+            } else {
+                return null;
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
+    /**
+     * Replace the cached element only if the value of the current Element is
+     *  equal to the value of the supplied old Element.
+     * @param old
+     * @param element
+     * @param comparator
+     * @return
+     * @throws NullPointerException
+     * @throws IllegalArgumentException
+     */
     @Override
     public boolean replace(Element old, Element element, ElementValueComparator comparator)
             throws NullPointerException, IllegalArgumentException {
         if (element == null || element.getObjectKey() == null) {
             return false;
         }
-        Pointer pointer = binaryCache.getPointer(element.getObjectKey());
-        if (pointer == null) {
-            return false;
-        }
 
-        Element toUpdate = getQuiet(element.getObjectKey());
-        if (comparator.equals(old, toUpdate)) {
-            binaryCache.put(element.getObjectKey(), ElementToBytes(element));
-            return true;
-        } else {
-            return false;
+        Lock lock = getWriteLock(element.getKey());
+        lock.lock();
+        try {
+            Element toUpdate = getQuiet(element.getObjectKey());
+            if (comparator.equals(old, toUpdate)) {
+                binaryCache.put(element.getObjectKey(), ElementToBytes(element));
+                return true;
+            } else {
+                return false;
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
+    /**
+     * Replace the cached element only if an Element is currently cached for this key
+     * @param element
+     *          Element to be cached
+     * @return
+     *          the Element previously cached for this key, or null if no Element was cached
+     * @throws NullPointerException
+     */
     @Override
     public Element replace(Element element) throws NullPointerException {
-        Pointer pointer = binaryCache.getPointer(element.getObjectKey());
-        if (pointer == null) {
-            return null;
-        }
-
-        Element toUpdate = getQuiet(element.getObjectKey());
-        if (toUpdate != null) {
-            binaryCache.put(element.getObjectKey(), ElementToBytes(element));
-            return toUpdate;
-        } else {
-            return null;
+        Lock lock = getWriteLock(element.getKey());
+        lock.lock();
+        try {
+            Element toUpdate = getQuiet(element.getObjectKey());
+            if (toUpdate != null) {
+                binaryCache.put(element.getObjectKey(), ElementToBytes(element));
+                return toUpdate;
+            } else {
+                return null;
+            }
+        }finally {
+            lock.unlock();
         }
     }
 
@@ -240,8 +269,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (status.equals(Status.STATUS_SHUTDOWN)) {
             return;
         }
+        binaryCache.dispose();
         status = Status.STATUS_SHUTDOWN;
-        flush();
     }
 
     @Override
@@ -322,12 +351,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public void flush() {
-        binaryCache.clear();
+        //to be implemented.
     }
 
     @Override
     public boolean bufferFull() {
         //never backs up/ no buffer usedMemory.
+        //TODO: to be implemented.
         return false;
     }
 
@@ -343,8 +373,12 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public Object getInternalContext() {
-        // This should not be usedMemory, and will generally return null
-        return null;
+        if (lockProvider != null) {
+            return lockProvider;
+        } else {
+            lockProvider = new LockProvider();
+            return lockProvider;
+        }
     }
 
     @Override
@@ -409,6 +443,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public void fill(Element element) {
+        //TODO: check if has mem space for new element
         if (element == null) {
             return;
         }
@@ -441,15 +476,17 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         remove(key);
     }
 
+    private Lock getWriteLock(Object key) {
+        return binaryCache.lockFor(key).writeLock();
+    }
+
     /**
      * LockProvider implementation that uses the segment locks.
      */
     private class LockProvider implements CacheLockProvider {
 
-        @Override
         public Sync getSyncForKey(Object key) {
-            Pointer pointer = binaryCache.getPointer(key);
-            return new ReadWriteLockSync(new ReentrantReadWriteLock());
+            return new ReadWriteLockSync(binaryCache.lockFor(key));
         }
     }
 

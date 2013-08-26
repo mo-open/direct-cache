@@ -110,7 +110,7 @@ public class SlabsAllocator implements Allocator {
     }
 
     @Override
-    public void close() {
+    public void dispose() {
         this.mergedMemory.close();
         for (int i = 0; i < this.slabClasses.length; i++) {
             this.slabClasses[i] = null;

@@ -90,7 +90,6 @@ public class DirectByteBufferUtils {
         Method cleanMethod = cleaner.getClass().getMethod("clean");
         cleanMethod.setAccessible(true);
         cleanMethod.invoke(cleaner);
-
     }
 
 }
