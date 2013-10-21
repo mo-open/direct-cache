@@ -30,12 +30,11 @@ public class OffHeapBackendStore extends FrontEndCacheTier<MemoryStore, DirectMe
      * Create a DiskBackedMemoryStore instance
      * @param cache the cache
      * @param onHeapPool the pool tracking on-heap usage
-     * @param offHeapPool the pool tracking on-disk usage
      * @return a DiskBackedMemoryStore instance
      */
-    public static Store create(Ehcache cache, Pool onHeapPool, Pool<PoolableStore> offHeapPool) {
+    public static Store create(Ehcache cache, Pool onHeapPool) {
         final MemoryStore memoryStore = MemoryStore.create(cache, onHeapPool);
-        DirectMemoryStore store = DirectMemoryStore.create(cache, offHeapPool);
+        DirectMemoryStore store = DirectMemoryStore.create(cache);
         return new OffHeapBackendStore(cache.getCacheConfiguration(), memoryStore, store);
     }
 

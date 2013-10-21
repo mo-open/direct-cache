@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Memory Allocator use slabList, as memcached.
- * TODO: add rebalance.
+ * TODO: slab rebalance.
  * @author dongliu
  */
 public class SlabsAllocator implements Allocator {
@@ -30,8 +30,10 @@ public class SlabsAllocator implements Allocator {
 
     private final MergedMemory mergedMemory;
 
+    private final AtomicLong used;
     private SlabsAllocator(long capacity) {
-        mergedMemory = MergedMemory.allocate(capacity);
+        this.mergedMemory = MergedMemory.allocate(capacity);
+        this.used = new AtomicLong(0);
 
         float chunkSize = CHUNK_SIZE;
         for (int i = 0; i < CLASS_NUM; i++) {
@@ -47,9 +49,13 @@ public class SlabsAllocator implements Allocator {
 
     @Override
     public void free(MemoryBuffer memoryBuffer) {
+        if (memoryBuffer.isDispose()) {
+            return;
+        }
         Chunk chunk = (Chunk)memoryBuffer;
         SlabClass slabClass = locateSlabClass(chunk.getSize());
         slabClass.freeChunk(chunk);
+        this.used.addAndGet(-chunk.getCapacity());
     }
 
     @Override
@@ -58,7 +64,11 @@ public class SlabsAllocator implements Allocator {
         if (slabClass == null) {
             return null;
         }
-        return slabClass.newChunk();
+        Chunk chunk = slabClass.newChunk();
+        if (chunk != null) {
+            used.addAndGet(chunk.getCapacity());
+        }
+        return chunk;
     }
 
     /**
@@ -106,20 +116,20 @@ public class SlabsAllocator implements Allocator {
 
     @Override
     public long used() {
-        return this.mergedMemory.getPosition().longValue();
+        return this.used.longValue();
     }
 
     @Override
     public void dispose() {
-        this.mergedMemory.close();
+        this.mergedMemory.dispose();
         for (int i = 0; i < this.slabClasses.length; i++) {
             this.slabClasses[i] = null;
         }
+        this.used.set(0);
     }
 
     private static class SlabClass {
         private final int chunkSize;
-        private final int perslab;
         private final List<Slab> slabList;
         private volatile Slab curSlab;
         // ConcurrentLinkedQueue is good, but it cost too much extra space for each node
@@ -130,13 +140,12 @@ public class SlabsAllocator implements Allocator {
         public SlabClass (MergedMemory memory, int chunkSize) {
             this.memory = memory;
             this.chunkSize = chunkSize;
-            this.perslab = SLAB_SIZE / chunkSize;
             this.slabList = new ArrayList<Slab>();
             this.freeChunkQueue = new ConcurrentLinkedQueue<Chunk>();
         }
 
         /**
-         * free a chunk. lock free
+         * returnTo a chunk. lock returnTo
          */
         public void freeChunk(Chunk chunk) {
             freeChunkQueue.add(chunk);
@@ -151,7 +160,7 @@ public class SlabsAllocator implements Allocator {
             if (curSlab == null) {
                 synchronized (expandLock) {
                     if (curSlab == null) {
-                        newSlab();
+                        newSlab(this.chunkSize);
                     }
                 }
             }
@@ -161,28 +170,23 @@ public class SlabsAllocator implements Allocator {
                 return chunk;
             }
 
-            Slab slab = curSlab;
-            AtomicInteger idx = slab.getIdx();
-            int newIdx = idx.incrementAndGet();
-            if (newIdx <= perslab) {
-                chunk = slab.newChunk(newIdx - 1, chunkSize);
+            chunk = curSlab.nextChunk();
+            if (chunk != null) {
                 return chunk;
             }
 
             synchronized (expandLock) {
-                // try again.
-                if (curSlab.getIdx().intValue() < perslab) {
-                    chunk = curSlab.newChunk(curSlab.getIdx().intValue(), chunkSize);
-                    curSlab.getIdx().incrementAndGet();
+                // try again. curSlab may have changed.
+                chunk = curSlab.nextChunk();
+                if (chunk != null) {
                     return chunk;
                 }
 
-                if (newSlab() == null) {
+                if (newSlab(this.chunkSize) == null) {
                     return null;
                 }
 
-                chunk = curSlab.newChunk(0, chunkSize);
-                curSlab.getIdx().set(1);
+                chunk = curSlab.nextChunk();
                 return chunk;
             }
         }
@@ -192,15 +196,9 @@ public class SlabsAllocator implements Allocator {
          * thread-safe by atomic. memroy was hold by multi SlabClass, so thead-safe is required.
          * Note: curSlab & slabList was modified as a side-effect.
          */
-        public Slab newSlab() {
-            AtomicLong pos = memory.getPosition();
-            long newPos = pos.addAndGet(SLAB_SIZE);
-            if (newPos > memory.capacity()) {
-                pos.addAndGet(-SLAB_SIZE);
-                return null;
-            }
-
-            curSlab = Slab.make(memory, newPos - SLAB_SIZE, SLAB_SIZE);
+        private Slab newSlab(int chunkSize) {
+            MemoryBuffer buffer = memory.malloc(SLAB_SIZE);
+            curSlab = Slab.make(buffer, chunkSize);
             slabList.add(curSlab);
             return curSlab;
         }
@@ -213,20 +211,29 @@ public class SlabsAllocator implements Allocator {
 
         private final AtomicInteger idx = new AtomicInteger(0);
 
-        private Slab(MergedMemory memory, long start, int size) {
-            super(memory, start, size);
+        private final int chunkSize;
+
+        private Slab(MergedMemory memory, long start, int capacity, int chunkSize) {
+            super(memory, start, capacity);
+            this.chunkSize = chunkSize;
         }
 
-        public static Slab make(MergedMemory memory, long start, int size) {
-            return new Slab(memory, start, size);
+        public static Slab make(MemoryBuffer buffer, int chunkSize) {
+            return new Slab(buffer.getMemory(), buffer.getStart(), buffer.getCapacity(), chunkSize);
         }
 
-        public Chunk newChunk(int freeChunkIdx, int chunkSize) {
-            return Chunk.make(this, freeChunkIdx * chunkSize, chunkSize);
-        }
-
-        private AtomicInteger getIdx() {
-            return idx;
+        /**
+         * return next chunk in this slab.
+         * @return null if have no chunk left.
+         */
+        public Chunk nextChunk() {
+            int freeChunkIdx = this.idx.getAndIncrement();
+            int total = this.getCapacity() / chunkSize;
+            if (freeChunkIdx < total) {
+                return Chunk.make(this, freeChunkIdx * chunkSize, chunkSize);
+            }
+            this.idx.getAndDecrement();
+            return null;
         }
     }
 
@@ -235,12 +242,12 @@ public class SlabsAllocator implements Allocator {
      */
     private static class Chunk extends MemoryBuffer {
 
-        public static Chunk make(Slab slab, int start, int size) {
-            return new Chunk(slab, start, size);
+        public static Chunk make(Slab slab, int start, int capacity) {
+            return new Chunk(slab, start, capacity);
         }
 
-        private Chunk(Slab slab, int start, int size) {
-            this(slab.getMemory(), slab.getStart() + start, size);
+        private Chunk(Slab slab, int start, int capacity) {
+            this(slab.getMemory(), slab.getStart() + start, capacity);
         }
 
         private Chunk(MergedMemory byteBuffer, long start, int size) {

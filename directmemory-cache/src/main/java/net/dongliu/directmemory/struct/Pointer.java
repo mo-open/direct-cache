@@ -19,32 +19,43 @@ public class Pointer {
 
     public final MemoryBuffer memoryBuffer;
 
-    public final Allocator allocator;
-
-    public long hits;
+    /**
+     * version of the element. System.currentTimeMillis() is used to compute version for updated elements. That
+     * way, the actual version of the updated element does not need to be checked.
+     */
+    private volatile long version;
 
     /**
-     * the timestamp when this point constructed.
+     * The number of times the element was hit.
      */
-    public long created;
+    private volatile long hitCount;
 
     /**
-     * expire timestamp
+     * The amount of time for the element to live, in seconds. 0 indicates unlimited.
      */
-    public long expiration;
+    private volatile int timeToLive = Integer.MIN_VALUE;
+
+    /**
+     * The amount of time for the element to idle, in seconds. 0 indicates unlimited.
+     */
+    private volatile int timeToIdle = Integer.MIN_VALUE;
+
+
+    /**
+     * If there is an Element in the Cache and it is replaced with a new Element for the same key,
+     * then both the version number and lastUpdateTime should be updated to reflect that. The creation time
+     * will be the creation time of the new Element, not the original one, so that TTL concepts still work.
+     */
+    private volatile long lastUpdateTime;
 
     private final AtomicBoolean live = new AtomicBoolean();
 
 
-    public Pointer(MemoryBuffer memoryBuffer, Allocator allocator) {
+    public Pointer(MemoryBuffer memoryBuffer) {
         this.memoryBuffer = memoryBuffer;
-        this.allocator = allocator;
-        this.created = System.currentTimeMillis();
-        expiration = 0;
-    }
-
-    public float getFrequency() {
-        return (float) (currentTimeMillis() - created) / hits;
+        this.version = System.currentTimeMillis();
+        this.lastUpdateTime = this.version;
+        hitCount = 0;
     }
 
     public int getCapacity() {
@@ -57,7 +68,8 @@ public class Pointer {
     }
 
     public boolean isExpired() {
-        return expiration > 0 && expiration < System.currentTimeMillis();
+        long cur = System.currentTimeMillis();
+        return cur - version > timeToLive || cur - lastUpdateTime > timeToIdle;
     }
 
     public int getSize() {
@@ -65,19 +77,27 @@ public class Pointer {
     }
 
     public void hit() {
-        hits++;
+        ++this.hitCount;
+    }
+
+    public void setTimeToLive(int timeToLive) {
+        this.timeToLive = timeToLive;
+    }
+
+    public int getTimeToLive() {
+        return this.timeToLive;
+    }
+
+    public void setTimeToIdle(int timeToIdle) {
+        this.timeToIdle = timeToIdle;
+    }
+
+    public int getTimeToIdle() {
+        return this.timeToIdle;
     }
 
     public MemoryBuffer getMemoryBuffer() {
         return memoryBuffer;
-    }
-
-    public void setExpiration(long expiration) {
-        this.expiration = expiration;
-    }
-
-    public long getExpiration() {
-        return this.expiration;
     }
 
     public AtomicBoolean getLive() {
@@ -92,9 +112,33 @@ public class Pointer {
         this.key = key;
     }
 
-    public void free() {
+    public void setVersion(long version) {
+        this.version = version;
+    }
+
+    public long getVersion() {
+        return this.version;
+    }
+
+    public void setLastUpdateTime(long lastUpdateTime) {
+        this.lastUpdateTime = lastUpdateTime;
+    }
+
+    public long getLastUpdateTime() {
+        return this.lastUpdateTime;
+    }
+
+    public void setHitCount(long hitCount) {
+        this.hitCount = hitCount;
+    }
+
+    public long getHitCount() {
+        return this.hitCount;
+    }
+
+    public void returnTo(final Allocator allocator) {
         if (this.live.compareAndSet(true, false)) {
-            this.allocator.free(this.memoryBuffer);
+            allocator.free(this.memoryBuffer);
         }
     }
 

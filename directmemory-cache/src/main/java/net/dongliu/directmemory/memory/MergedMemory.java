@@ -1,5 +1,7 @@
 package net.dongliu.directmemory.memory;
 
+import net.dongliu.directmemory.struct.MemoryBuffer;
+
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicLong;
@@ -65,7 +67,7 @@ public class MergedMemory {
 
     /**
      * read data.
-     * @return
+     * @return the data.
      */
     public byte[] read(long start, int size) {
         if (start + size > this.capacity) {
@@ -85,14 +87,30 @@ public class MergedMemory {
         return data;
     }
 
-    public void close() {
+    /**
+     * get a new memory
+     * @param size memory size
+     * @return null if do not have enough memory.
+     */
+    public MemoryBuffer malloc(int size) {
+        long newPos = position.addAndGet(size);
+
+        if (newPos > this.capacity) {
+            position.addAndGet(-size);
+            return null;
+        }
+
+        return new MemoryBuffer(this, newPos - size, size);
+
+    }
+
+    /**
+     * release all resources.
+     */
+    public void dispose() {
         for (int i=0; i < byteBuffers.length; i++) {
             byteBuffers[i] = null;
         }
-    }
-
-    public AtomicLong getPosition() {
-        return position;
     }
 
 }

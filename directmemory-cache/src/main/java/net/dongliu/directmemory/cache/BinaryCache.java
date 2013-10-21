@@ -28,8 +28,8 @@ public class BinaryCache implements Cloneable {
      */
     public BinaryCache(Allocator allocator) {
         //TODO: add cache builder to set parameters.
-        this.map = new SelectableConcurrentHashMap(1000, 0.75f, 256, 0, null);
         this.allocator = allocator;
+        this.map = new SelectableConcurrentHashMap(allocator, 1000, 0.75f, 256, 0, null);
     }
 
     public Pointer put(Object key, byte[] payload) {
@@ -87,7 +87,7 @@ public class BinaryCache implements Cloneable {
      * @param expiresIn
      * @return the old pointer, null if no old value.
      */
-    public Pointer put(Object key, byte[] payload, long expiresIn) {
+    public Pointer put(Object key, byte[] payload, int expiresIn) {
 //        Pointer oldPointer = map.get(key);
 //        if (oldPointer != null) {
 //            TODO:
@@ -103,9 +103,9 @@ public class BinaryCache implements Cloneable {
             Pointer pointer = store(key, payload);
             if (pointer != null) {
                 if (expiresIn != 0) {
-                    pointer.setExpiration(System.currentTimeMillis() + expiresIn);
+                    pointer.setTimeToIdle(expiresIn);
                 } else {
-                    pointer.setExpiration(0);
+                    pointer.setTimeToIdle(0);
                 }
                 oldPointer = map.put(key, pointer, pointer.getMemoryBuffer().getSize());
             }
@@ -188,7 +188,7 @@ public class BinaryCache implements Cloneable {
             return null;
         }
 
-        Pointer p = new Pointer(buffer, allocator);
+        Pointer p = new Pointer(buffer);
         buffer.write(payload);
         p.setKey(key);
         return p;

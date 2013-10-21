@@ -38,8 +38,7 @@ public class EnterpriseFeaturesManager
             return createNonOffHeapStore(cache, onHeapPool, onDiskPool);
         }
 
-        //TODO: combine with offHeapPool & onDiskPool
-        return OffHeapBackendStore.create(cache, onHeapPool, null);
+        return OffHeapBackendStore.create(cache, onHeapPool);
     }
 
     /**

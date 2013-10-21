@@ -2,7 +2,11 @@ package net.sf.ehcache.store;
 
 import net.dongliu.directmemory.cache.BinaryCache;
 import net.dongliu.directmemory.cache.BinaryCacheBuilder;
+import net.dongliu.directmemory.cache.SelectableConcurrentHashMap;
+import net.dongliu.directmemory.memory.Allocator;
+import net.dongliu.directmemory.memory.SlabsAllocator;
 import net.dongliu.directmemory.serialization.SerializerFactory;
+import net.dongliu.directmemory.struct.MemoryBuffer;
 import net.sf.ehcache.*;
 import net.sf.ehcache.concurrent.CacheLockProvider;
 import net.sf.ehcache.concurrent.ReadWriteLockSync;
@@ -33,13 +37,15 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class DirectMemoryStore extends AbstractStore implements TierableStore, PoolableStore {
 
-    private static Logger logger = LoggerFactory.getLogger(BinaryCache.class);
+    private static Logger logger = LoggerFactory.getLogger(DirectMemoryStore.class);
 
     private final RateStatistic hitRate = new AtomicRateStatistic(1000, TimeUnit.MILLISECONDS);
     private final RateStatistic missRate = new AtomicRateStatistic(1000, TimeUnit.MILLISECONDS);
     private volatile Status status;
 
-    protected BinaryCache binaryCache;
+    private SelectableConcurrentHashMap map;
+
+    private final Allocator allocator;
 
     private final Ehcache cache;
 
@@ -47,29 +53,22 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     private volatile CacheLockProvider lockProvider;
 
-    public static DirectMemoryStore create(Ehcache cache, Pool<PoolableStore> offHeapPool) {
-        return new DirectMemoryStore(cache, offHeapPool, false);
+    public static DirectMemoryStore create(Ehcache cache) {
+        return new DirectMemoryStore(cache, false);
     }
 
-    protected DirectMemoryStore(Ehcache cache, Pool<PoolableStore> offHeapPool,
-                                boolean doNotifications) {
+    protected DirectMemoryStore(Ehcache cache, boolean doNotifications) {
         this.status = Status.STATUS_UNINITIALISED;
         // we have checked the offHeapBytes setting before creatint DirectMemoryStore.
         // asume it's all right here.
         long offHeapSizeBytes = cache.getCacheConfiguration().getMaxMemoryOffHeapInBytes();
         this.cache = cache;
 
-        binaryCache = createCacheService(offHeapSizeBytes);
+        this.allocator = SlabsAllocator.getSlabsAllocator(offHeapSizeBytes);
+        this.map = new SelectableConcurrentHashMap(allocator, 1000, 0.75f, 256, 0, null);
 
         serializer = SerializerFactory.createNewSerializer();
         this.status = Status.STATUS_ALIVE;
-    }
-
-    private BinaryCache createCacheService(long size) {
-        return new BinaryCacheBuilder()
-                .setSize(size)
-                .setInitialCapacity(BinaryCacheBuilder.DEFAULT_INITIAL_CAPACITY)
-                .newCacheService();
     }
 
     @Override
@@ -91,8 +90,48 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null) {
             return true;
         }
-        Pointer oldPointer = binaryCache.put(element.getObjectKey(), ElementToBytes(element));
-        return oldPointer == null;
+
+        Object key = element.getKey();
+        if (key == null) {
+            return true;
+        }
+
+        Lock lock = getWriteLock(key);
+        lock.lock();
+        try {
+            Pointer oldPointer = null;
+            Pointer pointer = store(element);
+            if (pointer != null) {
+                oldPointer = map.put(key, pointer, pointer.getMemoryBuffer().getSize());
+            }
+            return oldPointer == null;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * allocate memory and store the payload, return the pointer.
+     * @return the point.null if failed.
+     */
+    private Pointer store(Element element) {
+        //TODO: if element.getValue() is null
+        Object value = element.getValue();
+        byte[] bytes = objectToBytes(value);
+        MemoryBuffer buffer = allocator.allocate(bytes.length);
+        if (buffer == null) {
+            return null;
+        }
+
+        Pointer p = new Pointer(buffer);
+        buffer.write(bytes);
+        p.setKey(element.getKey());
+        p.setTimeToIdle(element.getTimeToIdle());
+        p.setTimeToLive(element.getTimeToLive());
+        p.setHitCount(element.getHitCount());
+        p.setVersion(element.getVersion());
+        p.setLastUpdateTime(element.getLastUpdateTime());
+        return p;
     }
 
     @Override
@@ -115,13 +154,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
 
-        byte[] bytes = binaryCache.retrieve(key);
-        if (bytes == null) {
+        Element e = getQuiet(key);
+        if (e == null) {
             missRate.event();
         } else {
             hitRate.event();
         }
-        return BytesToElement(bytes);
+        return e;
     }
 
     /**
@@ -131,16 +170,42 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
      */
     @Override
     public Element getQuiet(Object key) {
-        byte[] bytes = binaryCache.retrieve(key);
-        if (bytes == null) {
+        if (key == null) {
             return null;
         }
-        return BytesToElement(bytes);
+
+        Pointer pointer = map.get(key);
+        if (pointer == null) {
+            return null;
+        }
+        if (pointer.isExpired() || !pointer.getLive().get()) {
+            Lock lock = getWriteLock(key);
+            lock.lock();
+            try {
+                pointer = map.get(key);
+                if (pointer.isExpired() || !pointer.getLive().get()) {
+                    map.remove(key);
+                }
+            } finally {
+                lock.unlock();
+            }
+            return null;
+        }
+
+        //TODO: add creation & lastAccessTime.
+        long creation = pointer.getVersion();
+        long lastAccessTime = pointer.getLastUpdateTime();
+        Object value = bytesToObject(pointer.readValue(), Object.class);
+        Element e = new Element(pointer.getKey(), value, pointer.getVersion(), creation, lastAccessTime,
+                pointer.getLastUpdateTime(), pointer.getHitCount());
+        e.setTimeToLive(pointer.getTimeToLive());
+        e.setTimeToIdle(pointer.getTimeToLive());
+        return e;
     }
 
     @Override
     public List<Object> getKeys() {
-        return new ArrayList<Object>(binaryCache.keys());
+        return new ArrayList<Object>(map.keySet());
     }
 
     @Override
@@ -149,7 +214,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
         Element element = getQuiet(key);
-        binaryCache.remove(key);
+        Pointer pointer = this.map.remove(key);
         return element;
     }
 
@@ -172,16 +237,35 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public void removeAll() throws CacheException {
-        binaryCache.clear();
+        this.map.clear();
     }
 
     @Override
     public Element putIfAbsent(Element element) throws NullPointerException {
-        byte[] bytes = binaryCache.putIfAbsent(element.getKey(), ElementToBytes(element));
-        if (bytes != null) {
-            return BytesToElement(bytes);
+        Object key = element.getKey();
+        if (key == null) {
+            return null;
         }
-        return null;
+        Lock lock = getWriteLock(key);
+        lock.lock();
+        try {
+            Element e = getQuiet(key);
+            Pointer pointer = store(element);
+            if (pointer != null) {
+                Pointer oldPointer = map.putIfAbsent(key, pointer, pointer.getMemoryBuffer().getSize());
+                //TODO: we need read value, but oldPointer is already freed.
+                //byte[] oldValue = oldPointer.readValue();
+                if (oldPointer != null) {
+                    return e;
+                } else {
+                    return null;
+                }
+            } else {
+                return null;
+            }
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -197,7 +281,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         try {
             Element toRemove = getQuiet(element.getObjectKey());
             if (comparator.equals(element, toRemove)) {
-                binaryCache.remove(element.getObjectKey());
+                remove(element.getObjectKey());
                 return toRemove;
             } else {
                 return null;
@@ -229,7 +313,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         try {
             Element toUpdate = getQuiet(element.getObjectKey());
             if (comparator.equals(old, toUpdate)) {
-                binaryCache.put(element.getObjectKey(), ElementToBytes(element));
+                put(element);
                 return true;
             } else {
                 return false;
@@ -254,7 +338,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         try {
             Element toUpdate = getQuiet(element.getObjectKey());
             if (toUpdate != null) {
-                binaryCache.put(element.getObjectKey(), ElementToBytes(element));
+                put(element);
                 return toUpdate;
             } else {
                 return null;
@@ -269,7 +353,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (status.equals(Status.STATUS_SHUTDOWN)) {
             return;
         }
-        binaryCache.dispose();
+        this.map.clear();
+        this.allocator.dispose();
         status = Status.STATUS_SHUTDOWN;
     }
 
@@ -286,7 +371,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public int getOffHeapSize() {
-        long size = binaryCache.entries();
+        long size = map.keySet().size();
         if (size > Integer.MAX_VALUE) {
             return Integer.MAX_VALUE;
         } else {
@@ -306,12 +391,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public long getInMemorySizeInBytes() {
+        //TODO: it is actually not zero
         return 0;
     }
 
     @Override
     public long getOffHeapSizeInBytes() {
-        return binaryCache.used();
+        return this.allocator.used();
     }
 
     @Override
@@ -336,7 +422,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     @Override
     public boolean containsKeyOffHeap(Object key) {
-        return binaryCache.exists(key);
+        return map.containsKey(key);
     }
 
     @Override
@@ -447,7 +533,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         if (element == null) {
             return;
         }
-        binaryCache.put(element.getObjectKey(), ElementToBytes(element));
+        put(element);
     }
 
     @Override
@@ -477,7 +563,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
     }
 
     private Lock getWriteLock(Object key) {
-        return binaryCache.lockFor(key).writeLock();
+        return map.lockFor(key).writeLock();
     }
 
     /**
@@ -486,22 +572,22 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
     private class LockProvider implements CacheLockProvider {
 
         public Sync getSyncForKey(Object key) {
-            return new ReadWriteLockSync(binaryCache.lockFor(key));
+            return new ReadWriteLockSync(map.lockFor(key));
         }
     }
 
-    private byte[] ElementToBytes(Element element) {
+    private byte[] objectToBytes(Object o) {
         try {
-            return serializer.serialize(element);
+            return serializer.serialize(o);
         } catch (IOException e) {
             // should not happen.
             throw new RuntimeException(e);
         }
     }
 
-    private Element BytesToElement(byte[] bytes) {
+    private <T> T bytesToObject(byte[] bytes, Class<T> clazz) {
         try {
-            return serializer.deserialize(bytes, Element.class);
+            return serializer.deserialize(bytes, clazz);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

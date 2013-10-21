@@ -10,7 +10,7 @@ public class NotifyingDirectMemoryStore extends DirectMemoryStore {
     private final Ehcache cache;
 
     private NotifyingDirectMemoryStore(Ehcache cache, Pool<PoolableStore> pool) {
-        super(cache, pool, true);
+        super(cache, true);
         this.cache = cache;
     }
 

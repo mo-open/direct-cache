@@ -1,6 +1,5 @@
 package net.dongliu.directmemory.cache;
 
-import java.io.Serializable;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.ArrayList;
@@ -16,6 +15,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import net.dongliu.directmemory.memory.Allocator;
 import net.dongliu.directmemory.struct.Pointer;
 
 /**
@@ -24,7 +24,6 @@ import net.dongliu.directmemory.struct.Pointer;
  * <p/>
  * The random sampling technique involves randomly selecting a map Segment, and then
  * selecting a number of random entry chains from that segment.
- *
  */
 public class SelectableConcurrentHashMap {
 
@@ -74,11 +73,15 @@ public class SelectableConcurrentHashMap {
     private Set<Map.Entry<Object, Pointer>> entrySet;
     private Collection<Pointer> values;
 
-    public SelectableConcurrentHashMap(int initialCapacity,
+    private final Allocator allocator;
+
+    public SelectableConcurrentHashMap(Allocator allocator, int initialCapacity,
                                        float loadFactor, int concurrency, final long maximumSize,
                                        final CacheEventListener cacheEventListener) {
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrency <= 0)
             throw new IllegalArgumentException();
+
+        this.allocator = allocator;
 
         if (concurrency > MAX_SEGMENTS)
             concurrency = MAX_SEGMENTS;
@@ -340,7 +343,8 @@ public class SelectableConcurrentHashMap {
     }
 
     /**
-     * put key - element. if has old value, also free the old pointer.
+     * put key - element. if has old value, also returnTo the old pointer.
+     *
      * @param key
      * @param element
      * @param sizeOf
@@ -353,6 +357,7 @@ public class SelectableConcurrentHashMap {
 
     /**
      * put key - element if absent.
+     *
      * @param key
      * @param element
      * @param sizeOf
@@ -364,7 +369,8 @@ public class SelectableConcurrentHashMap {
     }
 
     /**
-     * remove also free Poniter.
+     * remove also returnTo Poniter.
+     *
      * @param key
      * @return
      */
@@ -381,7 +387,7 @@ public class SelectableConcurrentHashMap {
     }
 
     /**
-     * clear also cause all Pointer to be free.
+     * clear also cause all Pointer to be returnTo.
      */
     public void clear() {
         for (int i = 0; i < segments.length; ++i)
@@ -483,7 +489,7 @@ public class SelectableConcurrentHashMap {
         }
 
         protected void preRemove(HashEntry e) {
-            e.value.free();
+            e.value.returnTo(allocator);
         }
 
         protected void postInstall(Object key, Pointer value) {
@@ -522,7 +528,7 @@ public class SelectableConcurrentHashMap {
                 if (count != 0) {
                     HashEntry[] tab = table;
                     for (int i = 0; i < tab.length; i++) {
-                        tab[i].value.free();
+                        tab[i].value.returnTo(allocator);
                         tab[i] = null;
                     }
                     ++modCount;
