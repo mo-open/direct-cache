@@ -1,4 +1,4 @@
-package net.dongliu.directmemory.utils;
+package net.dongliu.directcache.utils;
 
 import static java.lang.String.format;
 

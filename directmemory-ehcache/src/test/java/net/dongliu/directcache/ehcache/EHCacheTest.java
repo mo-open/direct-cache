@@ -1,4 +1,4 @@
-package net.dongliu.directmemory.ehcache;
+package net.dongliu.directcache.ehcache;
 
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Ehcache;
@@ -30,13 +30,12 @@ public class EHCacheTest {
             throws IOException {
         CacheManager cacheManager = CacheManager.getInstance();
         Ehcache ehcache = cacheManager.getEhcache("testCache");
-        Element element = null;
         for (int i = 0; i < 3000; i++) {
             if ((i % 1000) == 0) {
                 System.out.println("heatbeat 2 " + i);
                 stats(ehcache);
             }
-            element = new Element(i, new byte[1024]);
+            Element element = new Element(i, new byte[1024]);
             ehcache.put(element);
         }
     }

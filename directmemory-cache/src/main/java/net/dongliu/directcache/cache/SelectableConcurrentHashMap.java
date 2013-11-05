@@ -1,4 +1,4 @@
-package net.dongliu.directmemory.cache;
+package net.dongliu.directcache.cache;
 
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
@@ -15,8 +15,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import net.dongliu.directmemory.memory.Allocator;
-import net.dongliu.directmemory.struct.Pointer;
+import net.dongliu.directcache.memory.Allocator;
+import net.dongliu.directcache.struct.Pointer;
 
 /**
  * SelectableConcurrentHashMap subclasses a repackaged version of ConcurrentHashMap
@@ -343,7 +343,7 @@ public class SelectableConcurrentHashMap {
     }
 
     /**
-     * put key - element. if has old value, also returnTo the old pointer.
+     * set key - element. if has old value, also returnTo the old pointer.
      *
      * @param key
      * @param element
@@ -356,7 +356,7 @@ public class SelectableConcurrentHashMap {
     }
 
     /**
-     * put key - element if absent.
+     * set key - element if absent.
      *
      * @param key
      * @param element

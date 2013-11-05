@@ -1,24 +1,21 @@
 package net.sf.ehcache.store;
 
-import net.dongliu.directmemory.cache.BinaryCache;
-import net.dongliu.directmemory.cache.BinaryCacheBuilder;
-import net.dongliu.directmemory.cache.SelectableConcurrentHashMap;
-import net.dongliu.directmemory.memory.Allocator;
-import net.dongliu.directmemory.memory.SlabsAllocator;
-import net.dongliu.directmemory.serialization.SerializerFactory;
-import net.dongliu.directmemory.struct.MemoryBuffer;
+import net.dongliu.directcache.cache.SelectableConcurrentHashMap;
+import net.dongliu.directcache.memory.Allocator;
+import net.dongliu.directcache.memory.SlabsAllocator;
+import net.dongliu.directcache.serialization.SerializerFactory;
+import net.dongliu.directcache.struct.MemoryBuffer;
 import net.sf.ehcache.*;
 import net.sf.ehcache.concurrent.CacheLockProvider;
 import net.sf.ehcache.concurrent.ReadWriteLockSync;
 import net.sf.ehcache.concurrent.Sync;
-import net.sf.ehcache.pool.Pool;
 import net.sf.ehcache.pool.PoolableStore;
 import net.sf.ehcache.store.disk.StoreUpdateException;
 import net.sf.ehcache.util.ratestatistics.AtomicRateStatistic;
 import net.sf.ehcache.util.ratestatistics.RateStatistic;
 import net.sf.ehcache.writer.CacheWriterManager;
-import net.dongliu.directmemory.struct.Pointer;
-import net.dongliu.directmemory.serialization.Serializer;
+import net.dongliu.directcache.struct.Pointer;
+import net.dongliu.directcache.serialization.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +26,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * direct memory store impl.

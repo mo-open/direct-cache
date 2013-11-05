@@ -1,8 +1,6 @@
-package net.dongliu.directmemory.memory;
+package net.dongliu.directcache.memory;
 
-import net.dongliu.directmemory.struct.MemoryBuffer;
-
-import java.io.Closeable;
+import net.dongliu.directcache.struct.MemoryBuffer;
 
 /**
  * Allocator

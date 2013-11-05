@@ -1,4 +1,4 @@
-package net.dongliu.directmemory.serialization;
+package net.dongliu.directcache.serialization;
 
 import static java.lang.String.format;
 import static java.util.ServiceLoader.load;

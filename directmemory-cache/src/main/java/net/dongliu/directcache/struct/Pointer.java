@@ -1,12 +1,10 @@
-package net.dongliu.directmemory.struct;
+package net.dongliu.directcache.struct;
 
-import net.dongliu.directmemory.memory.Allocator;
+import net.dongliu.directcache.memory.Allocator;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.String.format;
-import static java.lang.System.currentTimeMillis;
 
 /**
  * Wrapper the memoryBuffer, and provide info-fields a cache entry needed.
@@ -48,7 +46,7 @@ public class Pointer {
      */
     private volatile long lastUpdateTime;
 
-    private final AtomicBoolean live = new AtomicBoolean();
+    private final AtomicBoolean live = new AtomicBoolean(true);
 
 
     public Pointer(MemoryBuffer memoryBuffer) {
@@ -69,7 +67,7 @@ public class Pointer {
 
     public boolean isExpired() {
         long cur = System.currentTimeMillis();
-        return cur - version > timeToLive || cur - lastUpdateTime > timeToIdle;
+        return timeToLive > 0 && cur - version > timeToLive || timeToIdle > 0 && cur - lastUpdateTime > timeToIdle;
     }
 
     public int getSize() {

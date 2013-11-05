@@ -1,8 +1,8 @@
-package net.dongliu.directmemory.cache;
+package net.dongliu.directcache.cache;
 
-import net.dongliu.directmemory.memory.Allocator;
-import net.dongliu.directmemory.memory.SlabsAllocator;
-import net.dongliu.directmemory.serialization.Serializer;
+import net.dongliu.directcache.memory.Allocator;
+import net.dongliu.directcache.memory.SlabsAllocator;
+import net.dongliu.directcache.serialization.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,8 +36,8 @@ public final class BinaryCacheBuilder {
 
     public BinaryCache newCacheService() {
         Allocator allocator = SlabsAllocator.getSlabsAllocator(this.size);
-        BinaryCache cacheService = new BinaryCache(allocator);
-        return cacheService;
+        BinaryCache cache = new BinaryCache(allocator);
+        return cache;
     }
 
 }

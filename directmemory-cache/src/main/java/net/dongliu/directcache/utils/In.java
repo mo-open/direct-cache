@@ -1,4 +1,4 @@
-package net.dongliu.directmemory.utils;
+package net.dongliu.directcache.utils;
 
 public class In {
 

@@ -1,4 +1,4 @@
-package net.dongliu.directmemory.serialization;
+package net.dongliu.directcache.serialization;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one

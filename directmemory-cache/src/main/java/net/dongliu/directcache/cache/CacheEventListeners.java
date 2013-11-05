@@ -1,6 +1,6 @@
-package net.dongliu.directmemory.cache;
+package net.dongliu.directcache.cache;
 
-import net.dongliu.directmemory.struct.Pointer;
+import net.dongliu.directcache.struct.Pointer;
 
 /**
  * @author dongliu

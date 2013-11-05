@@ -1,7 +1,7 @@
-package net.dongliu.directmemory.memory;
+package net.dongliu.directcache.memory;
 
-import net.dongliu.directmemory.struct.MemoryBuffer;
-import net.dongliu.directmemory.utils.Ram;
+import net.dongliu.directcache.struct.MemoryBuffer;
+import net.dongliu.directcache.utils.Ram;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,17 +16,34 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class SlabsAllocator implements Allocator {
 
+    /** chunk size expand factor */
     private static final float expandFactor = 1.25f;
-    private static final int CLASS_NUM = 49;
 
-    /** 16byte. */
+    /** minum size of chunk */
     private static final int CHUNK_SIZE = 128;
+
     /** 8M. it is also the max Chunk Size */
     private static final int SLAB_SIZE = Ram.Mb(8);
 
+    private static final int[] CHUNK_SIZE_LIST;
+
     private static final int CHUNK_SIZE_MASK = ~3;
 
-    private final SlabClass[] slabClasses = new SlabClass[CLASS_NUM];
+    static {
+        double size = CHUNK_SIZE;
+        List<Integer> ilist = new ArrayList<Integer>();
+        while ((((int) size) & CHUNK_SIZE_MASK) <= SLAB_SIZE) {
+            ilist.add((((int) size) & CHUNK_SIZE_MASK));
+            size = size * expandFactor;
+        }
+
+        CHUNK_SIZE_LIST = new int[ilist.size()];
+        for (int i = 0; i < ilist.size(); i++) {
+            CHUNK_SIZE_LIST[i] = ilist.get(i);
+        }
+    }
+
+    private final SlabClass[] slabClasses;
 
     private final MergedMemory mergedMemory;
 
@@ -35,27 +52,15 @@ public class SlabsAllocator implements Allocator {
         this.mergedMemory = MergedMemory.allocate(capacity);
         this.used = new AtomicLong(0);
 
-        float chunkSize = CHUNK_SIZE;
-        for (int i = 0; i < CLASS_NUM; i++) {
-            SlabClass slabClass = new SlabClass(mergedMemory, ((int) chunkSize) & CHUNK_SIZE_MASK);
+        slabClasses = new SlabClass[CHUNK_SIZE_LIST.length];
+        for (int i = 0; i < CHUNK_SIZE_LIST.length; i++) {
+            SlabClass slabClass = new SlabClass(mergedMemory, CHUNK_SIZE_LIST[i]);
             slabClasses[i] = slabClass;
-            chunkSize *= expandFactor;
         }
     }
 
     public static SlabsAllocator getSlabsAllocator(long size) {
         return new SlabsAllocator(size);
-    }
-
-    @Override
-    public void free(MemoryBuffer memoryBuffer) {
-        if (memoryBuffer.isDispose()) {
-            return;
-        }
-        Chunk chunk = (Chunk)memoryBuffer;
-        SlabClass slabClass = locateSlabClass(chunk.getSize());
-        slabClass.freeChunk(chunk);
-        this.used.addAndGet(-chunk.getCapacity());
     }
 
     @Override
@@ -110,6 +115,17 @@ public class SlabsAllocator implements Allocator {
     }
 
     @Override
+    public void free(MemoryBuffer memoryBuffer) {
+        if (memoryBuffer.isDispose()) {
+            return;
+        }
+        Chunk chunk = (Chunk)memoryBuffer;
+        SlabClass slabClass = locateSlabClass(chunk.getSize());
+        slabClass.freeChunk(chunk);
+        this.used.addAndGet(-chunk.getCapacity());
+    }
+
+    @Override
     public long getCapacity() {
         return mergedMemory.capacity();
     }
@@ -128,11 +144,14 @@ public class SlabsAllocator implements Allocator {
         this.used.set(0);
     }
 
+    /**
+     * A collection of same chunk size slab.
+     */
     private static class SlabClass {
         private final int chunkSize;
         private final List<Slab> slabList;
         private volatile Slab curSlab;
-        // ConcurrentLinkedQueue is good, but it cost too much extra space for each node
+
         private final ConcurrentLinkedQueue<Chunk> freeChunkQueue;
         private final MergedMemory memory;
         private final Object expandLock = new Object();
@@ -197,7 +216,10 @@ public class SlabsAllocator implements Allocator {
          * Note: curSlab & slabList was modified as a side-effect.
          */
         private Slab newSlab(int chunkSize) {
-            MemoryBuffer buffer = memory.malloc(SLAB_SIZE);
+            MemoryBuffer buffer = memory.malloc(chunkSize);
+            if (buffer == null) {
+                return null;
+            }
             curSlab = Slab.make(buffer, chunkSize);
             slabList.add(curSlab);
             return curSlab;

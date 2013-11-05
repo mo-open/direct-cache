@@ -1,18 +1,17 @@
-package net.dongliu.directmemory.memory;
+package net.dongliu.directcache.memory;
 
-import net.dongliu.directmemory.struct.MemoryBuffer;
+import net.dongliu.directcache.struct.MemoryBuffer;
 
 import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Merge a list of ByteBuffer to a Big One, as a big memory.
+ * Merge a list of Memory to a Big One, as a big memory.
  * @author dongliu
  */
 public class MergedMemory {
 
-    final ByteBuffer[] byteBuffers;
+    final UnsafeMemory[] unsafeMemories;
     private long capacity;
     private final AtomicLong position;
 
@@ -23,19 +22,19 @@ public class MergedMemory {
         this.capacity = totalSize;
         this.position = new AtomicLong(0);
 
-        int count = (int) (totalSize / MAX_BUFFER_SIZE);
+        int length = (int) (totalSize / MAX_BUFFER_SIZE);
         int leftSize = (int) (totalSize % MAX_BUFFER_SIZE);
         if (leftSize == 0) {
             leftSize = MAX_BUFFER_SIZE;
         } else {
-            count += 1;
+            length += 1;
         }
 
-        byteBuffers = new ByteBuffer[count];
-        for (int i=0; i < byteBuffers.length - 1; i++) {
-            byteBuffers[i] = ByteBuffer.allocateDirect(MAX_BUFFER_SIZE);
+        unsafeMemories = new UnsafeMemory[length];
+        for (int i=0; i < length - 1; i++) {
+            unsafeMemories[i] = UnsafeMemory.allocate(MAX_BUFFER_SIZE);
         }
-        byteBuffers[byteBuffers.length - 1] = ByteBuffer.allocateDirect(leftSize);
+        unsafeMemories[length - 1] = UnsafeMemory.allocate(leftSize);
     }
 
     public static MergedMemory allocate(long totalSize) {
@@ -57,11 +56,11 @@ public class MergedMemory {
         int idx = (int) (start/MAX_BUFFER_SIZE);
         int pos = (int) (start % MAX_BUFFER_SIZE);
         if (pos + data.length < MAX_BUFFER_SIZE) {
-            DirectByteBufferUtils.absolutePut(byteBuffers[idx], pos, data, 0, data.length);
+            unsafeMemories[idx].write(pos, data);
         } else {
-            int size1 = MAX_BUFFER_SIZE - pos;
-            DirectByteBufferUtils.absolutePut(byteBuffers[idx], pos, data, 0, size1);
-            DirectByteBufferUtils.absolutePut(byteBuffers[idx + 1], 0, data, size1, data.length - size1);
+            int fsize = MAX_BUFFER_SIZE - pos;
+            unsafeMemories[idx].write(pos, data, fsize);
+            unsafeMemories[idx].write(pos, data, fsize, data.length - fsize);
         }
     }
 
@@ -78,11 +77,11 @@ public class MergedMemory {
         int idx = (int) (start/MAX_BUFFER_SIZE);
         int pos = (int) (start % MAX_BUFFER_SIZE);
         if (pos + size < MAX_BUFFER_SIZE) {
-            DirectByteBufferUtils.absoluteGet(byteBuffers[idx], pos, data, 0, data.length);
+            unsafeMemories[idx].read(pos, data);
         } else {
-            int size1 = MAX_BUFFER_SIZE - pos;
-            DirectByteBufferUtils.absoluteGet(byteBuffers[idx], pos, data, 0, size1);
-            DirectByteBufferUtils.absoluteGet(byteBuffers[idx + 1], 0, data, size1, data.length - size1);
+            int fsize = MAX_BUFFER_SIZE - pos;
+            unsafeMemories[idx].read(pos, data, fsize);
+            unsafeMemories[idx].read(pos, data, fsize, data.length - fsize);
         }
         return data;
     }
@@ -108,8 +107,8 @@ public class MergedMemory {
      * release all resources.
      */
     public void dispose() {
-        for (int i=0; i < byteBuffers.length; i++) {
-            byteBuffers[i] = null;
+        for (UnsafeMemory unsafeMemory : unsafeMemories) {
+            unsafeMemory.dispose();
         }
     }
 
