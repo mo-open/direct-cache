@@ -11,33 +11,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import net.dongliu.directcache.evict.Lru;
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.struct.ValueWrapper;
 
 /**
- * SelectableConcurrentHashMap subclasses a repackaged version of ConcurrentHashMap
+ * CacheHashMap subclasses a repackaged version of ConcurrentHashMap
  * ito allow efficient random sampling of the map values.
  * <p/>
  * The random sampling technique involves randomly selecting a map Segment, and then
  * selecting a number of random entry chains from that segment.
  */
-public class SelectableConcurrentHashMap {
+public class CacheHashMap {
 
     /**
-     * The maximum capacity, used if a higher value is implicitly
-     * specified by either of the constructors with arguments.  MUST
-     * be a power of two <= 1<<30 to ensure that entries are indexable
-     * using ints.
+     * The maximum capacity, used if a higher node is implicitly specified by either of the constructors with arguments.
+     * MUST be a power of two <= 1<<30 to ensure that entries are indexable using ints.
      */
     private static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
-     * The maximum number of segments to allow; used to bound
-     * constructor arguments.
+     * The maximum number of segments to allow; used to bound constructor arguments.
      */
     private static final int MAX_SEGMENTS = 1 << 16; // slightly conservative
 
@@ -50,13 +47,12 @@ public class SelectableConcurrentHashMap {
     private static final int RETRIES_BEFORE_LOCK = 2;
 
     /**
-     * Mask value for indexing into segments. The upper bits of a
-     * key's hash code are used to choose the segment.
+     * Mask node for indexing into segments. The upper bits of a key's hash code are used to choose the segment.
      */
     private final int segmentMask;
 
     /**
-     * Shift value for indexing within segments.
+     * Shift node for indexing within segments.
      */
     private final int segmentShift;
 
@@ -65,8 +61,6 @@ public class SelectableConcurrentHashMap {
      */
     private final Segment[] segments;
 
-    private final Random rndm = new Random();
-    private volatile long maxSize;
     private final CacheEventListener cacheEventListener;
 
     private Set<Object> keySet;
@@ -75,9 +69,8 @@ public class SelectableConcurrentHashMap {
 
     private final Allocator allocator;
 
-    public SelectableConcurrentHashMap(Allocator allocator, int initialCapacity,
-                                       float loadFactor, int concurrency, final long maximumSize,
-                                       final CacheEventListener cacheEventListener) {
+    public CacheHashMap(Allocator allocator, int initialCapacity,
+                        float loadFactor, int concurrency, final CacheEventListener cacheEventListener) {
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrency <= 0)
             throw new IllegalArgumentException();
 
@@ -109,73 +102,17 @@ public class SelectableConcurrentHashMap {
         for (int i = 0; i < this.segments.length; ++i)
             this.segments[i] = createSegment(cap, loadFactor);
 
-        this.maxSize = maximumSize;
         this.cacheEventListener = cacheEventListener;
     }
 
-    public void setMaxSize(final long maxSize) {
-        this.maxSize = maxSize;
-    }
-
-    public ValueWrapper[] getRandomValues(final int size, Object keyHint) {
-        ArrayList<ValueWrapper> sampled = new ArrayList<ValueWrapper>(size * 2);
-
-        // pick a random starting point in the map
-        int randomHash = rndm.nextInt();
-
-        final int segmentStart;
-        if (keyHint == null) {
-            segmentStart = (randomHash >>> segmentShift) & segmentMask;
-        } else {
-            segmentStart = (hash(keyHint.hashCode()) >>> segmentShift) & segmentMask;
-        }
-
-        int segmentIndex = segmentStart;
-        do {
-            final HashEntry[] table = segments[segmentIndex].table;
-            final int tableStart = randomHash & (table.length - 1);
-            int tableIndex = tableStart;
-            do {
-                for (HashEntry e = table[tableIndex]; e != null; e = e.next) {
-                    ValueWrapper value = e.value;
-                    if (value != null) {
-                        sampled.add(value);
-                    }
-                }
-
-                if (sampled.size() >= size) {
-                    return sampled.toArray(new ValueWrapper[sampled.size()]);
-                }
-
-                //move to next table slot
-                tableIndex = (tableIndex + 1) & (table.length - 1);
-            } while (tableIndex != tableStart);
-
-            //move to next segment
-            segmentIndex = (segmentIndex + 1) & segmentMask;
-        } while (segmentIndex != segmentStart);
-
-        return sampled.toArray(new ValueWrapper[sampled.size()]);
-    }
 
     /**
-     * Return an object of the kind which will be stored when
-     * the element is going to be inserted
-     *
-     * @param e the element
-     * @return an object looking-alike the stored one
-     */
-    public Object storedObject(ValueWrapper e) {
-        return new HashEntry(null, 0, null, e, 0);
-    }
-
-    /**
-     * Returns the number of key-value mappings in this map without locking anything.
+     * Returns the number of key-node mappings in this map without locking anything.
      * This may not give the exact element count as locking is avoided.
      * If the map contains more than <tt>Integer.MAX_VALUE</tt> elements, returns
      * <tt>Integer.MAX_VALUE</tt>.
      *
-     * @return the number of key-value mappings in this map
+     * @return the number of key-node mappings in this map
      */
     public int quickSize() {
         final Segment[] segments = this.segments;
@@ -343,16 +280,15 @@ public class SelectableConcurrentHashMap {
     }
 
     /**
-     * set key - element. if has old value, also returnTo the old pointer.
+     * set key - element. if has old node, also returnTo the old pointer.
      *
      * @param key
      * @param element
-     * @param sizeOf
      * @return the old ValueWrapper, null if not exists
      */
-    public ValueWrapper put(Object key, ValueWrapper element, long sizeOf) {
+    public ValueWrapper put(Object key, ValueWrapper element) {
         int hash = hash(key.hashCode());
-        return segmentFor(hash).put(key, hash, element, sizeOf, false, true);
+        return segmentFor(hash).put(key, hash, element, false);
     }
 
     /**
@@ -360,12 +296,11 @@ public class SelectableConcurrentHashMap {
      *
      * @param key
      * @param element
-     * @param sizeOf
      * @return
      */
-    public ValueWrapper putIfAbsent(Object key, ValueWrapper element, long sizeOf) {
+    public ValueWrapper putIfAbsent(Object key, ValueWrapper element) {
         int hash = hash(key.hashCode());
-        return segmentFor(hash).put(key, hash, element, sizeOf, true, true);
+        return segmentFor(hash).put(key, hash, element, true);
     }
 
     /**
@@ -409,22 +344,13 @@ public class SelectableConcurrentHashMap {
         return (es != null) ? es : (entrySet = new EntrySet());
     }
 
+    public int evict(Object key) {
+        int hash = hash(key.hashCode());
+        return segmentFor(hash).evict();
+    }
+
     protected Segment createSegment(int initialCapacity, float lf) {
         return new Segment(initialCapacity, lf);
-    }
-
-    public boolean evict() {
-        return getRandomSegment().evict();
-    }
-
-    private Segment getRandomSegment() {
-        int randomHash = rndm.nextInt();
-        return segments[((randomHash >>> segmentShift) & segmentMask)];
-    }
-
-    public void recalculateSize(Object key) {
-        int hash = hash(key.hashCode());
-        segmentFor(hash).recalculateSize(key, hash);
     }
 
     /**
@@ -441,13 +367,14 @@ public class SelectableConcurrentHashMap {
         return Collections.unmodifiableList(Arrays.asList(segments));
     }
 
+    /**
+     * Segments.
+     */
     public class Segment extends ReentrantReadWriteLock {
 
         private static final int MAX_EVICTION = 5;
 
-        /**
-         * The number of elements in this segment's region.
-         */
+        /** The number of elements in this segment's region. */
         protected volatile int count;
 
         /**
@@ -462,7 +389,7 @@ public class SelectableConcurrentHashMap {
 
         /**
          * The table is rehashed when its size exceeds this threshold.
-         * (The value of this field is always <tt>(int)(capacity *
+         * (The node of this field is always <tt>(int)(capacity *
          * loadFactor)</tt>.)
          */
         int threshold;
@@ -473,13 +400,17 @@ public class SelectableConcurrentHashMap {
         protected volatile HashEntry[] table;
 
         /**
-         * The load factor for the hash table.  Even though this value
+         * The load factor for the hash table.  Even though this node
          * is same for all segments, it is replicated to avoid needing
          * links to outer object.
          *
          * @serial
          */
         final float loadFactor;
+
+        private final Lru lru = new Lru();
+
+        private volatile int seq = 0;
 
         private Iterator<HashEntry> evictionIterator = iterator();
 
@@ -488,12 +419,20 @@ public class SelectableConcurrentHashMap {
             setTable(new HashEntry[initialCapacity]);
         }
 
+        /**
+         * operations before delete from hashmap.
+         * TODO: remove make value unusable.
+         */
         protected void preRemove(HashEntry e) {
-            e.value.returnTo(allocator);
+            lru.remove(e.node);
+            e.node.getValue().returnTo(allocator);
         }
 
-        protected void postInstall(Object key, ValueWrapper value) {
-
+        /**
+         * oprations after put.
+         */
+        protected void postInstall(Object key, Lru.Node node) {
+            lru.add(node);
         }
 
         /**
@@ -514,12 +453,12 @@ public class SelectableConcurrentHashMap {
         }
 
         protected HashEntry createHashEntry(Object key, int hash, HashEntry next,
-                                            ValueWrapper value, long sizeOf) {
-            return new HashEntry(key, hash, next, value, sizeOf);
+                                            ValueWrapper value) {
+            return new HashEntry(key, hash, next, value);
         }
 
         protected HashEntry relinkHashEntry(HashEntry e, HashEntry next) {
-            return new HashEntry(e.key, e.hash, next, e.value, e.sizeOf);
+            return new HashEntry(e.key, e.hash, next, e.node);
         }
 
         protected void clear() {
@@ -528,12 +467,13 @@ public class SelectableConcurrentHashMap {
                 if (count != 0) {
                     HashEntry[] tab = table;
                     for (int i = 0; i < tab.length; i++) {
-                        tab[i].value.returnTo(allocator);
+                        tab[i].node.getValue().returnTo(allocator);
                         tab[i] = null;
                     }
                     ++modCount;
                     count = 0; // write-volatile
                 }
+
             } finally {
                 writeLock().unlock();
             }
@@ -552,7 +492,7 @@ public class SelectableConcurrentHashMap {
 
                 ValueWrapper oldValue = null;
                 if (e != null) {
-                    ValueWrapper v = e.value;
+                    ValueWrapper v = e.node.getValue();
                     if (value == null || value.equals(v)) {
                         oldValue = v;
                         ++modCount;
@@ -565,7 +505,6 @@ public class SelectableConcurrentHashMap {
                             newFirst = relinkHashEntry(p, newFirst);
                         tab[index] = newFirst;
                         count = c; // write-volatile
-//                        poolAccessor.delete(e.sizeOf);
                     }
                 }
                 return oldValue;
@@ -574,49 +513,7 @@ public class SelectableConcurrentHashMap {
             }
         }
 
-        public void recalculateSize(Object key, int hash) {
-            ValueWrapper value = null;
-            long oldSize = 0;
-            readLock().lock();
-            try {
-                HashEntry[] tab = table;
-                int index = hash & (tab.length - 1);
-                HashEntry first = tab[index];
-                HashEntry e = first;
-                while (e != null && (e.hash != hash || !key.equals(e.key))) {
-                    e = e.next;
-                }
-                if (e != null) {
-                    key = e.key;
-                    value = e.value;
-                    oldSize = e.sizeOf;
-                }
-            } finally {
-                readLock().unlock();
-            }
-            if (value != null) {
-//                long delta = poolAccessor.replace(oldSize, key, value, storedObject(value), true);
-                writeLock().lock();
-                try {
-                    HashEntry e = getFirst(hash);
-                    while (e != null && key != e.key) {
-                        e = e.next;
-                    }
-
-//                    if (e != null && e.value == value && oldSize == e.sizeOf) {
-//                        e.sizeOf = oldSize + delta;
-//                    } else {
-//                        poolAccessor.delete(delta);
-//                    }
-                } finally {
-                    writeLock().unlock();
-                }
-            }
-        }
-
-        protected ValueWrapper put(Object key, int hash, ValueWrapper value, long sizeOf,
-                              boolean onlyIfAbsent, boolean fire) {
-            ValueWrapper[] evicted = new ValueWrapper[MAX_EVICTION];
+        protected ValueWrapper put(Object key, int hash, ValueWrapper value, boolean onlyIfAbsent) {
             writeLock().lock();
             try {
                 int c = count;
@@ -625,63 +522,39 @@ public class SelectableConcurrentHashMap {
                 HashEntry[] tab = table;
                 int index = hash & (tab.length - 1);
                 HashEntry first = tab[index];
-                HashEntry e = first;
-                while (e != null && (e.hash != hash || !key.equals(e.key)))
-                    e = e.next;
+                HashEntry oldEntry = first;
+                while (oldEntry != null && (oldEntry.hash != hash || !key.equals(oldEntry.key)))
+                    oldEntry = oldEntry.next;
 
                 ValueWrapper oldValue;
-                if (e != null) {
-                    oldValue = e.value;
+                if (oldEntry != null) {
+                    oldValue = oldEntry.node.getValue();
                     if (!onlyIfAbsent) {
-                        e.value = value;
-                        e.sizeOf = sizeOf;
-                        if (fire) {
-                            postInstall(key, value);
-                        }
+                        // replace
+                        oldEntry.node = new Lru.Node(value);
+                        postInstall(key, oldEntry.node);
+                    } else {
+                        return oldValue;
                     }
                 } else {
+                    // add
                     oldValue = null;
                     ++modCount;
-                    tab[index] = createHashEntry(key, hash, first, value, sizeOf);
+                    tab[index] = createHashEntry(key, hash, first, value);
                     count = c; // write-volatile
-                    if (fire) {
-                        postInstall(key, value);
-                    }
+                    postInstall(key, tab[index].node);
                 }
 
-                if (onlyIfAbsent && oldValue != null || !onlyIfAbsent) {
-                    if (SelectableConcurrentHashMap.this.maxSize > 0) {
-                        int runs = Math.min(MAX_EVICTION, SelectableConcurrentHashMap.this.quickSize()
-                                - (int) SelectableConcurrentHashMap.this.maxSize);
-                        while (runs-- > 0) {
-                            ValueWrapper evict = nextExpiredOrToEvict(value);
-                            if (evict != null) {
-                                ValueWrapper removed;
-                                while ((removed = remove(evict.getKey(), hash(evict.getKey().hashCode()), null))
-                                        == null) {
-                                    evict = nextExpiredOrToEvict(value);
-                                    if (evict == null) {
-                                        break;
-                                    }
-                                }
-                                evicted[runs] = removed;
-                            }
-                        }
-                    }
-                }
                 return oldValue;
             } finally {
                 writeLock().unlock();
-                for (ValueWrapper element : evicted) {
-                    notifyEvictionOrExpiry(element);
-                }
             }
         }
 
         private void notifyEvictionOrExpiry(final ValueWrapper element) {
             if (element != null && cacheEventListener != null) {
                 if (element.isExpired()) {
-                    cacheEventListener.notiryExpired(element, false);
+                    cacheEventListener.notifyExpired(element, false);
                 } else {
                     cacheEventListener.notifyEvicted(element, false);
                 }
@@ -695,8 +568,11 @@ public class SelectableConcurrentHashMap {
                     HashEntry e = getFirst(hash);
                     while (e != null) {
                         if (e.hash == hash && key.equals(e.key)) {
-                            e.accessed = true;
-                            return e.value;
+                            if (seq++ % 10 == 0) {
+                                // sample visit call to lru
+                                lru.visit(e.node);
+                            }
+                            return e.node.getValue();
                         }
                         e = e.next;
                     }
@@ -732,7 +608,7 @@ public class SelectableConcurrentHashMap {
                     int len = tab.length;
                     for (int i = 0; i < len; i++) {
                         for (HashEntry e = tab[i]; e != null; e = e.next) {
-                            ValueWrapper v = e.value;
+                            ValueWrapper v = e.node.getValue();
                             if (value.equals(v))
                                 return true;
                         }
@@ -744,45 +620,40 @@ public class SelectableConcurrentHashMap {
             }
         }
 
-        private ValueWrapper nextExpiredOrToEvict(final ValueWrapper justAdded) {
-
-            ValueWrapper lastValueWrapper = null;
-            int i = 0;
-
-            while (i++ < count) {
-                if (!evictionIterator.hasNext()) {
-                    evictionIterator = iterator();
-                }
-                final HashEntry next = evictionIterator.next();
-                if (next.value.isExpired() || !next.accessed) {
-                    return next.value;
-                } else {
-                    if (next.value != justAdded) {
-                        lastValueWrapper = next.value;
-                    }
-                }
-            }
-
-            return lastValueWrapper;
-        }
-
         protected Iterator<HashEntry> iterator() {
             return new SegmentIterator(this);
         }
 
-        private boolean evict() {
-            ValueWrapper remove = null;
+        /**
+         * evict by lru.
+         * @return
+         */
+        private int evict() {
+            int evictCount = 100;
+            if (evictCount > this.count / 10) {
+                evictCount = this.count / 10;
+            }
+            if (evictCount < 5) {
+                evictCount = 5;
+            }
+
+            int count = 0;
             writeLock().lock();
             try {
-                ValueWrapper evict = nextExpiredOrToEvict(null);
-                if (evict != null) {
-                    remove = remove(evict.getKey(), hash(evict.getKey().hashCode()), null);
+                Lru.Node[] nodes = lru.evict(evictCount);
+                for (Lru.Node node : nodes) {
+                    if (node == null) {
+                        break;
+                    }
+                    Object key = node.getValue().getKey();
+                    ValueWrapper remove = remove(key, hash(key.hashCode()), null);
+                    notifyEvictionOrExpiry(remove);
+                    count++;
                 }
             } finally {
                 writeLock().unlock();
             }
-            notifyEvictionOrExpiry(remove);
-            return remove != null;
+            return count;
         }
 
         void rehash() {
@@ -849,22 +720,28 @@ public class SelectableConcurrentHashMap {
         }
     }
 
+    /**
+     * HashEntry.
+     */
     public static class HashEntry {
         public final Object key;
         public final int hash;
         public final HashEntry next;
 
-        public volatile ValueWrapper value;
+        public volatile Lru.Node node;
 
-        public volatile long sizeOf;
-        public volatile boolean accessed = true;
-
-        protected HashEntry(Object key, int hash, HashEntry next, ValueWrapper value, long sizeOf) {
+        protected HashEntry(Object key, int hash, HashEntry next, ValueWrapper node) {
             this.key = key;
             this.hash = hash;
             this.next = next;
-            this.value = value;
-            this.sizeOf = sizeOf;
+            this.node = new Lru.Node(node);
+        }
+
+        protected HashEntry(Object key, int hash, HashEntry next, Lru.Node node) {
+            this.key = key;
+            this.hash = hash;
+            this.next = next;
+            this.node = node;
         }
     }
 
@@ -895,7 +772,7 @@ public class SelectableConcurrentHashMap {
         }
 
         public void remove() {
-            throw new UnsupportedOperationException("remove is not supported");
+            throw new UnsupportedOperationException("Segment remove is not supported");
         }
 
         final void advance() {
@@ -927,27 +804,27 @@ public class SelectableConcurrentHashMap {
 
         @Override
         public int size() {
-            return SelectableConcurrentHashMap.this.size();
+            return CacheHashMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return SelectableConcurrentHashMap.this.isEmpty();
+            return CacheHashMap.this.isEmpty();
         }
 
         @Override
         public boolean contains(Object o) {
-            return SelectableConcurrentHashMap.this.containsKey(o);
+            return CacheHashMap.this.containsKey(o);
         }
 
         @Override
         public boolean remove(Object o) {
-            return SelectableConcurrentHashMap.this.remove(o) != null;
+            return CacheHashMap.this.remove(o) != null;
         }
 
         @Override
         public void clear() {
-            SelectableConcurrentHashMap.this.clear();
+            CacheHashMap.this.clear();
         }
 
         @Override
@@ -976,22 +853,22 @@ public class SelectableConcurrentHashMap {
 
         @Override
         public int size() {
-            return SelectableConcurrentHashMap.this.size();
+            return CacheHashMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return SelectableConcurrentHashMap.this.isEmpty();
+            return CacheHashMap.this.isEmpty();
         }
 
         @Override
         public boolean contains(Object o) {
-            return SelectableConcurrentHashMap.this.containsValue(o);
+            return CacheHashMap.this.containsValue(o);
         }
 
         @Override
         public void clear() {
-            SelectableConcurrentHashMap.this.clear();
+            CacheHashMap.this.clear();
         }
 
         @Override
@@ -1020,12 +897,12 @@ public class SelectableConcurrentHashMap {
 
         @Override
         public int size() {
-            return SelectableConcurrentHashMap.this.size();
+            return CacheHashMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return SelectableConcurrentHashMap.this.isEmpty();
+            return CacheHashMap.this.isEmpty();
         }
 
         @Override
@@ -1033,7 +910,7 @@ public class SelectableConcurrentHashMap {
             if (!(o instanceof Entry))
                 return false;
             Entry<?, ?> e = (Entry<?, ?>) o;
-            ValueWrapper v = SelectableConcurrentHashMap.this.get(e.getKey());
+            ValueWrapper v = CacheHashMap.this.get(e.getKey());
             return v != null && v.equals(e.getValue());
         }
 
@@ -1042,12 +919,12 @@ public class SelectableConcurrentHashMap {
             if (!(o instanceof Entry))
                 return false;
             Entry<?, ?> e = (Entry<?, ?>) o;
-            return SelectableConcurrentHashMap.this.remove(e.getKey(), e.getValue());
+            return CacheHashMap.this.remove(e.getKey(), e.getValue());
         }
 
         @Override
         public void clear() {
-            SelectableConcurrentHashMap.this.clear();
+            CacheHashMap.this.clear();
         }
 
         @Override
@@ -1079,7 +956,7 @@ public class SelectableConcurrentHashMap {
 
         @Override
         public ValueWrapper next() {
-            return nextEntry().value;
+            return nextEntry().node.getValue();
         }
     }
 
@@ -1089,7 +966,7 @@ public class SelectableConcurrentHashMap {
         public Entry<Object, ValueWrapper> next() {
             HashEntry entry = nextEntry();
             final Object key = entry.key;
-            final ValueWrapper value = entry.value;
+            final ValueWrapper value = entry.node.getValue();
             return new Entry<Object, ValueWrapper>() {
 
                 public Object getKey() {
@@ -1207,7 +1084,7 @@ public class SelectableConcurrentHashMap {
         public void remove() {
             if (lastReturned == null)
                 throw new IllegalStateException();
-            SelectableConcurrentHashMap.this.remove(lastReturned.key);
+            CacheHashMap.this.remove(lastReturned.key);
             lastReturned = null;
         }
     }

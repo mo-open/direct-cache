@@ -1,6 +1,6 @@
 package net.sf.ehcache.store;
 
-import net.dongliu.directcache.cache.SelectableConcurrentHashMap;
+import net.dongliu.directcache.cache.CacheHashMap;
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.memory.SlabsAllocator;
 import net.dongliu.directcache.serialization.SerializerFactory;
@@ -39,7 +39,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
     private final RateStatistic missRate = new AtomicRateStatistic(1000, TimeUnit.MILLISECONDS);
     private volatile Status status;
 
-    private SelectableConcurrentHashMap map;
+    private CacheHashMap map;
 
     private final Allocator allocator;
 
@@ -61,7 +61,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         this.cache = cache;
 
         this.allocator = SlabsAllocator.getSlabsAllocator(offHeapSizeBytes);
-        this.map = new SelectableConcurrentHashMap(allocator, 1000, 0.75f, 256, 0, null);
+        this.map = new CacheHashMap(allocator, 1000, 0.75f, 256, null);
 
         serializer = SerializerFactory.createNewSerializer();
         this.status = Status.STATUS_ALIVE;
@@ -98,7 +98,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             ValueWrapper oldValueWrapper = null;
             ValueWrapper valueWrapper = store(element);
             if (valueWrapper != null) {
-                oldValueWrapper = map.put(key, valueWrapper, valueWrapper.getMemoryBuffer().getSize());
+                oldValueWrapper = map.put(key, valueWrapper);
             }
             return oldValueWrapper == null;
         } finally {
@@ -249,8 +249,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             Element e = getQuiet(key);
             ValueWrapper valueWrapper = store(element);
             if (valueWrapper != null) {
-                ValueWrapper oldValueWrapper = map.putIfAbsent(key, valueWrapper, valueWrapper.getMemoryBuffer().getSize());
-                //TODO: we need read value, but oldValueWrapper is already freed.
+                ValueWrapper oldValueWrapper = map.putIfAbsent(key, valueWrapper);
+                //TODO: we need read node, but oldValueWrapper is already freed.
                 //byte[] oldValue = oldValueWrapper.readValue();
                 if (oldValueWrapper != null) {
                     return e;
@@ -289,8 +289,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
     }
 
     /**
-     * Replace the cached element only if the value of the current Element is
-     *  equal to the value of the supplied old Element.
+     * Replace the cached element only if the node of the current Element is
+     *  equal to the node of the supplied old Element.
      * @param old
      * @param element
      * @param comparator

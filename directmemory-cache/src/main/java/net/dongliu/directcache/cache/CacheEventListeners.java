@@ -9,5 +9,5 @@ interface CacheEventListener {
 
     void notifyEvicted(ValueWrapper element, boolean b);
 
-    void notiryExpired(ValueWrapper element, boolean b);
+    void notifyExpired(ValueWrapper element, boolean b);
 }

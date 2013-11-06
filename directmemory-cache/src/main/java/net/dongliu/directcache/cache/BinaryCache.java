@@ -1,5 +1,6 @@
 package net.dongliu.directcache.cache;
 
+import net.dongliu.directcache.exception.TooLargeDataException;
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.struct.MemoryBuffer;
 import net.dongliu.directcache.struct.ValueWrapper;
@@ -19,7 +20,7 @@ public class BinaryCache {
 
     private static final Logger logger = LoggerFactory.getLogger(BinaryCache.class);
 
-    private SelectableConcurrentHashMap map;
+    private CacheHashMap map;
 
     private final Allocator allocator;
 
@@ -29,7 +30,7 @@ public class BinaryCache {
     public BinaryCache(Allocator allocator) {
         //TODO: add cache builder to set parameters.
         this.allocator = allocator;
-        this.map = new SelectableConcurrentHashMap(allocator, 1000, 0.75f, 256, 0, null);
+        this.map = new CacheHashMap(allocator, 1000, 0.75f, 256, null);
     }
 
     public void set(Object key, byte[] payload) {
@@ -40,15 +41,15 @@ public class BinaryCache {
      * Put an element in the store if no element is currently mapped to the elements key.
      * @return the ValueWrapper previously cached for this key, or null if none.
      */
-    public byte[] putIfAbsent(Object key, byte[] payload) {
+    public byte[] setIfAbsent(Object key, byte[] payload) {
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
             ValueWrapper oldValueWrapper = null;
             ValueWrapper valueWrapper = store(key, payload);
             if (valueWrapper != null) {
-                oldValueWrapper = map.putIfAbsent(key, valueWrapper, valueWrapper.getMemoryBuffer().getSize());
-                //TODO: we need read value, but oldValueWrapper is already freed.
+                oldValueWrapper = map.putIfAbsent(key, valueWrapper);
+                //TODO: we need read node, but oldValueWrapper is already freed.
                 //byte[] oldValue = oldValueWrapper.readValue();
                 return null;
             }
@@ -75,9 +76,9 @@ public class BinaryCache {
     }
 
     /**
-     * store the value, return pointer.
+     * store the node, return pointer.
      *
-     * @return the old pointer, null if no old value.
+     * @return the old pointer, null if no old node.
      */
     public void set(Object key, byte[] payload, int expiresIn) {
         Lock lock = getWriteLock(key);
@@ -89,7 +90,7 @@ public class BinaryCache {
                 if (expiresIn != 0) {
                     valueWrapper.setExpiry(expiresIn);
                 }
-                oldValueWrapper = map.put(key, valueWrapper, valueWrapper.getMemoryBuffer().getSize());
+                oldValueWrapper = map.put(key, valueWrapper);
             }
         } finally {
             lock.unlock();
@@ -97,7 +98,7 @@ public class BinaryCache {
     }
 
     /**
-     * retrive value by key from cache.
+     * retrive node by key from cache.
      */
     public byte[] get(Object key) {
         ValueWrapper valueWrapper = retrievePointer(key);
@@ -108,7 +109,7 @@ public class BinaryCache {
     }
 
     /**
-     * retrive value by key from cache.
+     * retrive node by key from cache.
      */
     private ValueWrapper retrievePointer(Object key) {
         ValueWrapper valueWrapper = map.get(key);
@@ -157,7 +158,19 @@ public class BinaryCache {
      * @return the point.null if failed.
      */
     private ValueWrapper store(Object key, byte[] payload) {
-        MemoryBuffer buffer = allocator.allocate(payload.length);
+        MemoryBuffer buffer;
+        try {
+            buffer = allocator.allocate(payload.length);
+        } catch (TooLargeDataException e) {
+            throw e;
+        }
+
+        // try to evict caches.
+        if (buffer == null) {
+            map.evict(key);
+            buffer = allocator.allocate(payload.length);
+        }
+
         if (buffer == null) {
             return null;
         }
@@ -176,7 +189,7 @@ public class BinaryCache {
         return this.allocator.used();
     }
 
-    public ReentrantReadWriteLock lockFor(Object key) {
-        return map.lockFor(key);
+    public ReentrantReadWriteLock.WriteLock lockFor(Object key) {
+        return map.lockFor(key).writeLock();
     }
 }

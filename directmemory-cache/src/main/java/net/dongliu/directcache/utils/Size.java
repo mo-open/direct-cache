@@ -2,7 +2,7 @@ package net.dongliu.directcache.utils;
 
 import static java.lang.String.format;
 
-public class Sizing {
+public class Size {
 
     private static final int KILOBYTE_UNIT = 1024;
 

@@ -32,7 +32,7 @@ public class U {
 
     /**
      * Allocates a new block of native memory, of the given size in bytes.
-     * The resulting native pointer will never be zero, and will be aligned for all value types.
+     * The resulting native pointer will never be zero, and will be aligned for all node types.
      */
     public static long allocateMemory(long size) {
         return UNSAFE.allocateMemory(size);
@@ -41,7 +41,7 @@ public class U {
     /**
      * Resizes a new block of native memory, to the given size in bytes.
      * The resulting native pointer will be zero if and only if the requested size is zero.
-     * The resulting native pointer will be aligned for all value types.
+     * The resulting native pointer will be aligned for all node types.
      * The address passed to this method may be null, in which case an allocation will be performed.
      */
     public static long reallocateMemory(long address, long size) {

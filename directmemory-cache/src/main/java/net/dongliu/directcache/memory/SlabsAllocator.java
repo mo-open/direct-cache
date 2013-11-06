@@ -1,7 +1,8 @@
 package net.dongliu.directcache.memory;
 
+import net.dongliu.directcache.exception.TooLargeDataException;
 import net.dongliu.directcache.struct.MemoryBuffer;
-import net.dongliu.directcache.utils.Ram;
+import net.dongliu.directcache.utils.Size;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +24,7 @@ public class SlabsAllocator implements Allocator {
     private static final int CHUNK_SIZE = 128;
 
     /** 8M. it is also the max Chunk Size */
-    private static final int SLAB_SIZE = Ram.Mb(8);
+    private static final int SLAB_SIZE = Size.Mb(8);
 
     private static final int[] CHUNK_SIZE_LIST;
 
@@ -71,7 +72,7 @@ public class SlabsAllocator implements Allocator {
     public MemoryBuffer allocate(int size) {
         SlabClass slabClass = locateSlabClass(size);
         if (slabClass == null) {
-            return null;
+            throw new TooLargeDataException("Data size larger than: " + CHUNK_SIZE_LIST[CHUNK_SIZE_LIST.length]);
         }
         Chunk chunk = slabClass.newChunk();
         if (chunk != null) {
