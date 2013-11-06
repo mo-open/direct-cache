@@ -1,4 +1,6 @@
-Direct-cache use java *unsafe* operations to cache objects. The cache is on offheap memory, to keep the heap small, so GC time is reduced
+Use java direct memory to cache objects.  
+
+The cache is based on offheap memory, so JVM GC Latency is improved.
 
 
-Compatible with open JDK / oracle JDK version 6/7/8. It also should work on other compatible jdk.
+Compatible with open JDK / oracle JDK version 6/7/8. It May work on other jdk too.
