@@ -1,12 +1,11 @@
-package net.dongliu.directcache.memory;
+package net.dongliu.directcache.utils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
 /**
- *
  * Wrapper Unsafe Operations.
- * @author: dongliu
+ * @author dongliu
  */
 public class U {
 
@@ -27,7 +26,7 @@ public class U {
         } catch (Throwable ignore) {}
         UNSAFE = (sun.misc.Unsafe) result;
         if (UNSAFE == null) {
-            throw new UnsupportedOperationException("U not found.Should used on open jdk / oracle jdk");
+            throw new Error("U not found.Should used on open jdk / oracle jdk");
         }
     }
 
@@ -69,5 +68,37 @@ public class U {
      */
     public static void read(long address, byte[] src, int offset, int size) {
         UNSAFE.copyMemory(null, address, src, UNSAFE.arrayBaseOffset(byte[].class) + offset,size);
+    }
+
+    /**
+     * Get class field offset
+     */
+    public static long objectFieldOffset(Class klass, String field) {
+        try {
+            return UNSAFE.objectFieldOffset(klass.getDeclaredField(field));
+        } catch (NoSuchFieldException e) {
+            throw new Error(e);
+        }
+    }
+
+    /**
+     * cas operation for Object Field.
+     */
+    public static boolean compareAndSwapObject(Object o, long offset, Object expect, Object value) {
+        return UNSAFE.compareAndSwapObject(o, offset, expect, value);
+    }
+
+    /**
+     * cas operation for long Field.
+     */
+    public static boolean compareAndSwapLong(Object o, long offset, long expect, long value) {
+        return UNSAFE.compareAndSwapLong(o, offset, expect, value);
+    }
+
+    /**
+     * cas operation for int Field.
+     */
+    public static boolean compareAndSwapInt(Object o, long offset, int expect, int value) {
+        return UNSAFE.compareAndSwapInt(o, offset, expect, value);
     }
 }

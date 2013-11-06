@@ -47,7 +47,11 @@ public class SlabsAllocator implements Allocator {
 
     private final MergedMemory mergedMemory;
 
+    /**
+     * offheap memory size had been used.
+     */
     private final AtomicLong used;
+
     private SlabsAllocator(long capacity) {
         this.mergedMemory = MergedMemory.allocate(capacity);
         this.used = new AtomicLong(0);

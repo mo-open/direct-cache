@@ -1,13 +1,13 @@
 package net.dongliu.directcache.cache;
 
-import net.dongliu.directcache.struct.Pointer;
+import net.dongliu.directcache.struct.ValueWrapper;
 
 /**
  * @author dongliu
  */
 interface CacheEventListener {
 
-    void notifyEvicted(Pointer element, boolean b);
+    void notifyEvicted(ValueWrapper element, boolean b);
 
-    void notiryExpired(Pointer element, boolean b);
+    void notiryExpired(ValueWrapper element, boolean b);
 }

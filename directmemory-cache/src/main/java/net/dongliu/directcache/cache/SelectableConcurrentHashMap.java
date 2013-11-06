@@ -16,7 +16,7 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import net.dongliu.directcache.memory.Allocator;
-import net.dongliu.directcache.struct.Pointer;
+import net.dongliu.directcache.struct.ValueWrapper;
 
 /**
  * SelectableConcurrentHashMap subclasses a repackaged version of ConcurrentHashMap
@@ -70,8 +70,8 @@ public class SelectableConcurrentHashMap {
     private final CacheEventListener cacheEventListener;
 
     private Set<Object> keySet;
-    private Set<Map.Entry<Object, Pointer>> entrySet;
-    private Collection<Pointer> values;
+    private Set<Map.Entry<Object, ValueWrapper>> entrySet;
+    private Collection<ValueWrapper> values;
 
     private final Allocator allocator;
 
@@ -117,8 +117,8 @@ public class SelectableConcurrentHashMap {
         this.maxSize = maxSize;
     }
 
-    public Pointer[] getRandomValues(final int size, Object keyHint) {
-        ArrayList<Pointer> sampled = new ArrayList<Pointer>(size * 2);
+    public ValueWrapper[] getRandomValues(final int size, Object keyHint) {
+        ArrayList<ValueWrapper> sampled = new ArrayList<ValueWrapper>(size * 2);
 
         // pick a random starting point in the map
         int randomHash = rndm.nextInt();
@@ -137,14 +137,14 @@ public class SelectableConcurrentHashMap {
             int tableIndex = tableStart;
             do {
                 for (HashEntry e = table[tableIndex]; e != null; e = e.next) {
-                    Pointer value = e.value;
+                    ValueWrapper value = e.value;
                     if (value != null) {
                         sampled.add(value);
                     }
                 }
 
                 if (sampled.size() >= size) {
-                    return sampled.toArray(new Pointer[sampled.size()]);
+                    return sampled.toArray(new ValueWrapper[sampled.size()]);
                 }
 
                 //move to next table slot
@@ -155,7 +155,7 @@ public class SelectableConcurrentHashMap {
             segmentIndex = (segmentIndex + 1) & segmentMask;
         } while (segmentIndex != segmentStart);
 
-        return sampled.toArray(new Pointer[sampled.size()]);
+        return sampled.toArray(new ValueWrapper[sampled.size()]);
     }
 
     /**
@@ -165,7 +165,7 @@ public class SelectableConcurrentHashMap {
      * @param e the element
      * @return an object looking-alike the stored one
      */
-    public Object storedObject(Pointer e) {
+    public Object storedObject(ValueWrapper e) {
         return new HashEntry(null, 0, null, e, 0);
     }
 
@@ -283,7 +283,7 @@ public class SelectableConcurrentHashMap {
         return segments;
     }
 
-    public Pointer get(Object key) {
+    public ValueWrapper get(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).get(key, hash);
     }
@@ -348,9 +348,9 @@ public class SelectableConcurrentHashMap {
      * @param key
      * @param element
      * @param sizeOf
-     * @return the old Pointer, null if not exists
+     * @return the old ValueWrapper, null if not exists
      */
-    public Pointer put(Object key, Pointer element, long sizeOf) {
+    public ValueWrapper put(Object key, ValueWrapper element, long sizeOf) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).put(key, hash, element, sizeOf, false, true);
     }
@@ -363,7 +363,7 @@ public class SelectableConcurrentHashMap {
      * @param sizeOf
      * @return
      */
-    public Pointer putIfAbsent(Object key, Pointer element, long sizeOf) {
+    public ValueWrapper putIfAbsent(Object key, ValueWrapper element, long sizeOf) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).put(key, hash, element, sizeOf, true, true);
     }
@@ -374,7 +374,7 @@ public class SelectableConcurrentHashMap {
      * @param key
      * @return
      */
-    public Pointer remove(Object key) {
+    public ValueWrapper remove(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).remove(key, hash, null);
     }
@@ -387,7 +387,7 @@ public class SelectableConcurrentHashMap {
     }
 
     /**
-     * clear also cause all Pointer to be returnTo.
+     * clear also cause all ValueWrapper to be returnTo.
      */
     public void clear() {
         for (int i = 0; i < segments.length; ++i)
@@ -399,13 +399,13 @@ public class SelectableConcurrentHashMap {
         return (ks != null) ? ks : (keySet = new KeySet());
     }
 
-    public Collection<Pointer> values() {
-        Collection<Pointer> vs = values;
+    public Collection<ValueWrapper> values() {
+        Collection<ValueWrapper> vs = values;
         return (vs != null) ? vs : (values = new Values());
     }
 
-    public Set<Entry<Object, Pointer>> entrySet() {
-        Set<Entry<Object, Pointer>> es = entrySet;
+    public Set<Entry<Object, ValueWrapper>> entrySet() {
+        Set<Entry<Object, ValueWrapper>> es = entrySet;
         return (es != null) ? es : (entrySet = new EntrySet());
     }
 
@@ -492,7 +492,7 @@ public class SelectableConcurrentHashMap {
             e.value.returnTo(allocator);
         }
 
-        protected void postInstall(Object key, Pointer value) {
+        protected void postInstall(Object key, ValueWrapper value) {
 
         }
 
@@ -514,7 +514,7 @@ public class SelectableConcurrentHashMap {
         }
 
         protected HashEntry createHashEntry(Object key, int hash, HashEntry next,
-                                            Pointer value, long sizeOf) {
+                                            ValueWrapper value, long sizeOf) {
             return new HashEntry(key, hash, next, value, sizeOf);
         }
 
@@ -539,7 +539,7 @@ public class SelectableConcurrentHashMap {
             }
         }
 
-        Pointer remove(Object key, int hash, Object value) {
+        ValueWrapper remove(Object key, int hash, Object value) {
             writeLock().lock();
             try {
                 int c = count - 1;
@@ -550,9 +550,9 @@ public class SelectableConcurrentHashMap {
                 while (e != null && (e.hash != hash || !key.equals(e.key)))
                     e = e.next;
 
-                Pointer oldValue = null;
+                ValueWrapper oldValue = null;
                 if (e != null) {
-                    Pointer v = e.value;
+                    ValueWrapper v = e.value;
                     if (value == null || value.equals(v)) {
                         oldValue = v;
                         ++modCount;
@@ -575,7 +575,7 @@ public class SelectableConcurrentHashMap {
         }
 
         public void recalculateSize(Object key, int hash) {
-            Pointer value = null;
+            ValueWrapper value = null;
             long oldSize = 0;
             readLock().lock();
             try {
@@ -614,9 +614,9 @@ public class SelectableConcurrentHashMap {
             }
         }
 
-        protected Pointer put(Object key, int hash, Pointer value, long sizeOf,
+        protected ValueWrapper put(Object key, int hash, ValueWrapper value, long sizeOf,
                               boolean onlyIfAbsent, boolean fire) {
-            Pointer[] evicted = new Pointer[MAX_EVICTION];
+            ValueWrapper[] evicted = new ValueWrapper[MAX_EVICTION];
             writeLock().lock();
             try {
                 int c = count;
@@ -629,7 +629,7 @@ public class SelectableConcurrentHashMap {
                 while (e != null && (e.hash != hash || !key.equals(e.key)))
                     e = e.next;
 
-                Pointer oldValue;
+                ValueWrapper oldValue;
                 if (e != null) {
                     oldValue = e.value;
                     if (!onlyIfAbsent) {
@@ -654,9 +654,9 @@ public class SelectableConcurrentHashMap {
                         int runs = Math.min(MAX_EVICTION, SelectableConcurrentHashMap.this.quickSize()
                                 - (int) SelectableConcurrentHashMap.this.maxSize);
                         while (runs-- > 0) {
-                            Pointer evict = nextExpiredOrToEvict(value);
+                            ValueWrapper evict = nextExpiredOrToEvict(value);
                             if (evict != null) {
-                                Pointer removed;
+                                ValueWrapper removed;
                                 while ((removed = remove(evict.getKey(), hash(evict.getKey().hashCode()), null))
                                         == null) {
                                     evict = nextExpiredOrToEvict(value);
@@ -672,13 +672,13 @@ public class SelectableConcurrentHashMap {
                 return oldValue;
             } finally {
                 writeLock().unlock();
-                for (Pointer element : evicted) {
+                for (ValueWrapper element : evicted) {
                     notifyEvictionOrExpiry(element);
                 }
             }
         }
 
-        private void notifyEvictionOrExpiry(final Pointer element) {
+        private void notifyEvictionOrExpiry(final ValueWrapper element) {
             if (element != null && cacheEventListener != null) {
                 if (element.isExpired()) {
                     cacheEventListener.notiryExpired(element, false);
@@ -688,7 +688,7 @@ public class SelectableConcurrentHashMap {
             }
         }
 
-        Pointer get(final Object key, final int hash) {
+        ValueWrapper get(final Object key, final int hash) {
             readLock().lock();
             try {
                 if (count != 0) { // read-volatile
@@ -732,7 +732,7 @@ public class SelectableConcurrentHashMap {
                     int len = tab.length;
                     for (int i = 0; i < len; i++) {
                         for (HashEntry e = tab[i]; e != null; e = e.next) {
-                            Pointer v = e.value;
+                            ValueWrapper v = e.value;
                             if (value.equals(v))
                                 return true;
                         }
@@ -744,9 +744,9 @@ public class SelectableConcurrentHashMap {
             }
         }
 
-        private Pointer nextExpiredOrToEvict(final Pointer justAdded) {
+        private ValueWrapper nextExpiredOrToEvict(final ValueWrapper justAdded) {
 
-            Pointer lastPointer = null;
+            ValueWrapper lastValueWrapper = null;
             int i = 0;
 
             while (i++ < count) {
@@ -758,12 +758,12 @@ public class SelectableConcurrentHashMap {
                     return next.value;
                 } else {
                     if (next.value != justAdded) {
-                        lastPointer = next.value;
+                        lastValueWrapper = next.value;
                     }
                 }
             }
 
-            return lastPointer;
+            return lastValueWrapper;
         }
 
         protected Iterator<HashEntry> iterator() {
@@ -771,10 +771,10 @@ public class SelectableConcurrentHashMap {
         }
 
         private boolean evict() {
-            Pointer remove = null;
+            ValueWrapper remove = null;
             writeLock().lock();
             try {
-                Pointer evict = nextExpiredOrToEvict(null);
+                ValueWrapper evict = nextExpiredOrToEvict(null);
                 if (evict != null) {
                     remove = remove(evict.getKey(), hash(evict.getKey().hashCode()), null);
                 }
@@ -854,12 +854,12 @@ public class SelectableConcurrentHashMap {
         public final int hash;
         public final HashEntry next;
 
-        public volatile Pointer value;
+        public volatile ValueWrapper value;
 
         public volatile long sizeOf;
         public volatile boolean accessed = true;
 
-        protected HashEntry(Object key, int hash, HashEntry next, Pointer value, long sizeOf) {
+        protected HashEntry(Object key, int hash, HashEntry next, ValueWrapper value, long sizeOf) {
             this.key = key;
             this.hash = hash;
             this.next = next;
@@ -967,10 +967,10 @@ public class SelectableConcurrentHashMap {
         }
     }
 
-    final class Values extends AbstractCollection<Pointer> {
+    final class Values extends AbstractCollection<ValueWrapper> {
 
         @Override
-        public Iterator<Pointer> iterator() {
+        public Iterator<ValueWrapper> iterator() {
             return new ValueIterator();
         }
 
@@ -1011,10 +1011,10 @@ public class SelectableConcurrentHashMap {
         }
     }
 
-    final class EntrySet extends AbstractSet<Entry<Object, Pointer>> {
+    final class EntrySet extends AbstractSet<Entry<Object, ValueWrapper>> {
 
         @Override
-        public Iterator<Entry<Object, Pointer>> iterator() {
+        public Iterator<Entry<Object, ValueWrapper>> iterator() {
             return new EntryIterator();
         }
 
@@ -1033,7 +1033,7 @@ public class SelectableConcurrentHashMap {
             if (!(o instanceof Entry))
                 return false;
             Entry<?, ?> e = (Entry<?, ?>) o;
-            Pointer v = SelectableConcurrentHashMap.this.get(e.getKey());
+            ValueWrapper v = SelectableConcurrentHashMap.this.get(e.getKey());
             return v != null && v.equals(e.getValue());
         }
 
@@ -1075,32 +1075,32 @@ public class SelectableConcurrentHashMap {
         }
     }
 
-    final class ValueIterator extends HashEntryIterator implements Iterator<Pointer> {
+    final class ValueIterator extends HashEntryIterator implements Iterator<ValueWrapper> {
 
         @Override
-        public Pointer next() {
+        public ValueWrapper next() {
             return nextEntry().value;
         }
     }
 
-    final class EntryIterator extends HashEntryIterator implements Iterator<Entry<Object, Pointer>> {
+    final class EntryIterator extends HashEntryIterator implements Iterator<Entry<Object, ValueWrapper>> {
 
         @Override
-        public Entry<Object, Pointer> next() {
+        public Entry<Object, ValueWrapper> next() {
             HashEntry entry = nextEntry();
             final Object key = entry.key;
-            final Pointer value = entry.value;
-            return new Entry<Object, Pointer>() {
+            final ValueWrapper value = entry.value;
+            return new Entry<Object, ValueWrapper>() {
 
                 public Object getKey() {
                     return key;
                 }
 
-                public Pointer getValue() {
+                public ValueWrapper getValue() {
                     return value;
                 }
 
-                public Pointer setValue(Pointer value) {
+                public ValueWrapper setValue(ValueWrapper value) {
                     throw new UnsupportedOperationException();
                 }
             };

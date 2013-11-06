@@ -5,6 +5,7 @@ import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.memory.SlabsAllocator;
 import net.dongliu.directcache.serialization.SerializerFactory;
 import net.dongliu.directcache.struct.MemoryBuffer;
+import net.dongliu.directcache.struct.ValueWrapper;
 import net.sf.ehcache.*;
 import net.sf.ehcache.concurrent.CacheLockProvider;
 import net.sf.ehcache.concurrent.ReadWriteLockSync;
@@ -14,7 +15,6 @@ import net.sf.ehcache.store.disk.StoreUpdateException;
 import net.sf.ehcache.util.ratestatistics.AtomicRateStatistic;
 import net.sf.ehcache.util.ratestatistics.RateStatistic;
 import net.sf.ehcache.writer.CacheWriterManager;
-import net.dongliu.directcache.struct.Pointer;
 import net.dongliu.directcache.serialization.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,12 +95,12 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            Pointer oldPointer = null;
-            Pointer pointer = store(element);
-            if (pointer != null) {
-                oldPointer = map.put(key, pointer, pointer.getMemoryBuffer().getSize());
+            ValueWrapper oldValueWrapper = null;
+            ValueWrapper valueWrapper = store(element);
+            if (valueWrapper != null) {
+                oldValueWrapper = map.put(key, valueWrapper, valueWrapper.getMemoryBuffer().getSize());
             }
-            return oldPointer == null;
+            return oldValueWrapper == null;
         } finally {
             lock.unlock();
         }
@@ -110,7 +110,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
      * allocate memory and store the payload, return the pointer.
      * @return the point.null if failed.
      */
-    private Pointer store(Element element) {
+    private ValueWrapper store(Element element) {
         //TODO: if element.getValue() is null
         Object value = element.getValue();
         byte[] bytes = objectToBytes(value);
@@ -119,13 +119,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
 
-        Pointer p = new Pointer(buffer);
+        ValueWrapper p = new ValueWrapper(buffer);
         buffer.write(bytes);
         p.setKey(element.getKey());
-        p.setTimeToIdle(element.getTimeToIdle());
-        p.setTimeToLive(element.getTimeToLive());
-        p.setHitCount(element.getHitCount());
-        p.setVersion(element.getVersion());
+        p.setExpiry(element.getTimeToIdle());
+//        p.setTimeToLive(element.getTimeToLive());
+//        p.setHitCount(element.getHitCount());
+//        p.setVersion(element.getVersion());
         p.setLastUpdateTime(element.getLastUpdateTime());
         return p;
     }
@@ -170,16 +170,16 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
 
-        Pointer pointer = map.get(key);
-        if (pointer == null) {
+        ValueWrapper valueWrapper = map.get(key);
+        if (valueWrapper == null) {
             return null;
         }
-        if (pointer.isExpired() || !pointer.getLive().get()) {
+        if (valueWrapper.isExpired() || !valueWrapper.isLive()) {
             Lock lock = getWriteLock(key);
             lock.lock();
             try {
-                pointer = map.get(key);
-                if (pointer.isExpired() || !pointer.getLive().get()) {
+                valueWrapper = map.get(key);
+                if (valueWrapper.isExpired() || !valueWrapper.isLive()) {
                     map.remove(key);
                 }
             } finally {
@@ -189,13 +189,14 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         }
 
         //TODO: add creation & lastAccessTime.
-        long creation = pointer.getVersion();
-        long lastAccessTime = pointer.getLastUpdateTime();
-        Object value = bytesToObject(pointer.readValue(), Object.class);
-        Element e = new Element(pointer.getKey(), value, pointer.getVersion(), creation, lastAccessTime,
-                pointer.getLastUpdateTime(), pointer.getHitCount());
-        e.setTimeToLive(pointer.getTimeToLive());
-        e.setTimeToIdle(pointer.getTimeToLive());
+        long creation = valueWrapper.getLastUpdateTime();
+        long lastAccessTime = valueWrapper.getLastUpdateTime();
+        int hitCount = 1;
+        Object value = bytesToObject(valueWrapper.readValue(), Object.class);
+        Element e = new Element(valueWrapper.getKey(), value, valueWrapper.getLastUpdateTime(), creation, lastAccessTime,
+                valueWrapper.getLastUpdateTime(), hitCount);
+        e.setTimeToLive(0);
+        e.setTimeToIdle(valueWrapper.getExpiry());
         return e;
     }
 
@@ -210,7 +211,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
         Element element = getQuiet(key);
-        Pointer pointer = this.map.remove(key);
+        ValueWrapper valueWrapper = this.map.remove(key);
         return element;
     }
 
@@ -246,12 +247,12 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         lock.lock();
         try {
             Element e = getQuiet(key);
-            Pointer pointer = store(element);
-            if (pointer != null) {
-                Pointer oldPointer = map.putIfAbsent(key, pointer, pointer.getMemoryBuffer().getSize());
-                //TODO: we need read value, but oldPointer is already freed.
-                //byte[] oldValue = oldPointer.readValue();
-                if (oldPointer != null) {
+            ValueWrapper valueWrapper = store(element);
+            if (valueWrapper != null) {
+                ValueWrapper oldValueWrapper = map.putIfAbsent(key, valueWrapper, valueWrapper.getMemoryBuffer().getSize());
+                //TODO: we need read value, but oldValueWrapper is already freed.
+                //byte[] oldValue = oldValueWrapper.readValue();
+                if (oldValueWrapper != null) {
                     return e;
                 } else {
                     return null;

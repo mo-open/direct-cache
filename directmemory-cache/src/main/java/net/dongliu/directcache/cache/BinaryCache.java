@@ -2,7 +2,7 @@ package net.dongliu.directcache.cache;
 
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.struct.MemoryBuffer;
-import net.dongliu.directcache.struct.Pointer;
+import net.dongliu.directcache.struct.ValueWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,18 +38,18 @@ public class BinaryCache {
 
     /**
      * Put an element in the store if no element is currently mapped to the elements key.
-     * @return the Pointer previously cached for this key, or null if none.
+     * @return the ValueWrapper previously cached for this key, or null if none.
      */
     public byte[] putIfAbsent(Object key, byte[] payload) {
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            Pointer oldPointer = null;
-            Pointer pointer = store(key, payload);
-            if (pointer != null) {
-                oldPointer = map.putIfAbsent(key, pointer, pointer.getMemoryBuffer().getSize());
-                //TODO: we need read value, but oldPointer is already freed.
-                //byte[] oldValue = oldPointer.readValue();
+            ValueWrapper oldValueWrapper = null;
+            ValueWrapper valueWrapper = store(key, payload);
+            if (valueWrapper != null) {
+                oldValueWrapper = map.putIfAbsent(key, valueWrapper, valueWrapper.getMemoryBuffer().getSize());
+                //TODO: we need read value, but oldValueWrapper is already freed.
+                //byte[] oldValue = oldValueWrapper.readValue();
                 return null;
             }
             return null;
@@ -83,13 +83,13 @@ public class BinaryCache {
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            Pointer oldPointer = null;
-            Pointer pointer = store(key, payload);
-            if (pointer != null) {
+            ValueWrapper oldValueWrapper = null;
+            ValueWrapper valueWrapper = store(key, payload);
+            if (valueWrapper != null) {
                 if (expiresIn != 0) {
-                    pointer.setTimeToIdle(expiresIn);
+                    valueWrapper.setExpiry(expiresIn);
                 }
-                oldPointer = map.put(key, pointer, pointer.getMemoryBuffer().getSize());
+                oldValueWrapper = map.put(key, valueWrapper, valueWrapper.getMemoryBuffer().getSize());
             }
         } finally {
             lock.unlock();
@@ -100,31 +100,31 @@ public class BinaryCache {
      * retrive value by key from cache.
      */
     public byte[] get(Object key) {
-        Pointer pointer = retrievePointer(key);
-        if (pointer == null) {
+        ValueWrapper valueWrapper = retrievePointer(key);
+        if (valueWrapper == null) {
             return null;
         }
-        return pointer.readValue();
+        return valueWrapper.readValue();
     }
 
     /**
      * retrive value by key from cache.
      */
-    private Pointer retrievePointer(Object key) {
-        Pointer pointer = map.get(key);
-        if (pointer == null) {
+    private ValueWrapper retrievePointer(Object key) {
+        ValueWrapper valueWrapper = map.get(key);
+        if (valueWrapper == null) {
             return null;
         }
 
-        if (!pointer.isExpired() && pointer.getLive().get()) {
-            return pointer;
+        if (!valueWrapper.isExpired() && valueWrapper.isLive()) {
+            return valueWrapper;
         }
 
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            pointer = map.get(key);
-            if (pointer.isExpired() || !pointer.getLive().get()) {
+            valueWrapper = map.get(key);
+            if (valueWrapper.isExpired() || !valueWrapper.isLive()) {
                 map.remove(key);
             }
         } finally {
@@ -156,13 +156,13 @@ public class BinaryCache {
      * allocate memory and store the payload, return the pointer.
      * @return the point.null if failed.
      */
-    private Pointer store(Object key, byte[] payload) {
+    private ValueWrapper store(Object key, byte[] payload) {
         MemoryBuffer buffer = allocator.allocate(payload.length);
         if (buffer == null) {
             return null;
         }
 
-        Pointer p = new Pointer(buffer);
+        ValueWrapper p = new ValueWrapper(buffer);
         buffer.write(payload);
         p.setKey(key);
         return p;

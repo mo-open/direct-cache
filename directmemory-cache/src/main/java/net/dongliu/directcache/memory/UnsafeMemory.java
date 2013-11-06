@@ -1,5 +1,7 @@
 package net.dongliu.directcache.memory;
 
+import net.dongliu.directcache.utils.U;
+
 /**
  * Memory used unsafe ops.
  * @author: dongliu
