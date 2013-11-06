@@ -6,21 +6,21 @@
 
     <parent>
         <groupId>net.dongliu</groupId>
-        <artifactId>directmemory</artifactId>
+        <artifactId>direct-cache</artifactId>
         <version>0.2-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
-    <artifactId>directmemory-ehcache</artifactId>
+    <artifactId>ehcache-integrate</artifactId>
     <packaging>jar</packaging>
-    <name>DirectMemory :: Ehcache Integration</name>
+    <name>DirectCache :: Ehcache Integration</name>
     <description>EHCache CacheStore Implementation to integrate DirectMemory Cache as OffHeapStore.</description>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>net.dongliu</groupId>
-                <artifactId>directmemory-cache</artifactId>
+                <artifactId>base-cache</artifactId>
                 <version>0.2-SNAPSHOT</version>
             </dependency>
         </dependencies>
@@ -29,7 +29,7 @@
     <dependencies>
         <dependency>
             <groupId>net.dongliu</groupId>
-            <artifactId>directmemory-cache</artifactId>
+            <artifactId>base-cache</artifactId>
         </dependency>
         <dependency>
             <groupId>net.sf.ehcache</groupId>

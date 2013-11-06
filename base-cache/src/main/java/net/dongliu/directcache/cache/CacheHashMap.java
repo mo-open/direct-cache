@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import net.dongliu.directcache.evict.Lru;
@@ -344,6 +345,9 @@ public class CacheHashMap {
         return (es != null) ? es : (entrySet = new EntrySet());
     }
 
+    /**
+     * evict entries in the segement containing the key.
+     */
     public int evict(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).evict();
@@ -639,6 +643,8 @@ public class CacheHashMap {
 
             int count = 0;
             writeLock().lock();
+            ReentrantLock lock = lru.getLock();
+            lock.lock();
             try {
                 Lru.Node[] nodes = lru.evict(evictCount);
                 for (Lru.Node node : nodes) {
@@ -651,6 +657,7 @@ public class CacheHashMap {
                     count++;
                 }
             } finally {
+                lock.unlock();
                 writeLock().unlock();
             }
             return count;

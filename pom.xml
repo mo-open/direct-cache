@@ -5,16 +5,16 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.dongliu</groupId>
 
-    <artifactId>directmemory</artifactId>
+    <artifactId>direct-cache</artifactId>
     <version>0.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Apache DirectMemory</name>
-    <description>Apache DirectMemory Cache :: Parent pom</description>
+    <name>Direct Cache</name>
+    <description>Direct Cache :: Parent pom</description>
 
     <modules>
-        <module>directmemory-cache</module>
-        <module>directmemory-ehcache</module>
+        <module>base-cache</module>
+        <module>ehcache-integrate</module>
     </modules>
 
     <properties>
@@ -25,7 +25,7 @@
         <junit-benchamrks.version>0.7.0</junit-benchamrks.version>
 
         <slf4j.version>1.7.5</slf4j.version>
-        <log4j2.version>2.0-beta7</log4j2.version>
+        <log4j.version>2.0-beta7</log4j.version>
 
     </properties>
 
@@ -91,14 +91,14 @@
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-slf4j-impl</artifactId>
-                <version>${log4j2.version}</version>
+                <version>${log4j.version}</version>
                 <scope>test</scope>
             </dependency>
 
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-core</artifactId>
-                <version>${log4j2.version}</version>
+                <version>${log4j.version}</version>
                 <scope>test</scope>
             </dependency>
 

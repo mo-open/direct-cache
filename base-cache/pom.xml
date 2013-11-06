@@ -7,13 +7,13 @@
 
     <parent>
         <groupId>net.dongliu</groupId>
-        <artifactId>directmemory</artifactId>
+        <artifactId>direct-cache</artifactId>
         <version>0.2-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
-    <artifactId>directmemory-cache</artifactId>
-    <name>DirectMemory :: DirectMemory Cache</name>
+    <artifactId>base-cache</artifactId>
+    <name>DirectCache :: Base Cache</name>
     <packaging>jar</packaging>
 
     <build>

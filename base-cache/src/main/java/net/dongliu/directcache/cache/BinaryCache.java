@@ -60,9 +60,9 @@ public class BinaryCache {
     }
 
     /**
-     * whether the key exists.
+     * to see wether the key exists or not.if the entry is expired still return true.
      *
-     * @return true if key exists.if key is expired still return true.
+     * @return true if key exists.
      */
     public boolean exists(Object key) {
         return this.map.containsKey(key);
@@ -134,22 +134,23 @@ public class BinaryCache {
         return null;
     }
 
-    public void clear() {
-        map.clear();
-        logger.info("Cache cleared");
-    }
-
+    /**
+     * destroy cache, release all resources.
+     */
     public void dispose() {
         map.clear();
         this.allocator.dispose();
         logger.info("Cache closed");
     }
 
-    public long entries() {
-        return map.size();
+    /**
+     * the num of cache entries.
+     */
+    public long size() {
+        return map.quickSize();
     }
 
-    public void remove(Object key) {
+    public void delete(Object key) {
         this.map.remove(key);
     }
 
@@ -185,7 +186,10 @@ public class BinaryCache {
         return map.lockFor(key).writeLock();
     }
 
-    public long used() {
+    /**
+     * return the used offheap memory in bytes.
+     */
+    public long offHeapSize() {
         return this.allocator.used();
     }
 
