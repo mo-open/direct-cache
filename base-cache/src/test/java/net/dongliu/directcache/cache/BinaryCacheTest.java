@@ -13,8 +13,8 @@ public class BinaryCacheTest {
 
     @Before
     public void initCache() {
-        cache = new BinaryCacheBuilder().setInitialCapacity(1000)
-                .setSize(100000)
+        cache = new BinaryCacheBuilder().setInitialSize(1000)
+                .setMaxSize(100000)
                 .newCacheService();
     }
 

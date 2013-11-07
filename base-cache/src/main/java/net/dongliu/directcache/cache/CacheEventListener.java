@@ -5,7 +5,7 @@ import net.dongliu.directcache.struct.ValueWrapper;
 /**
  * @author dongliu
  */
-interface CacheEventListener {
+public interface CacheEventListener {
 
     void notifyEvicted(ValueWrapper element, boolean b);
 

@@ -3,41 +3,78 @@ package net.dongliu.directcache.cache;
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.memory.SlabsAllocator;
 import net.dongliu.directcache.serialization.Serializer;
+import net.dongliu.directcache.utils.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.misc.VM;
 
 public final class BinaryCacheBuilder {
 
-    public static final int DEFAULT_INITIAL_CAPACITY = 100000;
-
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private long size;
+    /**
+     * The offheap memory size used in bytes.
+     * default is the half of max direct memory
+     */
+    private long maxSize = VM.maxDirectMemory() / 2;
 
-    private int initialCapacity = DEFAULT_INITIAL_CAPACITY;
+    /**
+     * the initial used for cache. default is 256 mb.
+     * current the parameter is not used.
+     */
+    private int initialSize = Size.Mb(512);
+
+    private int concurrency = 256;
+
+    private CacheEventListener listener;
 
     public BinaryCacheBuilder() {
-        // does nothing
     }
 
-    public BinaryCacheBuilder setSize(long size) {
-        this.size = size;
+    public BinaryCache newCacheService() {
+        Allocator allocator = SlabsAllocator.getSlabsAllocator(this.maxSize);
+        BinaryCache cache = new BinaryCache(allocator, this.listener, this.concurrency);
+        return cache;
+    }
+
+    /**
+     * The offheap memory size used in bytes.
+     * default is the half of max direct memory
+     * @param maxSize
+     * @return
+     */
+    public BinaryCacheBuilder setMaxSize(long maxSize) {
+        this.maxSize = maxSize;
         return this;
     }
 
-    public BinaryCacheBuilder setInitialCapacity(int initialCapacity) {
-        this.initialCapacity = initialCapacity;
+    /**
+     * the initial used for cache. default is 256 mb.
+     * current the parameter is not used.
+     */
+    public BinaryCacheBuilder setInitialSize(int initialSize) {
+        this.initialSize = initialSize;
         return this;
     }
 
+    /**
+     * The custom serializer.
+     * @param serializer
+     * @return
+     */
     public BinaryCacheBuilder setSerializer(Serializer serializer) {
         return this;
     }
 
-    public BinaryCache newCacheService() {
-        Allocator allocator = SlabsAllocator.getSlabsAllocator(this.size);
-        BinaryCache cache = new BinaryCache(allocator);
-        return cache;
+    public void setListener(CacheEventListener listener) {
+        this.listener = listener;
     }
 
+    /**
+     * the cache concurrency num.
+     * @param concurrency
+     */
+    public void setConcurrency(int concurrency) {
+        this.concurrency = concurrency;
+    }
 }

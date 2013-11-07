@@ -27,10 +27,10 @@ public class BinaryCache {
     /**
      * Constructor
      */
-    public BinaryCache(Allocator allocator) {
-        //TODO: add cache builder to set parameters.
+    public BinaryCache(Allocator allocator, CacheEventListener cacheEventListener,
+                       int concurrency) {
         this.allocator = allocator;
-        this.map = new CacheHashMap(allocator, 1000, 0.75f, 256, null);
+        this.map = new CacheHashMap(allocator, 1000, 0.75f, concurrency, cacheEventListener);
     }
 
     public void set(Object key, byte[] payload) {
