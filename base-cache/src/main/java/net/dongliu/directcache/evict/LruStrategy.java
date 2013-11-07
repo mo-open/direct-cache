@@ -9,14 +9,17 @@ import java.util.concurrent.locks.ReentrantLock;
  * TODO: less locks.
  * @author dongiu
  */
-public class Lru {
+public class LruStrategy implements EvictStrategy<LruStrategy.LruNode> {
 
-    private volatile Node head;
-    private volatile Node tail;
+    private LruNode head;
+    private LruNode tail;
+
+    private volatile int seq = 0;
 
     private ReentrantLock lock = new ReentrantLock();
 
-    public Node add(Node node) {
+    @Override
+    public net.dongliu.directcache.evict.Node add(LruNode node) {
         lock.lock();
         try{
             if (head != null) {
@@ -32,11 +35,12 @@ public class Lru {
         }
     }
 
-    public void remove(Node node) {
+    @Override
+    public void remove(LruNode node) {
         lock.lock();
         try {
-            Node prev = node.prev;
-            Node next = node.next;
+            LruNode prev = node.prev;
+            LruNode next = node.next;
             if (prev != null) {
                 prev.next = node.next;
             } else {
@@ -52,7 +56,11 @@ public class Lru {
         }
     }
 
-    public void visit(Node node) {
+    @Override
+    public void visit(LruNode node) {
+        if (seq++ % 10 != 0) {
+            return;
+        }
         lock.lock();
         try {
             if (node != head) {
@@ -70,15 +78,17 @@ public class Lru {
         }
     }
 
-    public Node[] evict(int count) {
+    @Override
+    public LruNode[] evict(int count) {
         lock.lock();
         try {
-            Node[] nodes = new Node[count];
+            LruNode[] nodes = new LruNode[count];
             //Note: the last node will remain.
             int i = 0;
-            while (i <= count && tail.prev != null) {
-                nodes[i] = tail;
-                tail = tail.prev;
+            LruNode node = tail;
+            while (i <= count && node.prev != null) {
+                nodes[i] = node;
+                node = node.prev;
             }
             return nodes;
         } finally {
@@ -86,19 +96,21 @@ public class Lru {
         }
     }
 
-    public ReentrantLock getLock() {
-        return this.lock;
+    @Override
+    public LruNode newNode(ValueWrapper value) {
+        return new LruNode(value);
     }
 
-    public static class Node {
+    protected static class LruNode implements net.dongliu.directcache.evict.Node {
         private final ValueWrapper value;
-        private volatile Node prev;
-        private volatile Node next;
+        private volatile LruNode prev;
+        private volatile LruNode next;
 
-        public Node (ValueWrapper value) {
+        public LruNode(ValueWrapper value) {
             this.value = value;
         }
 
+        @Override
         public ValueWrapper getValue() {
             return this.value;
         }

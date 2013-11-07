@@ -12,10 +12,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import net.dongliu.directcache.evict.Lru;
+import net.dongliu.directcache.evict.EvictStrategy;
+import net.dongliu.directcache.evict.LruStrategy;
+import net.dongliu.directcache.evict.Node;
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.struct.ValueWrapper;
 
@@ -412,9 +413,7 @@ public class CacheHashMap {
          */
         final float loadFactor;
 
-        private final Lru lru = new Lru();
-
-        private volatile int seq = 0;
+        private final EvictStrategy evictStrategy = new LruStrategy();
 
         private Iterator<HashEntry> evictionIterator = iterator();
 
@@ -428,15 +427,15 @@ public class CacheHashMap {
          * TODO: remove make value unusable.
          */
         protected void preRemove(HashEntry e) {
-            lru.remove(e.node);
+            evictStrategy.remove(e.node);
             e.node.getValue().returnTo(allocator);
         }
 
         /**
          * oprations after put.
          */
-        protected void postInstall(Object key, Lru.Node node) {
-            lru.add(node);
+        protected void postInstall(Object key, Node node) {
+            evictStrategy.add(node);
         }
 
         /**
@@ -458,7 +457,7 @@ public class CacheHashMap {
 
         protected HashEntry createHashEntry(Object key, int hash, HashEntry next,
                                             ValueWrapper value) {
-            return new HashEntry(key, hash, next, value);
+            return new HashEntry(key, hash, next, evictStrategy.newNode(value));
         }
 
         protected HashEntry relinkHashEntry(HashEntry e, HashEntry next) {
@@ -535,7 +534,7 @@ public class CacheHashMap {
                     oldValue = oldEntry.node.getValue();
                     if (!onlyIfAbsent) {
                         // replace
-                        oldEntry.node = new Lru.Node(value);
+                        oldEntry.node = evictStrategy.newNode(value);
                         postInstall(key, oldEntry.node);
                     } else {
                         return oldValue;
@@ -572,10 +571,7 @@ public class CacheHashMap {
                     HashEntry e = getFirst(hash);
                     while (e != null) {
                         if (e.hash == hash && key.equals(e.key)) {
-                            if (seq++ % 10 == 0) {
-                                // sample visit call to lru
-                                lru.visit(e.node);
-                            }
+                            evictStrategy.visit(e.node);
                             return e.node.getValue();
                         }
                         e = e.next;
@@ -643,11 +639,9 @@ public class CacheHashMap {
 
             int count = 0;
             writeLock().lock();
-            ReentrantLock lock = lru.getLock();
-            lock.lock();
             try {
-                Lru.Node[] nodes = lru.evict(evictCount);
-                for (Lru.Node node : nodes) {
+                Node[] nodes = evictStrategy.evict(evictCount);
+                for (Node node : nodes) {
                     if (node == null) {
                         break;
                     }
@@ -657,7 +651,6 @@ public class CacheHashMap {
                     count++;
                 }
             } finally {
-                lock.unlock();
                 writeLock().unlock();
             }
             return count;
@@ -735,16 +728,9 @@ public class CacheHashMap {
         public final int hash;
         public final HashEntry next;
 
-        public volatile Lru.Node node;
+        public volatile Node node;
 
-        protected HashEntry(Object key, int hash, HashEntry next, ValueWrapper node) {
-            this.key = key;
-            this.hash = hash;
-            this.next = next;
-            this.node = new Lru.Node(node);
-        }
-
-        protected HashEntry(Object key, int hash, HashEntry next, Lru.Node node) {
+        protected HashEntry(Object key, int hash, HashEntry next, Node node) {
             this.key = key;
             this.hash = hash;
             this.next = next;
