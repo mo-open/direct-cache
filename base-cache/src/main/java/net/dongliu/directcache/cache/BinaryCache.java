@@ -2,6 +2,8 @@ package net.dongliu.directcache.cache;
 
 import net.dongliu.directcache.exception.TooLargeDataException;
 import net.dongliu.directcache.memory.Allocator;
+import net.dongliu.directcache.struct.AbstractValueWrapper;
+import net.dongliu.directcache.struct.BaseValueWrapper;
 import net.dongliu.directcache.struct.MemoryBuffer;
 import net.dongliu.directcache.struct.ValueWrapper;
 import org.slf4j.Logger;
@@ -46,9 +48,9 @@ public class BinaryCache {
         lock.lock();
         try {
             ValueWrapper oldValueWrapper = null;
-            ValueWrapper valueWrapper = store(key, payload);
-            if (valueWrapper != null) {
-                oldValueWrapper = map.putIfAbsent(key, valueWrapper);
+            ValueWrapper wrapper = store(key, payload);
+            if (wrapper != null) {
+                oldValueWrapper = map.putIfAbsent(key, wrapper);
                 //TODO: we need read node, but oldValueWrapper is already freed.
                 //byte[] oldValue = oldValueWrapper.readValue();
                 return null;
@@ -85,7 +87,7 @@ public class BinaryCache {
         lock.lock();
         try {
             ValueWrapper oldValueWrapper = null;
-            ValueWrapper valueWrapper = store(key, payload);
+            BaseValueWrapper valueWrapper = store(key, payload);
             if (valueWrapper != null) {
                 if (expiresIn != 0) {
                     valueWrapper.setExpiry(expiresIn);
@@ -158,7 +160,7 @@ public class BinaryCache {
      * allocate memory and store the payload, return the pointer.
      * @return the point.null if failed.
      */
-    private ValueWrapper store(Object key, byte[] payload) {
+    private BaseValueWrapper store(Object key, byte[] payload) {
         MemoryBuffer buffer;
         try {
             buffer = allocator.allocate(payload.length);
@@ -176,10 +178,10 @@ public class BinaryCache {
             return null;
         }
 
-        ValueWrapper p = new ValueWrapper(buffer);
+        BaseValueWrapper wrapper = new BaseValueWrapper(buffer);
         buffer.write(payload);
-        p.setKey(key);
-        return p;
+        wrapper.setKey(key);
+        return wrapper;
     }
 
     private Lock getWriteLock(Object key) {

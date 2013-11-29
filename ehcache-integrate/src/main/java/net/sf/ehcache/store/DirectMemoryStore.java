@@ -4,6 +4,8 @@ import net.dongliu.directcache.cache.CacheHashMap;
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.memory.SlabsAllocator;
 import net.dongliu.directcache.serialization.SerializerFactory;
+import net.dongliu.directcache.struct.AbstractValueWrapper;
+import net.dongliu.directcache.struct.EhcacheValueWrapper;
 import net.dongliu.directcache.struct.MemoryBuffer;
 import net.dongliu.directcache.struct.ValueWrapper;
 import net.sf.ehcache.*;
@@ -96,7 +98,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         lock.lock();
         try {
             ValueWrapper oldValueWrapper = null;
-            ValueWrapper valueWrapper = store(element);
+            AbstractValueWrapper valueWrapper = store(element);
             if (valueWrapper != null) {
                 oldValueWrapper = map.put(key, valueWrapper);
             }
@@ -110,7 +112,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
      * allocate memory and store the payload, return the pointer.
      * @return the point.null if failed.
      */
-    private ValueWrapper store(Element element) {
+    private EhcacheValueWrapper store(Element element) {
         //TODO: if element.getValue() is null
         Object value = element.getValue();
         byte[] bytes = objectToBytes(value);
@@ -119,15 +121,15 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
 
-        ValueWrapper p = new ValueWrapper(buffer);
+        EhcacheValueWrapper wrapper = new EhcacheValueWrapper(buffer);
         buffer.write(bytes);
-        p.setKey(element.getKey());
-        p.setExpiry(element.getTimeToIdle());
-//        p.setTimeToLive(element.getTimeToLive());
-//        p.setHitCount(element.getHitCount());
-//        p.setVersion(element.getVersion());
-        p.setLastUpdateTime(element.getLastUpdateTime());
-        return p;
+        wrapper.setKey(element.getKey());
+        wrapper.setTimeToIdle(element.getTimeToIdle());
+        wrapper.setTimeToLive(element.getTimeToLive());
+        wrapper.setHitCount(element.getHitCount());
+        wrapper.setVersion(element.getVersion());
+        wrapper.setLastUpdateTime(element.getLastUpdateTime());
+        return wrapper;
     }
 
     @Override
@@ -170,16 +172,16 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
 
-        ValueWrapper valueWrapper = map.get(key);
-        if (valueWrapper == null) {
+        EhcacheValueWrapper wrapper = (EhcacheValueWrapper) map.get(key);
+        if (wrapper == null) {
             return null;
         }
-        if (valueWrapper.isExpired() || !valueWrapper.isLive()) {
+        if (wrapper.isExpired() || !wrapper.isLive()) {
             Lock lock = getWriteLock(key);
             lock.lock();
             try {
-                valueWrapper = map.get(key);
-                if (valueWrapper.isExpired() || !valueWrapper.isLive()) {
+                wrapper = (EhcacheValueWrapper) map.get(key);
+                if (wrapper.isExpired() || !wrapper.isLive()) {
                     map.remove(key);
                 }
             } finally {
@@ -189,14 +191,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         }
 
         //TODO: add creation & lastAccessTime.
-        long creation = valueWrapper.getLastUpdateTime();
-        long lastAccessTime = valueWrapper.getLastUpdateTime();
-        int hitCount = 1;
-        Object value = bytesToObject(valueWrapper.readValue(), Object.class);
-        Element e = new Element(valueWrapper.getKey(), value, valueWrapper.getLastUpdateTime(), creation, lastAccessTime,
-                valueWrapper.getLastUpdateTime(), hitCount);
-        e.setTimeToLive(0);
-        e.setTimeToIdle(valueWrapper.getExpiry());
+        long creationTime = wrapper.getVersion();
+        long lastAccessTime = wrapper.getLastUpdateTime();
+        Object value = bytesToObject(wrapper.readValue(), Object.class);
+        Element e = new Element(wrapper.getKey(), value, wrapper.getLastUpdateTime(),
+                creationTime, lastAccessTime, wrapper.getLastUpdateTime(), wrapper.getHitCount());
+        e.setTimeToLive(wrapper.getTimeToLive());
+        e.setTimeToIdle(wrapper.getTimeToIdle());
         return e;
     }
 
@@ -247,7 +248,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         lock.lock();
         try {
             Element e = getQuiet(key);
-            ValueWrapper valueWrapper = store(element);
+            AbstractValueWrapper valueWrapper = store(element);
             if (valueWrapper != null) {
                 ValueWrapper oldValueWrapper = map.putIfAbsent(key, valueWrapper);
                 //TODO: we need read node, but oldValueWrapper is already freed.

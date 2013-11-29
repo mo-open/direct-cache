@@ -19,6 +19,7 @@ import net.dongliu.directcache.evict.LruStrategy;
 import net.dongliu.directcache.evict.Node;
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.struct.ValueWrapper;
+import net.dongliu.directcache.struct.ValueWrapper;
 
 /**
  * CacheHashMap subclasses a repackaged version of ConcurrentHashMap
