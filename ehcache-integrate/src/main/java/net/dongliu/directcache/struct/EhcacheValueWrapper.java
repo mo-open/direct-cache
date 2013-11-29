@@ -36,19 +36,35 @@ public class EhcacheValueWrapper extends AbstractValueWrapper{
      */
     private volatile long lastUpdateTime;
 
+    private volatile long creationTime;
+
+    private volatile long lastAccessTime;
+
     public EhcacheValueWrapper(MemoryBuffer memoryBuffer) {
         super(memoryBuffer);
     }
 
     @Override
     public boolean isExpired() {
+        if (!isLifespanSet() || isEternal()) {
+            return false;
+        }
         long now = System.currentTimeMillis();
         long expirationTime = getExpirationTime();
 
         return now > expirationTime;
     }
 
+    /**
+     * Returns the expiration time based on time to live. If this element also has a time to idle setting, the expiry
+     * time will vary depending on whether the element is accessed.
+     *
+     * @return the time to expiration
+     */
     private long getExpirationTime() {
+        if (!isLifespanSet() || isEternal()) {
+            return Long.MAX_VALUE;
+        }
         long expirationTime = 0;
         long ttlExpiry = version + TimeUtil.toMillis(getTimeToLive());
 
@@ -63,6 +79,22 @@ public class EhcacheValueWrapper extends AbstractValueWrapper{
             expirationTime = Math.min(ttlExpiry, ttiExpiry);
         }
         return expirationTime;
+    }
+
+    /**
+     * @return true if the element is eternal
+     */
+    public boolean isEternal() {
+        return (0 == timeToIdle) && (0 == timeToLive);
+    }
+
+    /**
+     * Whether any combination of eternal, TTL or TTI has been set.
+     *
+     * @return true if set.
+     */
+    public boolean isLifespanSet() {
+        return this.timeToIdle != Integer.MIN_VALUE || this.timeToLive != Integer.MIN_VALUE;
     }
 
     public long getVersion() {
@@ -103,5 +135,21 @@ public class EhcacheValueWrapper extends AbstractValueWrapper{
 
     public void setLastUpdateTime(long lastUpdateTime) {
         this.lastUpdateTime = lastUpdateTime;
+    }
+
+    public long getCreationTime() {
+        return creationTime;
+    }
+
+    public void setCreationTime(long creationTime) {
+        this.creationTime = creationTime;
+    }
+
+    public long getLastAccessTime() {
+        return lastAccessTime;
+    }
+
+    public void setLastAccessTime(long lastAccessTime) {
+        this.lastAccessTime = lastAccessTime;
     }
 }

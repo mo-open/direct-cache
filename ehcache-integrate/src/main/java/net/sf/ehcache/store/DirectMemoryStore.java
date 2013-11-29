@@ -129,6 +129,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         wrapper.setHitCount(element.getHitCount());
         wrapper.setVersion(element.getVersion());
         wrapper.setLastUpdateTime(element.getLastUpdateTime());
+        wrapper.setCreationTime(element.getCreationTime());
+        wrapper.setLastAccessTime(element.getLastAccessTime());
         return wrapper;
     }
 
@@ -191,11 +193,10 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         }
 
         //TODO: add creation & lastAccessTime.
-        long creationTime = wrapper.getVersion();
-        long lastAccessTime = wrapper.getLastUpdateTime();
         Object value = bytesToObject(wrapper.readValue(), Object.class);
         Element e = new Element(wrapper.getKey(), value, wrapper.getLastUpdateTime(),
-                creationTime, lastAccessTime, wrapper.getLastUpdateTime(), wrapper.getHitCount());
+                wrapper.getCreationTime(), wrapper.getLastAccessTime(),
+                wrapper.getLastUpdateTime(), wrapper.getHitCount());
         e.setTimeToLive(wrapper.getTimeToLive());
         e.setTimeToIdle(wrapper.getTimeToIdle());
         return e;
