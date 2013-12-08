@@ -9,7 +9,7 @@ import net.sf.ehcache.store.DirectMemoryStore;
 import java.io.Serializable;
 
 /**
- * combine memory store and offheapstore.
+ * combine memory store and direct memory store.
  * @author dongliu
  */
 public class OffHeapBackendStore extends FrontEndCacheTier<MemoryStore, DirectMemoryStore> {

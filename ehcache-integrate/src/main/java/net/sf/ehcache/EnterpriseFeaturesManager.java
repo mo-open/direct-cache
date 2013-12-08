@@ -38,7 +38,9 @@ public class EnterpriseFeaturesManager
             return createNonOffHeapStore(cache, onHeapPool, onDiskPool);
         }
 
-        return OffHeapBackendStore.create(cache, onHeapPool);
+        return DirectMemoryOnlyStore.create(cache, onHeapPool);
+        //TODO: add offheap backend store when size in heap configuration is not zero.
+        //return OffHeapBackendStore.create(cache, onHeapPool);
     }
 
     /**

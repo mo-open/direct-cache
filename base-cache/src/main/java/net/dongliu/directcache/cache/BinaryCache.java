@@ -1,8 +1,7 @@
 package net.dongliu.directcache.cache;
 
-import net.dongliu.directcache.exception.TooLargeDataException;
+import net.dongliu.directcache.exception.AllocatorException;
 import net.dongliu.directcache.memory.Allocator;
-import net.dongliu.directcache.struct.AbstractValueWrapper;
 import net.dongliu.directcache.struct.BaseValueWrapper;
 import net.dongliu.directcache.struct.MemoryBuffer;
 import net.dongliu.directcache.struct.ValueWrapper;
@@ -48,9 +47,15 @@ public class BinaryCache {
         lock.lock();
         try {
             ValueWrapper oldValueWrapper = null;
-            ValueWrapper wrapper = store(key, payload);
-            if (wrapper != null) {
-                oldValueWrapper = map.putIfAbsent(key, wrapper);
+            ValueWrapper valueWrapper = null;
+            try {
+                valueWrapper = store(key, payload);
+            } catch (AllocatorException e) {
+                logger.warn("Allocate new buffer failed.", e);
+                valueWrapper = null;
+            }
+            if (valueWrapper != null) {
+                oldValueWrapper = map.putIfAbsent(key, valueWrapper);
                 //TODO: we need read node, but oldValueWrapper is already freed.
                 //byte[] oldValue = oldValueWrapper.readValue();
                 return null;
@@ -86,13 +91,18 @@ public class BinaryCache {
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            ValueWrapper oldValueWrapper = null;
-            BaseValueWrapper valueWrapper = store(key, payload);
+            BaseValueWrapper valueWrapper;
+            try {
+                valueWrapper = store(key, payload);
+            } catch (AllocatorException e) {
+                logger.warn("Allocate new buffer failed.", e);
+                valueWrapper = null;
+            }
             if (valueWrapper != null) {
                 if (expiresIn != 0) {
                     valueWrapper.setExpiry(expiresIn);
                 }
-                oldValueWrapper = map.put(key, valueWrapper);
+                map.put(key, valueWrapper);
             }
         } finally {
             lock.unlock();
@@ -160,13 +170,8 @@ public class BinaryCache {
      * allocate memory and store the payload, return the pointer.
      * @return the point.null if failed.
      */
-    private BaseValueWrapper store(Object key, byte[] payload) {
-        MemoryBuffer buffer;
-        try {
-            buffer = allocator.allocate(payload.length);
-        } catch (TooLargeDataException e) {
-            throw e;
-        }
+    private BaseValueWrapper store(Object key, byte[] payload) throws AllocatorException {
+        MemoryBuffer buffer = allocator.allocate(payload.length);
 
         // try to evict caches.
         if (buffer == null) {
@@ -175,6 +180,7 @@ public class BinaryCache {
         }
 
         if (buffer == null) {
+            logger.debug("Cannot allocate buffer for new key:" + key.toString());
             return null;
         }
 

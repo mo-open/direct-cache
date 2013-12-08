@@ -4,9 +4,10 @@ import net.sf.ehcache.util.TimeUtil;
 
 /**
  * Value wrapper for ehcache elements
+ *
  * @author dongliu
  */
-public class EhcacheValueWrapper extends AbstractValueWrapper{
+public class EhcacheValueWrapper extends AbstractValueWrapper {
 
     /**
      * version of the element. System.currentTimeMillis() is used to compute version for updated elements. That
@@ -39,6 +40,8 @@ public class EhcacheValueWrapper extends AbstractValueWrapper{
     private volatile long creationTime;
 
     private volatile long lastAccessTime;
+
+    private Class valueClass;
 
     public EhcacheValueWrapper(MemoryBuffer memoryBuffer) {
         super(memoryBuffer);
@@ -151,5 +154,13 @@ public class EhcacheValueWrapper extends AbstractValueWrapper{
 
     public void setLastAccessTime(long lastAccessTime) {
         this.lastAccessTime = lastAccessTime;
+    }
+
+    public Class getValueClass() {
+        return valueClass;
+    }
+
+    public void setValueClass(Class valueClass) {
+        this.valueClass = valueClass;
     }
 }

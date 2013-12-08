@@ -1,5 +1,6 @@
 package net.dongliu.directcache.memory;
 
+import net.dongliu.directcache.exception.AllocatorException;
 import net.dongliu.directcache.struct.MemoryBuffer;
 
 /**
@@ -16,7 +17,7 @@ public interface Allocator {
     void free(final MemoryBuffer memoryBuffer);
 
 
-    MemoryBuffer allocate(final int size);
+    MemoryBuffer allocate(final int size) throws AllocatorException;
 
     /**
      * destroy allocator, release all resources.

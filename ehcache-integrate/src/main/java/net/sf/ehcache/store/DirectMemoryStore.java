@@ -1,6 +1,7 @@
 package net.sf.ehcache.store;
 
 import net.dongliu.directcache.cache.CacheHashMap;
+import net.dongliu.directcache.exception.AllocatorException;
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.memory.SlabsAllocator;
 import net.dongliu.directcache.serialization.SerializerFactory;
@@ -22,10 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
@@ -51,6 +49,12 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
 
     private volatile CacheLockProvider lockProvider;
 
+    private static final int DEFAULT_CONCURRENCY = 256;
+
+    private static final int INITIAL_CAPACITY = 1000;
+
+    private static final float LOAD_FACTOR = 0.75f;
+
     public static DirectMemoryStore create(Ehcache cache) {
         return new DirectMemoryStore(cache, false);
     }
@@ -63,7 +67,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         this.cache = cache;
 
         this.allocator = SlabsAllocator.getSlabsAllocator(offHeapSizeBytes);
-        this.map = new CacheHashMap(allocator, 1000, 0.75f, 256, null);
+        this.map = new CacheHashMap(allocator, INITIAL_CAPACITY, LOAD_FACTOR, DEFAULT_CONCURRENCY, null);
 
         serializer = SerializerFactory.createNewSerializer();
         this.status = Status.STATUS_ALIVE;
@@ -116,7 +120,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         //TODO: if element.getValue() is null
         Object value = element.getValue();
         byte[] bytes = objectToBytes(value);
-        MemoryBuffer buffer = allocator.allocate(bytes.length);
+        MemoryBuffer buffer;
+        try {
+            buffer = allocator.allocate(bytes.length);
+        } catch (AllocatorException e) {
+            logger.error("Allocate new Buffer failed.", e);
+            buffer = null;
+        }
         if (buffer == null) {
             return null;
         }
@@ -131,6 +141,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         wrapper.setLastUpdateTime(element.getLastUpdateTime());
         wrapper.setCreationTime(element.getCreationTime());
         wrapper.setLastAccessTime(element.getLastAccessTime());
+        wrapper.setValueClass(value.getClass());
         return wrapper;
     }
 
@@ -192,8 +203,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
             return null;
         }
 
-        //TODO: add creation & lastAccessTime.
-        Object value = bytesToObject(wrapper.readValue(), Object.class);
+        Object value = bytesToObject(wrapper.readValue(), wrapper.getValueClass());
         Element e = new Element(wrapper.getKey(), value, wrapper.getLastUpdateTime(),
                 wrapper.getCreationTime(), wrapper.getLastAccessTime(),
                 wrapper.getLastUpdateTime(), wrapper.getHitCount());
@@ -565,6 +575,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         return map.lockFor(key).writeLock();
     }
 
+    public Collection<Element> elementSet() {
+        // TODO: to be implemented.
+        return Collections.emptyList();
+    }
+
     /**
      * LockProvider implementation that uses the segment locks.
      */
@@ -579,7 +594,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore, P
         try {
             return serializer.serialize(o);
         } catch (IOException e) {
-            // should not happen.
             throw new RuntimeException(e);
         }
     }
