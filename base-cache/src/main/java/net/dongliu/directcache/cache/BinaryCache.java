@@ -2,9 +2,11 @@ package net.dongliu.directcache.cache;
 
 import net.dongliu.directcache.exception.AllocatorException;
 import net.dongliu.directcache.memory.Allocator;
+import net.dongliu.directcache.memory.SlabsAllocator;
 import net.dongliu.directcache.struct.BaseValueWrapper;
 import net.dongliu.directcache.struct.MemoryBuffer;
 import net.dongliu.directcache.struct.ValueWrapper;
+import net.dongliu.directcache.utils.CacheConfigure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,12 +28,20 @@ public class BinaryCache {
     private final Allocator allocator;
 
     /**
+     * @param maxSize
+     */
+    public BinaryCache(int maxSize) {
+        this(null, maxSize);
+    }
+
+    /**
      * Constructor
      */
-    public BinaryCache(Allocator allocator, CacheEventListener cacheEventListener,
-                       int concurrency) {
-        this.allocator = allocator;
-        this.map = new CacheConcurrentHashMap(allocator, 1000, 0.75f, concurrency, cacheEventListener);
+    public BinaryCache(CacheEventListener cacheEventListener, int maxSize) {
+        this.allocator = SlabsAllocator.getSlabsAllocator(maxSize);
+        CacheConfigure cc = CacheConfigure.getConfigure();
+        this.map = new CacheConcurrentHashMap(allocator, cc.getInitialSize(), cc.getLoadFactor(),
+                cc.getConcurrency(), cacheEventListener);
     }
 
     public void set(Object key, byte[] payload) {
@@ -40,6 +50,7 @@ public class BinaryCache {
 
     /**
      * Put an element in the store only if no element is currently mapped to the elements key.
+     *
      * @return the ValueWrapper previously cached for this key, or null if none.
      */
     public byte[] add(Object key, byte[] payload) {
@@ -149,7 +160,7 @@ public class BinaryCache {
     /**
      * destroy cache, release all resources.
      */
-    public void dispose() {
+    public void destroy() {
         map.clear();
         this.allocator.destroy();
         logger.info("Cache closed");
@@ -168,6 +179,7 @@ public class BinaryCache {
 
     /**
      * allocate memory and store the payload, return the pointer.
+     *
      * @return the point.null if failed.
      */
     private BaseValueWrapper store(Object key, byte[] payload) throws AllocatorException {

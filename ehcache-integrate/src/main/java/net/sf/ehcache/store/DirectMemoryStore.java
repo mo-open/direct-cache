@@ -8,6 +8,7 @@ import net.dongliu.directcache.memory.SlabsAllocator;
 import net.dongliu.directcache.serialization.Serializer;
 import net.dongliu.directcache.serialization.SerializerFactory;
 import net.dongliu.directcache.struct.*;
+import net.dongliu.directcache.utils.CacheConfigure;
 import net.sf.ehcache.*;
 import net.sf.ehcache.concurrent.CacheLockProvider;
 import net.sf.ehcache.concurrent.ReadWriteLockSync;
@@ -42,12 +43,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     private volatile CacheLockProvider lockProvider;
 
-    private static final int DEFAULT_CONCURRENCY = 256;
-
-    private static final int INITIAL_CAPACITY = 1000;
-
-    private static final float LOAD_FACTOR = 0.75f;
-
     public static DirectMemoryStore create(Ehcache cache) {
         return new DirectMemoryStore(cache, false);
     }
@@ -77,10 +72,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             };
         }
 
-        this.map = new CacheConcurrentHashMap(allocator, INITIAL_CAPACITY, LOAD_FACTOR, DEFAULT_CONCURRENCY,
+        CacheConfigure cc = CacheConfigure.getConfigure();
+        this.map = new CacheConcurrentHashMap(allocator, cc.getInitialSize(), cc.getLoadFactor(), cc.getConcurrency(),
                 cacheEventListener);
 
-        serializer = SerializerFactory.createNewSerializer();
+        serializer = SerializerFactory.getSerializer();
         this.status = Status.STATUS_ALIVE;
     }
 

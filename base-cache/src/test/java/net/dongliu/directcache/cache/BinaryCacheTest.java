@@ -1,5 +1,7 @@
 package net.dongliu.directcache.cache;
 
+import net.dongliu.directcache.utils.Size;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -12,10 +14,13 @@ public class BinaryCacheTest {
     private BinaryCache cache;
 
     @Before
-    public void initCache() {
-        cache = new BinaryCacheBuilder().setInitialSize(1000)
-                .setMaxSize(100000)
-                .newCacheService();
+    public void init() {
+        cache = new BinaryCache(Size.Mb(100));
+    }
+
+    @After
+    public void destroy() {
+        cache.destroy();
     }
 
     @Test
