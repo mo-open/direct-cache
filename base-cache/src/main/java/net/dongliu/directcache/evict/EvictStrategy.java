@@ -12,4 +12,6 @@ public interface EvictStrategy<T extends Node> {
     T[] evict(int count);
 
     T newNode(ValueWrapper value);
+
+    void clear();
 }

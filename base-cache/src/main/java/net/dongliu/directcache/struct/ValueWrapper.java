@@ -7,22 +7,30 @@ import net.dongliu.directcache.memory.Allocator;
  * @author dongliu
  */
 public interface ValueWrapper {
+
     int getCapacity();
 
     boolean isExpired();
 
     int getSize();
 
-    MemoryBuffer getMemoryBuffer();
-
     boolean isLive();
+
+    MemoryBuffer getMemoryBuffer();
 
     Object getKey();
 
     void setKey(Object key);
 
-    boolean returnTo(Allocator allocator);
+    /**
+     * mark value wrapper to be dead if it is alive.
+     * @return true if value wrapper is alive before.
+     */
+    boolean tryKill();
 
+    /**
+     *  read value in bytes. this should only be called once
+     */
     byte[] readValue();
 
 }

@@ -13,7 +13,11 @@ public class MemoryBuffer {
     private final long start;
     private final int capacity;
     /** size actual used */
-    private int size;
+
+    private volatile int size;
+
+    // for emtpy buffer.
+    public static final MemoryBuffer emptyBuffer = new MemoryBuffer(null, 0, 0);
 
     public MemoryBuffer(MergedMemory memory, long start, int capacity) {
         this.memory = memory;

@@ -1,10 +1,14 @@
 package net.dongliu.directcache.struct;
 
+import net.dongliu.directcache.memory.Allocator;
+import net.dongliu.directcache.utils.U;
+
 /**
  * basic valuewrapper, for binary cache.
+ *
  * @author dongliu
  */
-public class BaseValueWrapper extends AbstractValueWrapper{
+public class BaseValueWrapper extends AbstractValueWrapper {
     /**
      * The amount of time for the element to live, in seconds. 0 indicates unlimited.
      */
@@ -42,4 +46,5 @@ public class BaseValueWrapper extends AbstractValueWrapper{
     public void setExpiry(int expiry) {
         this.expiry = expiry;
     }
+
 }

@@ -1,5 +1,7 @@
 package net.dongliu.directcache.struct;
 
+import net.dongliu.directcache.memory.Allocator;
+import net.dongliu.directcache.utils.U;
 import net.sf.ehcache.util.TimeUtil;
 
 /**

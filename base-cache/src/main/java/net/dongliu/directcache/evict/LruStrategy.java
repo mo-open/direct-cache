@@ -101,6 +101,11 @@ public class LruStrategy implements EvictStrategy<LruStrategy.LruNode> {
         return new LruNode(value);
     }
 
+    @Override
+    public void clear() {
+        head = tail = null;
+    }
+
     protected static class LruNode implements net.dongliu.directcache.evict.Node {
         private final ValueWrapper value;
         private volatile LruNode prev;

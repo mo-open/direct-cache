@@ -21,7 +21,7 @@ public class BinaryCache {
 
     private static final Logger logger = LoggerFactory.getLogger(BinaryCache.class);
 
-    private CacheHashMap map;
+    private CacheConcurrentHashMap map;
 
     private final Allocator allocator;
 
@@ -31,7 +31,7 @@ public class BinaryCache {
     public BinaryCache(Allocator allocator, CacheEventListener cacheEventListener,
                        int concurrency) {
         this.allocator = allocator;
-        this.map = new CacheHashMap(allocator, 1000, 0.75f, concurrency, cacheEventListener);
+        this.map = new CacheConcurrentHashMap(allocator, 1000, 0.75f, concurrency, cacheEventListener);
     }
 
     public void set(Object key, byte[] payload) {
@@ -39,10 +39,10 @@ public class BinaryCache {
     }
 
     /**
-     * Put an element in the store if no element is currently mapped to the elements key.
+     * Put an element in the store only if no element is currently mapped to the elements key.
      * @return the ValueWrapper previously cached for this key, or null if none.
      */
-    public byte[] setIfAbsent(Object key, byte[] payload) {
+    public byte[] add(Object key, byte[] payload) {
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
@@ -151,7 +151,7 @@ public class BinaryCache {
      */
     public void dispose() {
         map.clear();
-        this.allocator.dispose();
+        this.allocator.destroy();
         logger.info("Cache closed");
     }
 

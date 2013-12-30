@@ -70,6 +70,10 @@ public class SlabsAllocator implements Allocator {
 
     @Override
     public MemoryBuffer allocate(int size) throws AllocatorException {
+        if (size == 0) {
+            return MemoryBuffer.emptyBuffer;
+        }
+
         SlabClass slabClass = locateSlabClass(size);
         if (slabClass == null) {
             throw new AllocatorException("Data size larger than: " + CHUNK_SIZE_LIST[CHUNK_SIZE_LIST.length]);
@@ -124,6 +128,9 @@ public class SlabsAllocator implements Allocator {
         if (memoryBuffer.isDispose()) {
             return;
         }
+        if (memoryBuffer.getCapacity() == 0) {
+            return;
+        }
         Chunk chunk = (Chunk)memoryBuffer;
         SlabClass slabClass = locateSlabClass(chunk.getSize());
         slabClass.freeChunk(chunk);
@@ -141,7 +148,7 @@ public class SlabsAllocator implements Allocator {
     }
 
     @Override
-    public void dispose() {
+    public void destroy() {
         this.mergedMemory.dispose();
         for (int i = 0; i < this.slabClasses.length; i++) {
             this.slabClasses[i] = null;
@@ -169,7 +176,7 @@ public class SlabsAllocator implements Allocator {
         }
 
         /**
-         * returnTo a chunk. lock returnTo
+         * tryKill a chunk. lock tryKill
          */
         public void freeChunk(Chunk chunk) {
             freeChunkQueue.add(chunk);

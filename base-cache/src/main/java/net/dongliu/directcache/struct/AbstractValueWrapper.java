@@ -1,6 +1,5 @@
 package net.dongliu.directcache.struct;
 
-import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.utils.U;
 
 /**
@@ -14,8 +13,7 @@ public abstract class AbstractValueWrapper implements ValueWrapper {
 
     public final MemoryBuffer memoryBuffer;
 
-    private volatile int live = 1;
-
+    private volatile int live;
 
     private static final long LIVE_OFFSET;
 
@@ -25,6 +23,12 @@ public abstract class AbstractValueWrapper implements ValueWrapper {
 
     public AbstractValueWrapper(MemoryBuffer memoryBuffer) {
         this.memoryBuffer = memoryBuffer;
+        this.live = 1;
+    }
+
+    @Override
+    public boolean isLive() {
+        return this.live == 1;
     }
 
     @Override
@@ -39,12 +43,7 @@ public abstract class AbstractValueWrapper implements ValueWrapper {
 
     @Override
     public MemoryBuffer getMemoryBuffer() {
-        return memoryBuffer;
-    }
-
-    @Override
-    public boolean isLive() {
-        return live == 1;
+        return this.memoryBuffer;
     }
 
     @Override
@@ -57,24 +56,17 @@ public abstract class AbstractValueWrapper implements ValueWrapper {
         this.key = key;
     }
 
-    /**
-     * return buffer to allocator.
-     * @return false if pointer has already been freed.
-     */
-    @Override
-    public boolean returnTo(final Allocator allocator) {
-        if (U.compareAndSwapInt(this, LIVE_OFFSET, 1, 0)) {
-            allocator.free(this.memoryBuffer);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     @Override
     public byte[] readValue() {
         return memoryBuffer.read();
     }
 
+    /**
+     * return buffer to allocator.
+     * @return false if pointer has already been freed.
+     */
+    public boolean tryKill() {
+        return U.compareAndSwapInt(this, LIVE_OFFSET, 1, 0);
+    }
 
 }

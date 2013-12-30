@@ -53,11 +53,10 @@ public class DirectMemoryOnlyStore extends FrontEndCacheTier<NullStore, DirectMe
      * Create an instance of MemoryOnlyStore
      *
      * @param cache      the cache
-     * @param onHeapPool the on heap pool
      * @return an instance of MemoryOnlyStore
      */
-    public static Store create(Ehcache cache, Pool onHeapPool) {
-        final DirectMemoryStore memoryStore = NotifyingDirectMemoryStore.create(cache, onHeapPool);
+    public static Store create(Ehcache cache) {
+        final DirectMemoryStore memoryStore = NotifyingDirectMemoryStore.create(cache);
         final SearchManager searchManager = new BruteForceSearchManager(memoryStore);
 
         return new DirectMemoryOnlyStore(cache.getCacheConfiguration(), memoryStore, searchManager);

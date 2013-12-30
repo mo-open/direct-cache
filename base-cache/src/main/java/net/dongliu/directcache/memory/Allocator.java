@@ -10,8 +10,8 @@ import net.dongliu.directcache.struct.MemoryBuffer;
 public interface Allocator {
 
     /**
-     * returnTo the memory buffer.
-     * memoryBuffer cannot be use after returnTo.
+     * tryKill the memory buffer.
+     * memoryBuffer cannot be use after tryKill.
      * @param memoryBuffer
      */
     void free(final MemoryBuffer memoryBuffer);
@@ -21,9 +21,9 @@ public interface Allocator {
 
     /**
      * destroy allocator, release all resources.
-     * after dispose this cannot be used any more
+     * after destroy this cannot be used any more
      */
-    void dispose();
+    void destroy();
 
     /**
      * the capacity

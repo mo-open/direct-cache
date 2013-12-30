@@ -19,16 +19,15 @@ import net.dongliu.directcache.evict.LruStrategy;
 import net.dongliu.directcache.evict.Node;
 import net.dongliu.directcache.memory.Allocator;
 import net.dongliu.directcache.struct.ValueWrapper;
-import net.dongliu.directcache.struct.ValueWrapper;
 
 /**
- * CacheHashMap subclasses a repackaged version of ConcurrentHashMap
+ * CacheConcurrentHashMap subclasses a repackaged version of ConcurrentHashMap
  * ito allow efficient random sampling of the map values.
  * <p/>
  * The random sampling technique involves randomly selecting a map Segment, and then
  * selecting a number of random entry chains from that segment.
  */
-public class CacheHashMap {
+public class CacheConcurrentHashMap {
 
     /**
      * The maximum capacity, used if a higher node is implicitly specified by either of the constructors with arguments.
@@ -42,9 +41,8 @@ public class CacheHashMap {
     private static final int MAX_SEGMENTS = 1 << 16; // slightly conservative
 
     /**
-     * Number of unsynchronized retries in size and containsValue
-     * methods before resorting to locking. This is used to avoid
-     * unbounded retries if tables undergo continuous modification
+     * Number of unsynchronized retries in size and before resorting to locking.
+     * This is used to avoid unbounded retries if tables undergo continuous modification
      * which would make it impossible to obtain an accurate result.
      */
     private static final int RETRIES_BEFORE_LOCK = 2;
@@ -72,8 +70,8 @@ public class CacheHashMap {
 
     private final Allocator allocator;
 
-    public CacheHashMap(Allocator allocator, int initialCapacity,
-                        float loadFactor, int concurrency, final CacheEventListener cacheEventListener) {
+    public CacheConcurrentHashMap(Allocator allocator, int initialCapacity,
+                                  float loadFactor, int concurrency, final CacheEventListener cacheEventListener) {
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrency <= 0)
             throw new IllegalArgumentException();
 
@@ -138,8 +136,7 @@ public class CacheHashMap {
          * problems in which an element in one segment was added and
          * in another removed during traversal, in which case the
          * table was never actually empty at any point. Note the
-         * similar use of modCounts in the size() and containsValue()
-         * methods, which are the only other methods also susceptible
+         * similar use of modCounts in the size() methods, which are the only other methods also susceptible
          * to ABA problems.
          */
         int[] mc = new int[segments.length];
@@ -233,57 +230,8 @@ public class CacheHashMap {
         return segmentFor(hash).containsKey(key, hash);
     }
 
-    public boolean containsValue(Object value) {
-        if (value == null)
-            throw new NullPointerException();
-
-        // See explanation of modCount use above
-
-        final Segment[] segments = this.segments;
-        int[] mc = new int[segments.length];
-
-        // Try a few times without locking
-        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
-            int sum = 0;
-            int mcsum = 0;
-            for (int i = 0; i < segments.length; ++i) {
-                int c = segments[i].count;
-                mcsum += mc[i] = segments[i].modCount;
-                if (segments[i].containsValue(value))
-                    return true;
-            }
-            boolean cleanSweep = true;
-            if (mcsum != 0) {
-                for (int i = 0; i < segments.length; ++i) {
-                    int c = segments[i].count;
-                    if (mc[i] != segments[i].modCount) {
-                        cleanSweep = false;
-                        break;
-                    }
-                }
-            }
-            if (cleanSweep)
-                return false;
-        }
-
-        // Resort to locking all segments
-        for (int i = 0; i < segments.length; ++i)
-            segments[i].readLock().lock();
-        try {
-            for (int i = 0; i < segments.length; ++i) {
-                if (segments[i].containsValue(value)) {
-                    return true;
-                }
-            }
-        } finally {
-            for (int i = 0; i < segments.length; ++i)
-                segments[i].readLock().unlock();
-        }
-        return false;
-    }
-
     /**
-     * set key - element. if has old node, also returnTo the old pointer.
+     * set key - element. if has old node, also tryKill the old pointer.
      *
      * @param key
      * @param element
@@ -307,7 +255,7 @@ public class CacheHashMap {
     }
 
     /**
-     * remove also returnTo Poniter.
+     * remove also tryKill Poniter.
      *
      * @param key
      * @return
@@ -325,11 +273,10 @@ public class CacheHashMap {
     }
 
     /**
-     * clear also cause all ValueWrapper to be returnTo.
+     * clear also cause all ValueWrapper to be tryKill.
      */
     public void clear() {
-        for (int i = 0; i < segments.length; ++i)
-            segments[i].clear();
+        for (Segment segment : segments) segment.clear();
     }
 
     public Set<Object> keySet() {
@@ -378,8 +325,6 @@ public class CacheHashMap {
      */
     public class Segment extends ReentrantReadWriteLock {
 
-        private static final int MAX_EVICTION = 5;
-
         /** The number of elements in this segment's region. */
         protected volatile int count;
 
@@ -406,17 +351,14 @@ public class CacheHashMap {
         protected volatile HashEntry[] table;
 
         /**
-         * The load factor for the hash table.  Even though this node
-         * is same for all segments, it is replicated to avoid needing
-         * links to outer object.
+         * The load factor for the hash table.  Even though this node is same for all segments,
+         * it is replicated to avoid needing links to outer object.
          *
          * @serial
          */
         final float loadFactor;
 
         private final EvictStrategy evictStrategy = new LruStrategy();
-
-        private Iterator<HashEntry> evictionIterator = iterator();
 
         protected Segment(int initialCapacity, float lf) {
             loadFactor = lf;
@@ -428,10 +370,15 @@ public class CacheHashMap {
          * TODO: remove make value unusable.
          */
         protected void preRemove(HashEntry e) {
-            evictStrategy.remove(e.node);
-            e.node.getValue().returnTo(allocator);
+            removeNode(e.node);
         }
 
+        private void removeNode(Node node){
+            evictStrategy.remove(node);
+            if (node.getValue().tryKill()) {
+                allocator.free(node.getValue().getMemoryBuffer());
+            }
+        }
         /**
          * oprations after put.
          */
@@ -440,8 +387,7 @@ public class CacheHashMap {
         }
 
         /**
-         * Sets table to new HashEntry array.
-         * Call only while holding lock or in constructor.
+         * Sets table to new HashEntry array. Call only while holding lock or in constructor.
          */
         void setTable(HashEntry[] newTable) {
             threshold = (int) (newTable.length * loadFactor);
@@ -471,13 +417,19 @@ public class CacheHashMap {
                 if (count != 0) {
                     HashEntry[] tab = table;
                     for (int i = 0; i < tab.length; i++) {
-                        tab[i].node.getValue().returnTo(allocator);
+                        HashEntry entry = tab[i];
+                        while (entry != null) {
+                            if (entry.node.getValue().tryKill()) {
+                                allocator.free(entry.node.getValue().getMemoryBuffer());
+                            }
+                            entry = entry.next;
+                        }
                         tab[i] = null;
                     }
                     ++modCount;
                     count = 0; // write-volatile
                 }
-
+                evictStrategy.clear();
             } finally {
                 writeLock().unlock();
             }
@@ -501,9 +453,7 @@ public class CacheHashMap {
                         oldValue = v;
                         ++modCount;
                         preRemove(e);
-                        // All entries following removed node can stay
-                        // in list, but all preceding ones need to be
-                        // cloned.
+                        // All entries following removed node can stay in list, but all preceding ones need to be cloned.
                         HashEntry newFirst = e.next;
                         for (HashEntry p = first; p != e; p = p.next)
                             newFirst = relinkHashEntry(p, newFirst);
@@ -533,8 +483,8 @@ public class CacheHashMap {
                 ValueWrapper oldValue;
                 if (oldEntry != null) {
                     oldValue = oldEntry.node.getValue();
-                    if (!onlyIfAbsent) {
-                        // replace
+                    if (!onlyIfAbsent) { // replace
+                        removeNode(oldEntry.node);
                         oldEntry.node = evictStrategy.newNode(value);
                         postInstall(key, oldEntry.node);
                     } else {
@@ -555,12 +505,12 @@ public class CacheHashMap {
             }
         }
 
-        private void notifyEvictionOrExpiry(final ValueWrapper element) {
-            if (element != null && cacheEventListener != null) {
-                if (element.isExpired()) {
-                    cacheEventListener.notifyExpired(element, false);
+        private void notifyEvictionOrExpiry(final ValueWrapper wrapper) {
+            if (wrapper != null && cacheEventListener != null) {
+                if (wrapper.isExpired()) {
+                    cacheEventListener.notifyExpired(wrapper);
                 } else {
-                    cacheEventListener.notifyEvicted(element, false);
+                    cacheEventListener.notifyEvicted(wrapper);
                 }
             }
         }
@@ -601,26 +551,6 @@ public class CacheHashMap {
             }
         }
 
-        boolean containsValue(Object value) {
-            readLock().lock();
-            try {
-                if (count != 0) { // read-volatile
-                    HashEntry[] tab = table;
-                    int len = tab.length;
-                    for (int i = 0; i < len; i++) {
-                        for (HashEntry e = tab[i]; e != null; e = e.next) {
-                            ValueWrapper v = e.node.getValue();
-                            if (value.equals(v))
-                                return true;
-                        }
-                    }
-                }
-                return false;
-            } finally {
-                readLock().unlock();
-            }
-        }
-
         protected Iterator<HashEntry> iterator() {
             return new SegmentIterator(this);
         }
@@ -647,8 +577,11 @@ public class CacheHashMap {
                         break;
                     }
                     Object key = node.getValue().getKey();
-                    ValueWrapper remove = remove(key, hash(key.hashCode()), null);
-                    notifyEvictionOrExpiry(remove);
+                    // removed cannot read value buf, so we do notify first.
+                    if (cacheEventListener != null) {
+                        notifyEvictionOrExpiry(node.getValue());
+                    }
+                    ValueWrapper removed = remove(key, hash(key.hashCode()), null);
                     count++;
                 }
             } finally {
@@ -664,17 +597,13 @@ public class CacheHashMap {
                 return;
 
             /*
-             * Reclassify nodes in each list to new Map.  Because we are
-             * using power-of-two expansion, the elements from each bin
-             * must either stay at same index, or move with a power of two
-             * offset. We eliminate unnecessary node creation by catching
-             * cases where old nodes can be reused because their next
-             * fields won't change. Statistically, at the default
-             * threshold, only about one-sixth of them need cloning when
-             * a table doubles. The nodes they replace will be garbage
-             * collectable as soon as they are no longer referenced by any
-             * reader thread that may be in the midst of traversing table
-             * right now.
+             * Reclassify nodes in each list to new Map.
+             * Because we are using power-of-two expansion, the elements from each bin must either stay at same index,
+             * or move with a power of two offset. We eliminate unnecessary node creation by catching
+             * cases where old nodes can be reused because their next fields won't change.
+             * Statistically, at the default threshold, only about one-sixth of them need cloning when a table doubles.
+             * The nodes they replace will be garbage collectable as soon as they are no longer referenced by any
+             * reader thread that may be in the midst of traversing table right now.
              */
 
             HashEntry[] newTable = new HashEntry[oldCapacity << 1];
@@ -798,27 +727,27 @@ public class CacheHashMap {
 
         @Override
         public int size() {
-            return CacheHashMap.this.size();
+            return CacheConcurrentHashMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return CacheHashMap.this.isEmpty();
+            return CacheConcurrentHashMap.this.isEmpty();
         }
 
         @Override
         public boolean contains(Object o) {
-            return CacheHashMap.this.containsKey(o);
+            return CacheConcurrentHashMap.this.containsKey(o);
         }
 
         @Override
         public boolean remove(Object o) {
-            return CacheHashMap.this.remove(o) != null;
+            return CacheConcurrentHashMap.this.remove(o) != null;
         }
 
         @Override
         public void clear() {
-            CacheHashMap.this.clear();
+            CacheConcurrentHashMap.this.clear();
         }
 
         @Override
@@ -847,22 +776,22 @@ public class CacheHashMap {
 
         @Override
         public int size() {
-            return CacheHashMap.this.size();
+            return CacheConcurrentHashMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return CacheHashMap.this.isEmpty();
+            return CacheConcurrentHashMap.this.isEmpty();
         }
 
         @Override
         public boolean contains(Object o) {
-            return CacheHashMap.this.containsValue(o);
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void clear() {
-            CacheHashMap.this.clear();
+            CacheConcurrentHashMap.this.clear();
         }
 
         @Override
@@ -891,12 +820,12 @@ public class CacheHashMap {
 
         @Override
         public int size() {
-            return CacheHashMap.this.size();
+            return CacheConcurrentHashMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return CacheHashMap.this.isEmpty();
+            return CacheConcurrentHashMap.this.isEmpty();
         }
 
         @Override
@@ -904,7 +833,7 @@ public class CacheHashMap {
             if (!(o instanceof Entry))
                 return false;
             Entry<?, ?> e = (Entry<?, ?>) o;
-            ValueWrapper v = CacheHashMap.this.get(e.getKey());
+            ValueWrapper v = CacheConcurrentHashMap.this.get(e.getKey());
             return v != null && v.equals(e.getValue());
         }
 
@@ -913,12 +842,12 @@ public class CacheHashMap {
             if (!(o instanceof Entry))
                 return false;
             Entry<?, ?> e = (Entry<?, ?>) o;
-            return CacheHashMap.this.remove(e.getKey(), e.getValue());
+            return CacheConcurrentHashMap.this.remove(e.getKey(), e.getValue());
         }
 
         @Override
         public void clear() {
-            CacheHashMap.this.clear();
+            CacheConcurrentHashMap.this.clear();
         }
 
         @Override
@@ -1078,7 +1007,7 @@ public class CacheHashMap {
         public void remove() {
             if (lastReturned == null)
                 throw new IllegalStateException();
-            CacheHashMap.this.remove(lastReturned.key);
+            CacheConcurrentHashMap.this.remove(lastReturned.key);
             lastReturned = null;
         }
     }
