@@ -1,7 +1,4 @@
-Use java direct memory to cache objects.  
-
-The cache is based on offheap memory, so JVM GC Latency is improved.
+Cache using java direct memory. The cache data is in offheap memory, which is out of jvm gc managerment, so you can cache huge data in java process and be free of gc pause problem.
 
 
-Compatible with open JDK / oracle JDK version 6/7/8.  <br />
-It May work on other jdks too.
+To use this library, You need to use a openJDK or oracle JDK, other jdks may not work properly.
