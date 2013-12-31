@@ -2,7 +2,7 @@ package net.dongliu.directcache.memory;
 
 import net.dongliu.directcache.exception.AllocatorException;
 import net.dongliu.directcache.struct.MemoryBuffer;
-import net.dongliu.directcache.utils.Size;
+import net.dongliu.directcache.utils.CacheConfigure;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,19 +18,24 @@ import java.util.concurrent.atomic.AtomicLong;
 public class SlabsAllocator implements Allocator {
 
     /** chunk size expand factor */
-    private static final float expandFactor = 1.25f;
+    private static final float expandFactor;
 
     /** minum size of chunk */
-    private static final int CHUNK_SIZE = 48;
+    private static final int CHUNK_SIZE;
 
     /** 8M. it is also the max Chunk Size */
-    private static final int SLAB_SIZE = Size.Mb(8);
+    private static final int SLAB_SIZE;
 
     private static final int[] CHUNK_SIZE_LIST;
 
     private static final int CHUNK_SIZE_MASK = ~3;
 
     static {
+        CacheConfigure cc = CacheConfigure.getConfigure();
+        expandFactor = cc.getExpandFactor();
+        CHUNK_SIZE = cc.getMinEntySize();
+        SLAB_SIZE = cc.getMaxEntrySize();
+
         double size = CHUNK_SIZE;
         List<Integer> ilist = new ArrayList<Integer>();
         while ((((int) size) & CHUNK_SIZE_MASK) <= SLAB_SIZE) {

@@ -1,5 +1,8 @@
 package net.dongliu.directcache.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
@@ -25,6 +28,21 @@ public class CacheConfigure {
     private float loadFactor = 0.75f;
 
     /**
+     * min chunk size for slab allocator
+     */
+    private int minEntySize = 48;
+
+    /**
+     * max chunk size for slab allocator. It also determine how much the cache data can be.
+     */
+    private int maxEntrySize = Size.Mb(8);
+
+    /**
+     * chunk expand factor.
+     */
+    private float expandFactor = 1.25f;
+
+    /**
      * the serializer class
      */
     private String serializerClass = null;
@@ -32,6 +50,8 @@ public class CacheConfigure {
     private static CacheConfigure instance = new CacheConfigure();
 
     private static final String CONFIGURE_FILE = "direct-cache.properties";
+
+    private static Logger logger = LoggerFactory.getLogger(CacheConfigure.class);
 
     private CacheConfigure() {
         InputStream in = this.getClass().getClassLoader().getResourceAsStream(CONFIGURE_FILE);
@@ -41,9 +61,33 @@ public class CacheConfigure {
                 p.load(in);
             } catch (IOException ignore) {
             }
-            concurrency = Integer.parseInt(p.getProperty("concurrency"));
-            initialSize = Integer.parseInt(p.getProperty("initialSize"));
-            serializerClass = p.getProperty("serializer");
+
+            concurrency = getInt(p, "cache.map.concurrency", concurrency);
+            initialSize = getInt(p, "cache.map.initialSize", initialSize);
+
+            minEntySize = getInt(p, "cache.slab.minSize", minEntySize);
+            maxEntrySize = getInt(p, "cache.slab.maxSize", maxEntrySize);
+            expandFactor = getFloat(p, "cache.slab.expand", expandFactor);
+
+            serializerClass = p.getProperty("cache.serializer");
+        }
+    }
+
+    private int getInt(Properties p, String name, int defaultValue) {
+        try {
+            return Integer.parseInt(p.getProperty("cache.map.concurrency", String.valueOf(defaultValue)));
+        } catch (NumberFormatException e) {
+            logger.warn("config " + name + " is not a valid int value.");
+            return defaultValue;
+        }
+    }
+
+    private float getFloat(Properties p, String name, float defaultValue) {
+        try {
+            return Float.parseFloat(p.getProperty("cache.map.concurrency", String.valueOf(defaultValue)));
+        } catch (NumberFormatException e) {
+            logger.warn("config " + name + " is not a valid float value.");
+            return defaultValue;
         }
     }
 
@@ -65,5 +109,17 @@ public class CacheConfigure {
 
     public float getLoadFactor() {
         return loadFactor;
+    }
+
+    public float getExpandFactor() {
+        return expandFactor;
+    }
+
+    public int getMaxEntrySize() {
+        return maxEntrySize;
+    }
+
+    public int getMinEntySize() {
+        return minEntySize;
     }
 }
