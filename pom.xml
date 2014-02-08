@@ -13,7 +13,7 @@
     <description>Direct Cache :: Parent pom</description>
 
     <modules>
-        <module>base-cache</module>
+        <module>base</module>
         <module>ehcache-integrate</module>
     </modules>
 

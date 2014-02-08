@@ -26,27 +26,27 @@
     </appender>
 
 
-    <logger name="net.dongliu.directcache.serialization" level="warn">
+    <logger name="net.dongliu.direct.serialization" level="warn">
         <appender-ref ref="STDOUT"/>
 
     </logger>
 
-    <logger name="net.dongliu.directcache.utils" level="info">
+    <logger name="net.dongliu.direct.utils" level="info">
         <appender-ref ref="STDOUT"/>
 
     </logger>
 
-    <logger name="net.dongliu.directcache.memory" level="info">
+    <logger name="net.dongliu.direct.memory" level="info">
         <appender-ref ref="STDOUT"/>
 
     </logger>
 
-    <logger name="net.dongliu.directcache.cache" level="info">
+    <logger name="net.dongliu.direct.cache" level="info">
         <appender-ref ref="STDOUT"/>
 
     </logger>
 
-    <logger name="net.dongliu.directcache.ehcache" level="info">
+    <logger name="net.dongliu.direct.ehcache" level="info">
         <appender-ref ref="STDOUT"/>
 
     </logger>
