@@ -22,7 +22,7 @@ public class CacheConcurrentHashMapTest {
 
     @Before
     public void setup() throws AllocatorException {
-        allocator = SlabsAllocator.getSlabsAllocator(Size.Mb(10));
+        allocator = SlabsAllocator.newInstance(Size.Mb(10));
         map = new CacheConcurrentHashMap(allocator, 1000, 0.75f, 16, null);
     }
 
@@ -40,7 +40,7 @@ public class CacheConcurrentHashMapTest {
         Assert.assertEquals(1, map.size());
         map.clear();
         Assert.assertEquals(0, map.size());
-        Assert.assertEquals(0, allocator.used());
+        Assert.assertEquals(0, allocator.actualUsed());
     }
 
     @Test
@@ -86,7 +86,7 @@ public class CacheConcurrentHashMapTest {
         map.put("test", valueWrapper1);
         map.remove("test");
         Assert.assertEquals(0, map.size());
-        Assert.assertEquals(0, allocator.used());
+        Assert.assertEquals(0, allocator.actualUsed());
     }
 
 }

@@ -1,7 +1,7 @@
 package net.dongliu.direct.struct;
 
 /**
- * used for null value.
+ * actualUsed for null value.
  *
  * @author: dongliu
  */

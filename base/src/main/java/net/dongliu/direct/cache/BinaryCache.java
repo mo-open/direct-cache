@@ -38,7 +38,7 @@ public class BinaryCache {
      * Constructor
      */
     public BinaryCache(CacheEventListener cacheEventListener, int maxSize) {
-        this.allocator = SlabsAllocator.getSlabsAllocator(maxSize);
+        this.allocator = SlabsAllocator.newInstance(maxSize);
         CacheConfigure cc = CacheConfigure.getConfigure();
         this.map = new CacheConcurrentHashMap(allocator, cc.getInitialSize(), cc.getLoadFactor(),
                 cc.getConcurrency(), cacheEventListener);
@@ -207,10 +207,10 @@ public class BinaryCache {
     }
 
     /**
-     * return the used offheap memory in bytes.
+     * return the actualUsed offheap memory in bytes.
      */
     public long offHeapSize() {
-        return this.allocator.used();
+        return this.allocator.actualUsed();
     }
 
     public ReentrantReadWriteLock.WriteLock lockFor(Object key) {

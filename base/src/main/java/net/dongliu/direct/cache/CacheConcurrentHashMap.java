@@ -20,25 +20,25 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class CacheConcurrentHashMap {
 
     /**
-     * The maximum capacity, used if a higher node is implicitly specified by either of the constructors with arguments.
+     * The maximum capacity, actualUsed if a higher node is implicitly specified by either of the constructors with arguments.
      * MUST be a power of two <= 1<<30 to ensure that entries are indexable using ints.
      */
     private static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
-     * The maximum number of segments to allow; used to bound constructor arguments.
+     * The maximum number of segments to allow; actualUsed to bound constructor arguments.
      */
     private static final int MAX_SEGMENTS = 1 << 16; // slightly conservative
 
     /**
      * Number of unsynchronized retries in size and before resorting to locking.
-     * This is used to avoid unbounded retries if tables undergo continuous modification
+     * This is actualUsed to avoid unbounded retries if tables undergo continuous modification
      * which would make it impossible to obtain an accurate result.
      */
     private static final int RETRIES_BEFORE_LOCK = 2;
 
     /**
-     * Mask node for indexing into segments. The upper bits of a key's hash code are used to choose the segment.
+     * Mask node for indexing into segments. The upper bits of a key's hash code are actualUsed to choose the segment.
      */
     private final int segmentMask;
 
@@ -297,7 +297,7 @@ public class CacheConcurrentHashMap {
     }
 
     /**
-     * Returns the segment that should be used for key with given hash
+     * Returns the segment that should be actualUsed for key with given hash
      *
      * @param hash the hash code for the key
      * @return the segment
@@ -322,7 +322,7 @@ public class CacheConcurrentHashMap {
 
         /**
          * Number of updates that alter the size of the table. This is
-         * used during bulk-read methods to make sure they see a
+         * actualUsed during bulk-read methods to make sure they see a
          * consistent snapshot: If modCounts change during a traversal
          * of segments computing size or checking containsValue, then
          * we might have an inconsistent view of state so (usually)

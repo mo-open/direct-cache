@@ -16,7 +16,7 @@ public class SlabsAllocatorTest {
 
     @Before
     public void setUp() throws Exception {
-        allocator = SlabsAllocator.getSlabsAllocator(Size.Mb(10));
+        allocator = SlabsAllocator.newInstance(Size.Mb(10));
     }
 
     @After

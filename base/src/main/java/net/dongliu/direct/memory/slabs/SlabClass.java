@@ -17,10 +17,12 @@ class SlabClass {
     private final List<Slab> slabList;
     private volatile Slab curSlab;
 
+    private final SlabsAllocator allocator;
     private final ConcurrentLinkedQueue<Chunk> freeChunkQueue;
     private final Object expandLock = new Object();
 
-    public SlabClass(int chunkSize) {
+    public SlabClass(SlabsAllocator allocator, int chunkSize) {
+        this.allocator = allocator;
         this.chunkSize = chunkSize;
         this.slabList = new ArrayList<Slab>();
         this.freeChunkQueue = new ConcurrentLinkedQueue<Chunk>();
@@ -30,7 +32,7 @@ class SlabClass {
      * tryKill a chunk. lock tryKill
      */
     public void freeChunk(Chunk chunk) {
-        freeChunkQueue.add(chunk);
+        this.freeChunkQueue.add(chunk);
     }
 
     /**
@@ -39,36 +41,37 @@ class SlabClass {
     public Chunk newChunk() {
 
         // only was null when first request to this SlabClass
-        if (curSlab == null) {
-            synchronized (expandLock) {
-                if (curSlab == null) {
+        if (this.curSlab == null) {
+            synchronized (this.expandLock) {
+                if (this.curSlab == null) {
                     newSlab();
                 }
             }
         }
 
-        Chunk chunk = freeChunkQueue.poll();
+        Chunk chunk = this.freeChunkQueue.poll();
         if (chunk != null) {
             return chunk;
         }
 
-        chunk = curSlab.nextChunk();
+        chunk = this.curSlab.nextChunk();
         if (chunk != null) {
             return chunk;
         }
 
-        synchronized (expandLock) {
+        synchronized (this.expandLock) {
             // try again. curSlab may have changed.
-            chunk = curSlab.nextChunk();
+            chunk = this.curSlab.nextChunk();
             if (chunk != null) {
                 return chunk;
             }
 
-            if (newSlab() == null) {
+            newSlab();
+            if (this.curSlab == null) {
                 return null;
             }
 
-            chunk = curSlab.nextChunk();
+            chunk = this.curSlab.nextChunk();
             return chunk;
         }
     }
@@ -78,12 +81,15 @@ class SlabClass {
      * thread-safe by atomic. memroy was hold by multi SlabClass, so thead-safe is required.
      * Note: curSlab & slabList was modified as a side-effect.
      */
-    private Slab newSlab() {
-        UnsafeMemory memory = UnsafeMemory.allocate(this.chunkSize);
-        MemoryBuffer buffer = new MemoryBuffer(memory, 0, this.chunkSize);
-        curSlab = Slab.make(buffer, chunkSize);
-        slabList.add(curSlab);
-        return curSlab;
+    private void newSlab() {
+        if (this.allocator.used.addAndGet(SlabsAllocator.CHUNK_SIZE) < this.allocator.capacity) {
+            UnsafeMemory memory = UnsafeMemory.allocate(SlabsAllocator.SLAB_SIZE);
+            MemoryBuffer buffer = new MemoryBuffer(memory, 0, SlabsAllocator.SLAB_SIZE);
+            this.curSlab = Slab.make(buffer, this.chunkSize);
+            this.slabList.add(this.curSlab);
+        } else {
+            this.allocator.used.addAndGet(-SlabsAllocator.CHUNK_SIZE);
+        }
     }
 }
 

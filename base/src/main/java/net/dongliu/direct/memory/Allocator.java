@@ -22,7 +22,7 @@ public interface Allocator {
 
     /**
      * destroy allocator, release all resources.
-     * after destroy this cannot be used any more
+     * after destroy this cannot be actualUsed any more
      */
     void destroy();
 
@@ -34,9 +34,9 @@ public interface Allocator {
     long getCapacity();
 
     /**
-     * the memory size used.
+     * the memory size actualUsed.
      *
      * @return
      */
-    long used();
+    long actualUsed();
 }

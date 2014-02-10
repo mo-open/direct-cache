@@ -56,7 +56,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         long offHeapSizeBytes = cache.getCacheConfiguration().getMaxMemoryOffHeapInBytes();
         this.cache = cache;
 
-        this.allocator = SlabsAllocator.getSlabsAllocator(offHeapSizeBytes);
+        this.allocator = SlabsAllocator.newInstance(offHeapSizeBytes);
 
         final RegisteredEventListeners eventListener = doNotifications ? cache.getCacheEventNotificationService() : null;
         CacheEventListener cacheEventListener = null;
@@ -107,11 +107,14 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            ValueWrapper oldValueWrapper = null;
+            ValueWrapper oldValueWrapper;
             AbstractValueWrapper valueWrapper = store(element);
             if (valueWrapper != null) {
                 oldValueWrapper = map.put(key, valueWrapper);
             } else {
+                if (map.containsKey(key)) {
+                    map.remove(key);
+                }
                 notifyDirectEviction(element);
                 return true;
             }
@@ -454,7 +457,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     @Override
     public long getOffHeapSizeInBytes() {
-        return this.allocator.used();
+        return this.allocator.actualUsed();
     }
 
     @Override

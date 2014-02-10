@@ -25,18 +25,16 @@ public class SlabsAllocator implements Allocator {
     /**
      * minum size of chunk
      */
-    private static final int CHUNK_SIZE;
+    protected static final int CHUNK_SIZE;
 
     /**
      * 8M. it is also the max Chunk Size
      */
-    private static final int SLAB_SIZE;
+    protected static final int SLAB_SIZE;
 
-    private static final int[] CHUNK_SIZE_LIST;
+    protected static final int[] CHUNK_SIZE_LIST;
 
     private static final int CHUNK_SIZE_MASK = ~3;
-
-    private final long capacity;
 
     static {
         CacheConfigure cc = CacheConfigure.getConfigure();
@@ -59,29 +57,32 @@ public class SlabsAllocator implements Allocator {
 
     private final SlabClass[] slabClasses;
 
+    protected final long capacity;
+
+    protected final AtomicLong used = new AtomicLong(0);
     /**
-     * offheap memory size had been used.
+     * offheap memory size had been actualUsed.
      */
-    private final AtomicLong used;
+    private final AtomicLong actualUsed = new AtomicLong(0);
 
     private SlabsAllocator(long capacity) {
-        this.used = new AtomicLong(0);
         this.capacity = capacity;
         slabClasses = new SlabClass[CHUNK_SIZE_LIST.length];
         for (int i = 0; i < CHUNK_SIZE_LIST.length; i++) {
-            SlabClass slabClass = new SlabClass(CHUNK_SIZE_LIST[i]);
+            SlabClass slabClass = new SlabClass(this, CHUNK_SIZE_LIST[i]);
             slabClasses[i] = slabClass;
         }
     }
 
-    public static SlabsAllocator getSlabsAllocator(long size) {
+    public static SlabsAllocator newInstance(long size) {
         return new SlabsAllocator(size);
     }
 
     @Override
     public MemoryBuffer allocate(int size) throws AllocatorException {
-        if (size == 0) {
-            return MemoryBuffer.emptyBuffer;
+
+        if (size <= 0) {
+            throw new IllegalArgumentException("size must be large than 0");
         }
 
         SlabClass slabClass = locateSlabClass(size);
@@ -90,7 +91,7 @@ public class SlabsAllocator implements Allocator {
         }
         Chunk chunk = slabClass.newChunk();
         if (chunk != null) {
-            used.addAndGet(chunk.getCapacity());
+            actualUsed.addAndGet(chunk.getCapacity());
         }
         return chunk;
     }
@@ -144,7 +145,7 @@ public class SlabsAllocator implements Allocator {
         Chunk chunk = (Chunk) memoryBuffer;
         SlabClass slabClass = locateSlabClass(chunk.getSize());
         slabClass.freeChunk(chunk);
-        this.used.addAndGet(-chunk.getCapacity());
+        this.actualUsed.addAndGet(-chunk.getCapacity());
     }
 
     @Override
@@ -153,8 +154,8 @@ public class SlabsAllocator implements Allocator {
     }
 
     @Override
-    public long used() {
-        return this.used.longValue();
+    public long actualUsed() {
+        return this.actualUsed.longValue();
     }
 
     @Override
@@ -162,7 +163,7 @@ public class SlabsAllocator implements Allocator {
         for (int i = 0; i < this.slabClasses.length; i++) {
             this.slabClasses[i] = null;
         }
-        this.used.set(0);
+        this.actualUsed.set(0);
     }
 
 }

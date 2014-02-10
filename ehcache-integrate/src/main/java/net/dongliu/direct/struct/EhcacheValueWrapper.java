@@ -11,7 +11,7 @@ import net.sf.ehcache.util.TimeUtil;
 public class EhcacheValueWrapper extends AbstractValueWrapper {
 
     /**
-     * version of the element. System.currentTimeMillis() is used to compute version for updated elements. That
+     * version of the element. System.currentTimeMillis() is actualUsed to compute version for updated elements. That
      * way, the actual version of the updated element does not need to be checked.
      */
     private volatile long version;

@@ -3,7 +3,7 @@ package net.dongliu.direct.memory;
 import net.dongliu.direct.utils.U;
 
 /**
- * Memory used unsafe ops.
+ * Memory actualUsed unsafe ops.
  *
  * @author: dongliu
  */

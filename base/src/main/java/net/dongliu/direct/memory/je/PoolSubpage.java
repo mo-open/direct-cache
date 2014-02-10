@@ -104,7 +104,7 @@ final class PoolSubpage {
 
     /**
      * @return {@code true} if this subpage is in use.
-     * {@code false} if this subpage is not used by its chunk and thus it's OK to be released.
+     * {@code false} if this subpage is not actualUsed by its chunk and thus it's OK to be released.
      */
     boolean free(int bitmapIdx) {
 

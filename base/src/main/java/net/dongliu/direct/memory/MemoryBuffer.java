@@ -12,13 +12,9 @@ public class MemoryBuffer {
     private final int offset;
     private final int capacity;
     /**
-     * size actual used
+     * size actual actualUsed
      */
-
     private volatile int size;
-
-    // for emtpy buffer.
-    public static final MemoryBuffer emptyBuffer = new MemoryBuffer(null, 0, 0);
 
     public MemoryBuffer(UnsafeMemory memory, int offset, int capacity) {
         this.memory = memory;

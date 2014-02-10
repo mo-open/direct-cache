@@ -32,8 +32,9 @@ class Slab extends MemoryBuffer {
         int total = this.getCapacity() / chunkSize;
         if (freeChunkIdx < total) {
             return Chunk.make(this, freeChunkIdx * chunkSize, chunkSize);
+        } else {
+            this.idx.getAndDecrement();
+            return null;
         }
-        this.idx.getAndDecrement();
-        return null;
     }
 }
