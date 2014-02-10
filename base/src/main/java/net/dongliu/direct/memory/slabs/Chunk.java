@@ -12,7 +12,7 @@ class Chunk extends MemoryBuffer {
     }
 
     private Chunk(Slab slab, int start, int capacity) {
-        this(slab.getMemory(), slab.getOffset() + start, capacity);
+        this(slab.getMemory(), start, capacity);
     }
 
     private Chunk(UnsafeMemory memory, int start, int size) {

@@ -10,14 +10,14 @@ import net.dongliu.direct.utils.U;
 public class UnsafeMemory {
 
     private final long address;
-    private final long size;
+    private final int size;
 
-    private UnsafeMemory(long size) {
+    private UnsafeMemory(int size) {
         this.size = size;
         this.address = U.allocateMemory(size);
     }
 
-    public static UnsafeMemory allocate(long size) {
+    public static UnsafeMemory allocate(int size) {
         return new UnsafeMemory(size);
     }
 
@@ -47,5 +47,9 @@ public class UnsafeMemory {
 
     public void dispose() {
         U.freeMemory(address);
+    }
+
+    public int getSize() {
+        return size;
     }
 }

@@ -8,18 +8,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author dongliu
  */
-class Slab extends MemoryBuffer {
+class Slab {
     private final AtomicInteger idx = new AtomicInteger(0);
 
+    public UnsafeMemory getMemory() {
+        return memory;
+    }
+
+    private UnsafeMemory memory;
     private final int chunkSize;
 
-    private Slab(UnsafeMemory memory, int offset, int capacity, int chunkSize) {
-        super(memory, offset, capacity);
+    private Slab(UnsafeMemory memory, int chunkSize) {
+        this.memory = memory;
         this.chunkSize = chunkSize;
     }
 
-    public static Slab make(MemoryBuffer buffer, int chunkSize) {
-        return new Slab(buffer.getMemory(), buffer.getOffset(), buffer.getCapacity(), chunkSize);
+    public static Slab make(int size, int chunkSize) {
+        UnsafeMemory memory = UnsafeMemory.allocate(size);
+        return new Slab(memory, chunkSize);
     }
 
     /**
@@ -29,12 +35,16 @@ class Slab extends MemoryBuffer {
      */
     public Chunk nextChunk() {
         int freeChunkIdx = this.idx.getAndIncrement();
-        int total = this.getCapacity() / chunkSize;
+        int total = this.memory.getSize() / chunkSize;
         if (freeChunkIdx < total) {
             return Chunk.make(this, freeChunkIdx * chunkSize, chunkSize);
         } else {
             this.idx.getAndDecrement();
             return null;
         }
+    }
+
+    public void destroy() {
+        this.memory.dispose();
     }
 }

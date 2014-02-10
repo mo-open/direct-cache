@@ -161,6 +161,7 @@ public class SlabsAllocator implements Allocator {
     @Override
     public void destroy() {
         for (int i = 0; i < this.slabClasses.length; i++) {
+            this.slabClasses[i].destroy();
             this.slabClasses[i] = null;
         }
         this.actualUsed.set(0);

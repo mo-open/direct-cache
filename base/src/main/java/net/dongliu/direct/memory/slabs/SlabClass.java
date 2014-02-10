@@ -83,13 +83,19 @@ class SlabClass {
      */
     private void newSlab() {
         if (this.allocator.used.addAndGet(SlabsAllocator.CHUNK_SIZE) < this.allocator.capacity) {
-            UnsafeMemory memory = UnsafeMemory.allocate(SlabsAllocator.SLAB_SIZE);
-            MemoryBuffer buffer = new MemoryBuffer(memory, 0, SlabsAllocator.SLAB_SIZE);
-            this.curSlab = Slab.make(buffer, this.chunkSize);
+            this.curSlab = Slab.make(SlabsAllocator.SLAB_SIZE, this.chunkSize);
             this.slabList.add(this.curSlab);
         } else {
             this.allocator.used.addAndGet(-SlabsAllocator.CHUNK_SIZE);
         }
+    }
+
+    public void destroy() {
+        for (Slab slab : this.slabList) {
+            slab.destroy();
+        }
+        this.slabList.clear();
+        this.freeChunkQueue.clear();
     }
 }
 
