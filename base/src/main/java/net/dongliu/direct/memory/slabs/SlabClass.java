@@ -1,8 +1,5 @@
 package net.dongliu.direct.memory.slabs;
 
-import net.dongliu.direct.memory.MemoryBuffer;
-import net.dongliu.direct.memory.UnsafeMemory;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -83,7 +80,7 @@ class SlabClass {
      */
     private void newSlab() {
         if (this.allocator.used.addAndGet(SlabsAllocator.CHUNK_SIZE) < this.allocator.capacity) {
-            this.curSlab = Slab.make(SlabsAllocator.SLAB_SIZE, this.chunkSize);
+            this.curSlab = Slab.newInstance(this, SlabsAllocator.SLAB_SIZE, this.chunkSize);
             this.slabList.add(this.curSlab);
         } else {
             this.allocator.used.addAndGet(-SlabsAllocator.CHUNK_SIZE);

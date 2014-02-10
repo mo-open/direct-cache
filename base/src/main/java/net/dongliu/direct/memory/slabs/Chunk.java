@@ -7,15 +7,37 @@ import net.dongliu.direct.memory.UnsafeMemory;
  * @author dongliu
  */
 class Chunk extends MemoryBuffer {
-    public static Chunk make(Slab slab, int start, int capacity) {
-        return new Chunk(slab, start, capacity);
+    private final Slab slab;
+    private int offset;
+
+    private Chunk(Slab slab, int offset) {
+        super();
+        this.slab = slab;
+        this.offset = offset;
     }
 
-    private Chunk(Slab slab, int start, int capacity) {
-        this(slab.getMemory(), start, capacity);
+    public static Chunk make(Slab slab, int start) {
+        return new Chunk(slab, start);
     }
 
-    private Chunk(UnsafeMemory memory, int start, int size) {
-        super(memory, start, size);
+    @Override
+    public int getCapacity() {
+        return this.slab.chunkSize;
+    }
+
+    @Override
+    public int getOffset() {
+        return this.offset;
+    }
+
+    @Override
+    public UnsafeMemory getMemory() {
+        return this.slab.getMemory();
+    }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+        this.slab.getSlabClass().freeChunk(this);
     }
 }

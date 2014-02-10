@@ -40,7 +40,7 @@ public class BinaryCache {
     public BinaryCache(CacheEventListener cacheEventListener, int maxSize) {
         this.allocator = SlabsAllocator.newInstance(maxSize);
         CacheConfigure cc = CacheConfigure.getConfigure();
-        this.map = new CacheConcurrentHashMap(allocator, cc.getInitialSize(), cc.getLoadFactor(),
+        this.map = new CacheConcurrentHashMap(cc.getInitialSize(), cc.getLoadFactor(),
                 cc.getConcurrency(), cacheEventListener);
     }
 

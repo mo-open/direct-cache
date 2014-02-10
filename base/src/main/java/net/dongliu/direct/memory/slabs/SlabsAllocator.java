@@ -28,7 +28,7 @@ public class SlabsAllocator implements Allocator {
     protected static final int CHUNK_SIZE;
 
     /**
-     * 8M. it is also the max Chunk Size
+     * default 8M. it is also the max Chunk Size
      */
     protected static final int SLAB_SIZE;
 
@@ -53,6 +53,7 @@ public class SlabsAllocator implements Allocator {
         for (int i = 0; i < ilist.size(); i++) {
             CHUNK_SIZE_LIST[i] = ilist.get(i);
         }
+        CHUNK_SIZE_LIST[CHUNK_SIZE_LIST.length - 1] = SLAB_SIZE;
     }
 
     private final SlabClass[] slabClasses;
@@ -80,20 +81,30 @@ public class SlabsAllocator implements Allocator {
 
     @Override
     public MemoryBuffer allocate(int size) throws AllocatorException {
-
         if (size <= 0) {
             throw new IllegalArgumentException("size must be large than 0");
         }
 
-        SlabClass slabClass = locateSlabClass(size);
-        if (slabClass == null) {
-            throw new AllocatorException("Data size larger than: " + CHUNK_SIZE_LIST[CHUNK_SIZE_LIST.length]);
+        MemoryBuffer buffer;
+        if (size > SLAB_SIZE) {
+            if (this.used.addAndGet(size) < this.capacity) {
+                this.actualUsed.addAndGet(size);
+                buffer = UnPooledBuffer.allocate(size);
+            } else {
+                this.used.addAndGet(-size);
+                return null;
+            }
+        } else {
+            SlabClass slabClass = locateSlabClass(size);
+            Chunk chunk = slabClass.newChunk();
+            if (chunk == null) {
+                return null;
+            }
+            this.actualUsed.addAndGet(chunk.getCapacity());
+            buffer = chunk;
         }
-        Chunk chunk = slabClass.newChunk();
-        if (chunk != null) {
-            actualUsed.addAndGet(chunk.getCapacity());
-        }
-        return chunk;
+        buffer.setAllocator(this);
+        return buffer;
     }
 
     /**
@@ -102,10 +113,6 @@ public class SlabsAllocator implements Allocator {
     private SlabClass locateSlabClass(int size) {
         int left = 0;
         int right = this.slabClasses.length - 1;
-
-        if (size > this.slabClasses[right].chunkSize) {
-            return null;
-        }
 
         // binary search.
         int mid = 0;
@@ -136,16 +143,15 @@ public class SlabsAllocator implements Allocator {
 
     @Override
     public void free(MemoryBuffer memoryBuffer) {
+
         if (memoryBuffer.isDispose()) {
             return;
         }
-        if (memoryBuffer.getCapacity() == 0) {
-            return;
+
+        if (memoryBuffer instanceof UnPooledBuffer) {
+            this.used.addAndGet(-memoryBuffer.getCapacity());
         }
-        Chunk chunk = (Chunk) memoryBuffer;
-        SlabClass slabClass = locateSlabClass(chunk.getSize());
-        slabClass.freeChunk(chunk);
-        this.actualUsed.addAndGet(-chunk.getCapacity());
+        this.actualUsed.addAndGet(-memoryBuffer.getCapacity());
     }
 
     @Override
@@ -158,13 +164,16 @@ public class SlabsAllocator implements Allocator {
         return this.actualUsed.longValue();
     }
 
+    public long used() {
+        return this.used.longValue();
+    }
+
     @Override
     public void destroy() {
         for (int i = 0; i < this.slabClasses.length; i++) {
             this.slabClasses[i].destroy();
             this.slabClasses[i] = null;
         }
-        this.actualUsed.set(0);
     }
 
 }

@@ -1,5 +1,7 @@
 package net.dongliu.direct.memory;
 
+import net.dongliu.direct.memory.slabs.SlabsAllocator;
+
 import java.nio.BufferOverflowException;
 
 /**
@@ -7,19 +9,19 @@ import java.nio.BufferOverflowException;
  *
  * @author dongliu
  */
-public class MemoryBuffer {
-    private final UnsafeMemory memory;
-    private final int offset;
-    private final int capacity;
+public abstract class MemoryBuffer {
+
     /**
      * size actual actualUsed
      */
-    private volatile int size;
+    protected volatile int size;
 
-    public MemoryBuffer(UnsafeMemory memory, int offset, int capacity) {
-        this.memory = memory;
-        this.offset = offset;
-        this.capacity = capacity;
+    /**
+     * the allocator which allocate this buf
+     */
+    private SlabsAllocator allocator;
+
+    protected MemoryBuffer() {
     }
 
     /**
@@ -29,11 +31,11 @@ public class MemoryBuffer {
         if (isDispose()) {
             throw new IllegalStateException("memory has been disposed");
         }
-        if (data.length > this.capacity) {
+        if (data.length > getCapacity()) {
             throw new BufferOverflowException();
         }
         this.size = data.length;
-        memory.write(this.offset, data);
+        getMemory().write(getOffset(), data);
     }
 
     /**
@@ -44,7 +46,7 @@ public class MemoryBuffer {
             throw new IllegalStateException("memory has been disposed");
         }
         byte[] buf = new byte[this.size];
-        memory.read(this.offset, buf);
+        getMemory().read(getOffset(), buf);
         return buf;
     }
 
@@ -59,34 +61,37 @@ public class MemoryBuffer {
         if (buf.length < this.size) {
             throw new BufferOverflowException();
         }
-        memory.read(this.offset, buf, this.size);
+        getMemory().read(getOffset(), buf, this.size);
         return buf;
     }
 
-    public int getCapacity() {
-        return this.capacity;
-    }
+    public abstract int getCapacity();
 
     public int getSize() {
         return this.size;
     }
 
-    public int getOffset() {
-        return this.offset;
-    }
+    public abstract int getOffset();
 
-    public UnsafeMemory getMemory() {
-        return this.memory;
-    }
+    public abstract UnsafeMemory getMemory();
 
     /**
      * mark this buffer as destroyed.
      */
     public void dispose() {
+        this.allocator.free(this);
         this.size = -1;
     }
 
     public boolean isDispose() {
         return this.size == -1;
+    }
+
+    public SlabsAllocator getAllocator() {
+        return allocator;
+    }
+
+    public void setAllocator(SlabsAllocator allocator) {
+        this.allocator = allocator;
     }
 }

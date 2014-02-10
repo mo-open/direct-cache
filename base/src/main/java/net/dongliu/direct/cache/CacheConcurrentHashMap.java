@@ -58,14 +58,10 @@ public class CacheConcurrentHashMap {
     private Set<Map.Entry<Object, ValueWrapper>> entrySet;
     private Collection<ValueWrapper> values;
 
-    private final Allocator allocator;
-
-    public CacheConcurrentHashMap(Allocator allocator, int initialCapacity,
-                                  float loadFactor, int concurrency, final CacheEventListener cacheEventListener) {
+    public CacheConcurrentHashMap(int initialCapacity, float loadFactor, int concurrency,
+                                  final CacheEventListener cacheEventListener) {
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrency <= 0)
             throw new IllegalArgumentException();
-
-        this.allocator = allocator;
 
         if (concurrency > MAX_SEGMENTS)
             concurrency = MAX_SEGMENTS;
@@ -368,7 +364,7 @@ public class CacheConcurrentHashMap {
         private void removeNode(Node node) {
             evictStrategy.remove(node);
             if (node.getValue().tryKill()) {
-                allocator.free(node.getValue().getMemoryBuffer());
+                node.getValue().getMemoryBuffer().dispose();
             }
         }
 
@@ -413,7 +409,7 @@ public class CacheConcurrentHashMap {
                         HashEntry entry = tab[i];
                         while (entry != null) {
                             if (entry.node.getValue().tryKill()) {
-                                allocator.free(entry.node.getValue().getMemoryBuffer());
+                                entry.node.getValue().getMemoryBuffer().dispose();
                             }
                             entry = entry.next;
                         }

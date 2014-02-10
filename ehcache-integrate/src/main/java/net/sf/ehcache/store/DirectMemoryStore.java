@@ -75,7 +75,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
 
         CacheConfigure cc = CacheConfigure.getConfigure();
-        this.map = new CacheConcurrentHashMap(allocator, cc.getInitialSize(), cc.getLoadFactor(), cc.getConcurrency(),
+        this.map = new CacheConcurrentHashMap(cc.getInitialSize(), cc.getLoadFactor(), cc.getConcurrency(),
                 cacheEventListener);
 
         serializer = SerializerFactory.getSerializer();
@@ -257,7 +257,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
     }
 
     @Override
-    public Element removeWithWriter(Object key, CacheWriterManager writerManager) throws CacheException {
+    public Element removeWithWriter(Object key, CacheWriterManager writerManager)
+            throws CacheException {
         Element removed = remove(key);
         if (writerManager != null) {
             writerManager.remove(new CacheEntry(key, removed));
@@ -312,7 +313,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         final Element remove = remove(element.getObjectKey());
         RegisteredEventListeners cacheEventNotificationService = cache.getCacheEventNotificationService();
         final FrontEndCacheTier frontEndCacheTier = cacheEventNotificationService.getFrontEndCacheTier();
-        if (remove != null && frontEndCacheTier != null && frontEndCacheTier.notifyEvictionFromCache(remove.getKey())) {
+        if (remove != null && frontEndCacheTier != null
+                && frontEndCacheTier.notifyEvictionFromCache(remove.getKey())) {
             cacheEventNotificationService.notifyElementEvicted(remove, false);
         }
         return remove != null;

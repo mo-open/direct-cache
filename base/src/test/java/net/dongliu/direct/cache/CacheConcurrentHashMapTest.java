@@ -2,9 +2,9 @@ package net.dongliu.direct.cache;
 
 import net.dongliu.direct.exception.AllocatorException;
 import net.dongliu.direct.memory.Allocator;
+import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
 import net.dongliu.direct.struct.BaseValueWrapper;
-import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.struct.ValueWrapper;
 import net.dongliu.direct.utils.Size;
 import org.junit.After;
@@ -23,7 +23,7 @@ public class CacheConcurrentHashMapTest {
     @Before
     public void setup() throws AllocatorException {
         allocator = SlabsAllocator.newInstance(Size.Mb(10));
-        map = new CacheConcurrentHashMap(allocator, 1000, 0.75f, 16, null);
+        map = new CacheConcurrentHashMap(1000, 0.75f, 16, null);
     }
 
     @After
