@@ -25,6 +25,7 @@ import java.util.concurrent.locks.Lock;
 
 /**
  * direct memory store impl.
+ *
  * @author dongliu
  */
 public class DirectMemoryStore extends AbstractStore implements TierableStore {
@@ -121,6 +122,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     /**
      * allocate memory and store the payload, return the pointer.
+     *
      * @return the point.null if failed.
      */
     private EhcacheValueWrapper store(Element element) {
@@ -174,6 +176,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     /**
      * Gets an Element from the Store, without updating statistics.
+     *
      * @param key
      * @return
      */
@@ -209,6 +212,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     /**
      * Evicts the element for the given key, if it exists and is expired
+     *
      * @param key the key
      * @return the evicted element, if any. Otherwise null
      */
@@ -285,7 +289,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             if (valueWrapper != null) {
                 map.put(key, valueWrapper);
                 return null;
-            }else {
+            } else {
                 notifyDirectEviction(element);
                 return null;
             }
@@ -296,10 +300,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     /**
      * Evicts the element from the store
+     *
      * @param element the element to be evicted
      * @return true if succeeded, false otherwise
      */
-    protected boolean evict(Element element){
+    protected boolean evict(Element element) {
         final Element remove = remove(element.getObjectKey());
         RegisteredEventListeners cacheEventNotificationService = cache.getCacheEventNotificationService();
         final FrontEndCacheTier frontEndCacheTier = cacheEventNotificationService.getFrontEndCacheTier();
@@ -342,7 +347,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     /**
      * Replace the cached element only if the node of the current Element is
-     *  equal to the node of the supplied old Element.
+     * equal to the node of the supplied old Element.
+     *
      * @param old
      * @param element
      * @param comparator
@@ -374,10 +380,9 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     /**
      * Replace the cached element only if an Element is currently cached for this key
-     * @param element
-     *          Element to be cached
-     * @return
-     *          the Element previously cached for this key, or null if no Element was cached
+     *
+     * @param element Element to be cached
+     * @return the Element previously cached for this key, or null if no Element was cached
      * @throws NullPointerException
      */
     @Override
@@ -395,7 +400,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             } else {
                 return null;
             }
-        }finally {
+        } finally {
             lock.unlock();
         }
     }

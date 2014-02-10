@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Merge a list of Memory to a Big One, as a big memory.
+ *
  * @author dongliu
  */
 public class MergedMemory {
@@ -15,7 +16,9 @@ public class MergedMemory {
     private long capacity;
     private final AtomicLong position;
 
-    /** current is 1G */
+    /**
+     * current is 1G
+     */
     private static final int MAX_BUFFER_SIZE = 1 << 30;
 
     private MergedMemory(long totalSize) {
@@ -31,7 +34,7 @@ public class MergedMemory {
         }
 
         unsafeMemories = new UnsafeMemory[length];
-        for (int i=0; i < length - 1; i++) {
+        for (int i = 0; i < length - 1; i++) {
             unsafeMemories[i] = UnsafeMemory.allocate(MAX_BUFFER_SIZE);
         }
         unsafeMemories[length - 1] = UnsafeMemory.allocate(leftSize);
@@ -53,7 +56,7 @@ public class MergedMemory {
             throw new BufferOverflowException();
         }
 
-        int idx = (int) (start/MAX_BUFFER_SIZE);
+        int idx = (int) (start / MAX_BUFFER_SIZE);
         int pos = (int) (start % MAX_BUFFER_SIZE);
         if (pos + data.length < MAX_BUFFER_SIZE) {
             unsafeMemories[idx].write(pos, data);
@@ -66,6 +69,7 @@ public class MergedMemory {
 
     /**
      * read data.
+     *
      * @return the data.
      */
     public byte[] read(long start, int size) {
@@ -74,7 +78,7 @@ public class MergedMemory {
         }
 
         byte[] data = new byte[size];
-        int idx = (int) (start/MAX_BUFFER_SIZE);
+        int idx = (int) (start / MAX_BUFFER_SIZE);
         int pos = (int) (start % MAX_BUFFER_SIZE);
         if (pos + size < MAX_BUFFER_SIZE) {
             unsafeMemories[idx].read(pos, data);
@@ -88,6 +92,7 @@ public class MergedMemory {
 
     /**
      * get a new memory
+     *
      * @param size memory size
      * @return null if do not have enough memory.
      */

@@ -5,6 +5,7 @@ import java.lang.reflect.Modifier;
 
 /**
  * Wrapper Unsafe Operations.
+ *
  * @author dongliu
  */
 public class U {
@@ -23,7 +24,8 @@ public class U {
                     break;
                 }
             }
-        } catch (Throwable ignore) {}
+        } catch (Throwable ignore) {
+        }
         UNSAFE = (sun.misc.Unsafe) result;
         if (UNSAFE == null) {
             throw new Error("U not found.Should used on open jdk / oracle jdk");
@@ -53,7 +55,7 @@ public class U {
      * The address passed to this method may be null, in which case no action is taken.
      */
     public static void freeMemory(long l) {
-            UNSAFE.freeMemory(l);
+        UNSAFE.freeMemory(l);
     }
 
     /**
@@ -67,7 +69,7 @@ public class U {
      * read bytes from unsafe memory.
      */
     public static void read(long address, byte[] src, int offset, int size) {
-        UNSAFE.copyMemory(null, address, src, UNSAFE.arrayBaseOffset(byte[].class) + offset,size);
+        UNSAFE.copyMemory(null, address, src, UNSAFE.arrayBaseOffset(byte[].class) + offset, size);
     }
 
     /**

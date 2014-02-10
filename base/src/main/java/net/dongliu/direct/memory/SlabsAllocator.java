@@ -13,17 +13,24 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Memory Allocator use slabList, as memcached.
  * TODO: slab rebalance.
+ *
  * @author dongliu
  */
 public class SlabsAllocator implements Allocator {
 
-    /** chunk size expand factor */
+    /**
+     * chunk size expand factor
+     */
     private static final float expandFactor;
 
-    /** minum size of chunk */
+    /**
+     * minum size of chunk
+     */
     private static final int CHUNK_SIZE;
 
-    /** 8M. it is also the max Chunk Size */
+    /**
+     * 8M. it is also the max Chunk Size
+     */
     private static final int SLAB_SIZE;
 
     private static final int[] CHUNK_SIZE_LIST;
@@ -118,12 +125,12 @@ public class SlabsAllocator implements Allocator {
         if (this.slabClasses[mid].chunkSize < size) {
             do {
                 mid++;
-            } while(this.slabClasses[mid].chunkSize < size);
+            } while (this.slabClasses[mid].chunkSize < size);
             return this.slabClasses[mid];
         } else {
             do {
                 mid--;
-            } while( mid >= 0 && this.slabClasses[mid].chunkSize > size);
+            } while (mid >= 0 && this.slabClasses[mid].chunkSize > size);
             return this.slabClasses[mid + 1];
         }
     }
@@ -136,7 +143,7 @@ public class SlabsAllocator implements Allocator {
         if (memoryBuffer.getCapacity() == 0) {
             return;
         }
-        Chunk chunk = (Chunk)memoryBuffer;
+        Chunk chunk = (Chunk) memoryBuffer;
         SlabClass slabClass = locateSlabClass(chunk.getSize());
         slabClass.freeChunk(chunk);
         this.used.addAndGet(-chunk.getCapacity());
@@ -173,7 +180,7 @@ public class SlabsAllocator implements Allocator {
         private final MergedMemory memory;
         private final Object expandLock = new Object();
 
-        public SlabClass (MergedMemory memory, int chunkSize) {
+        public SlabClass(MergedMemory memory, int chunkSize) {
             this.memory = memory;
             this.chunkSize = chunkSize;
             this.slabList = new ArrayList<Slab>();
@@ -263,6 +270,7 @@ public class SlabsAllocator implements Allocator {
 
         /**
          * return next chunk in this slab.
+         *
          * @return null if have no chunk left.
          */
         public Chunk nextChunk() {

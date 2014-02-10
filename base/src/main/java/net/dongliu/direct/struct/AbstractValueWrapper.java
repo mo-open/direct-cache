@@ -63,6 +63,7 @@ public abstract class AbstractValueWrapper implements ValueWrapper {
 
     /**
      * return buffer to allocator.
+     *
      * @return false if pointer has already been freed.
      */
     public boolean tryKill() {

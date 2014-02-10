@@ -4,7 +4,10 @@ import net.sf.ehcache.config.CacheConfiguration;
 import net.sf.ehcache.config.PersistenceConfiguration;
 import net.sf.ehcache.pool.Pool;
 import net.sf.ehcache.pool.PoolableStore;
-import net.sf.ehcache.store.*;
+import net.sf.ehcache.store.DirectMemoryOnlyStore;
+import net.sf.ehcache.store.DiskBackedMemoryStore;
+import net.sf.ehcache.store.MemoryOnlyStore;
+import net.sf.ehcache.store.Store;
 import net.sf.ehcache.transaction.SoftLockFactory;
 import net.sf.ehcache.transaction.SoftLockManager;
 import net.sf.ehcache.transaction.TransactionIDFactory;
@@ -33,7 +36,7 @@ public class EnterpriseFeaturesManager
     @Override
     public Store createStore(Cache cache, Pool<PoolableStore> onHeapPool, Pool<PoolableStore> onDiskPool) {
 
-        if(cache.getCacheConfiguration() == null || !cache.getCacheConfiguration().isOverflowToOffHeap()
+        if (cache.getCacheConfiguration() == null || !cache.getCacheConfiguration().isOverflowToOffHeap()
                 || cache.getCacheConfiguration().getMaxBytesLocalOffHeap() <= 0) {
             return createNonOffHeapStore(cache, onHeapPool, onDiskPool);
         }
@@ -46,13 +49,14 @@ public class EnterpriseFeaturesManager
     /**
      * if overFlowToOffHeap is disabled, or maxBytesLocalOffHeap is less than or equal zero,
      * create a non-offheap store.
+     *
      * @param cache
      * @param onHeapPool
      * @param onDiskPool
      * @return
      */
     @SuppressWarnings("deprecation")
-    private Store createNonOffHeapStore (Cache cache, Pool<PoolableStore> onHeapPool, Pool<PoolableStore> onDiskPool){
+    private Store createNonOffHeapStore(Cache cache, Pool<PoolableStore> onHeapPool, Pool<PoolableStore> onDiskPool) {
         Store store;
         CacheConfiguration configuration = cache.getCacheConfiguration();
         PersistenceConfiguration persistence = configuration.getPersistenceConfiguration();

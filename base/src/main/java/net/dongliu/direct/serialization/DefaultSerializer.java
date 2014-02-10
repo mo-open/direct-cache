@@ -6,6 +6,7 @@ import java.io.*;
 
 /**
  * Default serializer using java object stream.
+ *
  * @author dongliu
  */
 public final class DefaultSerializer implements Serializer {

@@ -3,13 +3,12 @@ package net.sf.ehcache.store;
 import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.config.CacheConfiguration;
 import net.sf.ehcache.pool.Pool;
-import net.sf.ehcache.pool.PoolableStore;
-import net.sf.ehcache.store.DirectMemoryStore;
 
 import java.io.Serializable;
 
 /**
  * combine memory store and direct memory store.
+ *
  * @author dongliu
  */
 public class OffHeapBackendStore extends FrontEndCacheTier<MemoryStore, DirectMemoryStore> {
@@ -17,7 +16,7 @@ public class OffHeapBackendStore extends FrontEndCacheTier<MemoryStore, DirectMe
     /**
      * Constructor for FrontEndCacheTier
      *
-     * @param memoryStore         the caching tier
+     * @param memoryStore the caching tier
      */
     private OffHeapBackendStore(CacheConfiguration cacheConfiguration, MemoryStore memoryStore,
                                 DirectMemoryStore directMemoryStore) {
@@ -28,7 +27,8 @@ public class OffHeapBackendStore extends FrontEndCacheTier<MemoryStore, DirectMe
 
     /**
      * Create a DiskBackedMemoryStore instance
-     * @param cache the cache
+     *
+     * @param cache      the cache
      * @param onHeapPool the pool tracking on-heap usage
      * @return a DiskBackedMemoryStore instance
      */

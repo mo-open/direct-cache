@@ -5,6 +5,7 @@ import net.dongliu.direct.struct.MemoryBuffer;
 
 /**
  * Allocator
+ *
  * @author dongliu
  */
 public interface Allocator {
@@ -12,6 +13,7 @@ public interface Allocator {
     /**
      * tryKill the memory buffer.
      * memoryBuffer cannot be use after tryKill.
+     *
      * @param memoryBuffer
      */
     void free(final MemoryBuffer memoryBuffer);
@@ -27,12 +29,14 @@ public interface Allocator {
 
     /**
      * the capacity
+     *
      * @return
      */
     long getCapacity();
 
     /**
      * the memory size used.
+     *
      * @return
      */
     long used();

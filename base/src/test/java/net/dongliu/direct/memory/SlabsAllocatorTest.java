@@ -1,9 +1,9 @@
 package net.dongliu.direct.memory;
 
-import org.junit.Assert;
 import net.dongliu.direct.struct.MemoryBuffer;
 import net.dongliu.direct.utils.Size;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 

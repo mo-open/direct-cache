@@ -6,13 +6,16 @@ import java.nio.BufferOverflowException;
 
 /**
  * a memory area.
+ *
  * @author dongliu
  */
 public class MemoryBuffer {
     private final MergedMemory memory;
     private final long start;
     private final int capacity;
-    /** size actual used */
+    /**
+     * size actual used
+     */
 
     private volatile int size;
 

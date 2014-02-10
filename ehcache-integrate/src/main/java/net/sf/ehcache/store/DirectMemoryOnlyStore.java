@@ -3,30 +3,15 @@ package net.sf.ehcache.store;
 import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
 import net.sf.ehcache.config.CacheConfiguration;
-import net.sf.ehcache.pool.Pool;
 import net.sf.ehcache.search.Attribute;
 import net.sf.ehcache.search.Results;
 import net.sf.ehcache.search.aggregator.AggregatorInstance;
 import net.sf.ehcache.search.attribute.AttributeExtractor;
 import net.sf.ehcache.search.expression.Criteria;
-import net.sf.ehcache.search.impl.AggregateOnlyResult;
-import net.sf.ehcache.search.impl.BaseResult;
-import net.sf.ehcache.search.impl.GroupedResultImpl;
-import net.sf.ehcache.search.impl.OrderComparator;
-import net.sf.ehcache.search.impl.ResultImpl;
-import net.sf.ehcache.search.impl.ResultsImpl;
-import net.sf.ehcache.search.impl.SearchManager;
+import net.sf.ehcache.search.impl.*;
 import net.sf.ehcache.transaction.SoftLockID;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * A direct-memory-only store with support for all caching features.
@@ -52,7 +37,7 @@ public class DirectMemoryOnlyStore extends FrontEndCacheTier<NullStore, DirectMe
     /**
      * Create an instance of MemoryOnlyStore
      *
-     * @param cache      the cache
+     * @param cache the cache
      * @return an instance of MemoryOnlyStore
      */
     public static Store create(Ehcache cache) {

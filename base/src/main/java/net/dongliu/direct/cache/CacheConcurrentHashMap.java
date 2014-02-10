@@ -1,24 +1,14 @@
 package net.dongliu.direct.cache;
 
-import java.util.AbstractCollection;
-import java.util.AbstractSet;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import net.dongliu.direct.evict.EvictStrategy;
 import net.dongliu.direct.evict.LruStrategy;
 import net.dongliu.direct.evict.Node;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.struct.ValueWrapper;
+
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * CacheConcurrentHashMap subclasses a repackaged version of ConcurrentHashMap
@@ -325,7 +315,9 @@ public class CacheConcurrentHashMap {
      */
     public class Segment extends ReentrantReadWriteLock {
 
-        /** The number of elements in this segment's region. */
+        /**
+         * The number of elements in this segment's region.
+         */
         protected volatile int count;
 
         /**
@@ -373,12 +365,13 @@ public class CacheConcurrentHashMap {
             removeNode(e.node);
         }
 
-        private void removeNode(Node node){
+        private void removeNode(Node node) {
             evictStrategy.remove(node);
             if (node.getValue().tryKill()) {
                 allocator.free(node.getValue().getMemoryBuffer());
             }
         }
+
         /**
          * oprations after put.
          */
@@ -557,6 +550,7 @@ public class CacheConcurrentHashMap {
 
         /**
          * evict by lru.
+         *
          * @return
          */
         private int evict() {

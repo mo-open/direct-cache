@@ -7,6 +7,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * LRU implemetation.
  * TODO: less locks.
+ *
  * @author dongiu
  */
 public class LruStrategy implements EvictStrategy<LruStrategy.LruNode> {
@@ -21,7 +22,7 @@ public class LruStrategy implements EvictStrategy<LruStrategy.LruNode> {
     @Override
     public net.dongliu.direct.evict.Node add(LruNode node) {
         lock.lock();
-        try{
+        try {
             if (head != null) {
                 head.prev = node;
                 node.next = head;
