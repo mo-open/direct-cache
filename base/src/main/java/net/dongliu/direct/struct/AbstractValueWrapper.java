@@ -1,5 +1,6 @@
 package net.dongliu.direct.struct;
 
+import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.utils.U;
 
 /**

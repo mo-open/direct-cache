@@ -1,7 +1,6 @@
 package net.dongliu.direct.memory;
 
 import net.dongliu.direct.exception.AllocatorException;
-import net.dongliu.direct.struct.MemoryBuffer;
 
 /**
  * Allocator

@@ -28,7 +28,8 @@ public class U {
         }
         UNSAFE = (sun.misc.Unsafe) result;
         if (UNSAFE == null) {
-            throw new Error("U not found.Should used on open jdk / oracle jdk");
+            // logger
+            throw new RuntimeException("Unsafe not supported.");
         }
     }
 
@@ -103,4 +104,5 @@ public class U {
     public static boolean compareAndSwapInt(Object o, long offset, int expect, int value) {
         return UNSAFE.compareAndSwapInt(o, offset, expect, value);
     }
+
 }

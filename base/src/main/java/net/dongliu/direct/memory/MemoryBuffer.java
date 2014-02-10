@@ -1,6 +1,4 @@
-package net.dongliu.direct.struct;
-
-import net.dongliu.direct.memory.MergedMemory;
+package net.dongliu.direct.memory;
 
 import java.nio.BufferOverflowException;
 
@@ -10,8 +8,8 @@ import java.nio.BufferOverflowException;
  * @author dongliu
  */
 public class MemoryBuffer {
-    private final MergedMemory memory;
-    private final long start;
+    private final UnsafeMemory memory;
+    private final int offset;
     private final int capacity;
     /**
      * size actual used
@@ -22,9 +20,9 @@ public class MemoryBuffer {
     // for emtpy buffer.
     public static final MemoryBuffer emptyBuffer = new MemoryBuffer(null, 0, 0);
 
-    public MemoryBuffer(MergedMemory memory, long start, int capacity) {
+    public MemoryBuffer(UnsafeMemory memory, int offset, int capacity) {
         this.memory = memory;
-        this.start = start;
+        this.offset = offset;
         this.capacity = capacity;
     }
 
@@ -33,13 +31,13 @@ public class MemoryBuffer {
      */
     public void write(byte[] data) {
         if (isDispose()) {
-            throw new NullPointerException();
+            throw new IllegalStateException("memory has been disposed");
         }
         if (data.length > this.capacity) {
             throw new BufferOverflowException();
         }
         this.size = data.length;
-        memory.write(this.start, data);
+        memory.write(this.offset, data);
     }
 
     /**
@@ -47,22 +45,26 @@ public class MemoryBuffer {
      */
     public byte[] read() {
         if (isDispose()) {
-            throw new NullPointerException();
+            throw new IllegalStateException("memory has been disposed");
         }
-        return memory.read(this.start, this.size);
+        byte[] buf = new byte[this.size];
+        memory.read(this.offset, buf);
+        return buf;
     }
 
     /**
-     * read bytes.
+     * read all data has been written in into buf.
+     * we should reuse buf.
      */
-    public byte[] read(int size) {
+    public byte[] read(byte[] buf) {
         if (isDispose()) {
-            throw new NullPointerException();
+            throw new IllegalStateException("memory has been disposed");
         }
-        if (size > this.size) {
+        if (buf.length < this.size) {
             throw new BufferOverflowException();
         }
-        return memory.read(this.start, size);
+        memory.read(this.offset, buf, this.size);
+        return buf;
     }
 
     public int getCapacity() {
@@ -73,11 +75,11 @@ public class MemoryBuffer {
         return this.size;
     }
 
-    public long getStart() {
-        return this.start;
+    public int getOffset() {
+        return this.offset;
     }
 
-    public MergedMemory getMemory() {
+    public UnsafeMemory getMemory() {
         return this.memory;
     }
 

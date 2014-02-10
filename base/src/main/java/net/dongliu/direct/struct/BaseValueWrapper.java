@@ -1,5 +1,7 @@
 package net.dongliu.direct.struct;
 
+import net.dongliu.direct.memory.MemoryBuffer;
+
 /**
  * basic valuewrapper, for binary cache.
  *

@@ -1,6 +1,6 @@
 package net.dongliu.direct.memory;
 
-import net.dongliu.direct.struct.MemoryBuffer;
+import net.dongliu.direct.memory.slabs.SlabsAllocator;
 import net.dongliu.direct.utils.Size;
 import org.junit.After;
 import org.junit.Assert;

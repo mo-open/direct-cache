@@ -2,9 +2,9 @@ package net.dongliu.direct.cache;
 
 import net.dongliu.direct.exception.AllocatorException;
 import net.dongliu.direct.memory.Allocator;
-import net.dongliu.direct.memory.SlabsAllocator;
+import net.dongliu.direct.memory.slabs.SlabsAllocator;
 import net.dongliu.direct.struct.BaseValueWrapper;
-import net.dongliu.direct.struct.MemoryBuffer;
+import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.struct.ValueWrapper;
 import net.dongliu.direct.utils.Size;
 import org.junit.After;
