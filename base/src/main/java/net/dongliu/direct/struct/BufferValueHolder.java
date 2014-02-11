@@ -4,11 +4,11 @@ import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.utils.U;
 
 /**
- * Wrapper the memoryBuffer, and provide info-fields a cache entry needed.
+ * Wrapper the memoryBuffer, and provide info-fields a cache entry needed, to store cache values.
  *
  * @author dongliu
  */
-public abstract class AbstractValueWrapper implements ValueWrapper {
+public abstract class BufferValueHolder implements ValueHolder {
 
     private Object key;
 
@@ -19,10 +19,10 @@ public abstract class AbstractValueWrapper implements ValueWrapper {
     private static final long LIVE_OFFSET;
 
     static {
-        LIVE_OFFSET = U.objectFieldOffset(AbstractValueWrapper.class, "live");
+        LIVE_OFFSET = U.objectFieldOffset(BufferValueHolder.class, "live");
     }
 
-    public AbstractValueWrapper(MemoryBuffer memoryBuffer) {
+    public BufferValueHolder(MemoryBuffer memoryBuffer) {
         this.memoryBuffer = memoryBuffer;
         this.live = 1;
     }
@@ -43,11 +43,6 @@ public abstract class AbstractValueWrapper implements ValueWrapper {
     }
 
     @Override
-    public MemoryBuffer getMemoryBuffer() {
-        return this.memoryBuffer;
-    }
-
-    @Override
     public Object getKey() {
         return key;
     }
@@ -62,13 +57,14 @@ public abstract class AbstractValueWrapper implements ValueWrapper {
         return memoryBuffer.read();
     }
 
-    /**
-     * return buffer to allocator.
-     *
-     * @return false if pointer has already been freed.
-     */
-    public boolean tryKill() {
-        return U.compareAndSwapInt(this, LIVE_OFFSET, 1, 0);
+    @Override
+    public void dispose() {
+        if (U.compareAndSwapInt(this, LIVE_OFFSET, 1, 0)) {
+            this.memoryBuffer.dispose();
+        }
     }
 
+    public void markDead() {
+        U.compareAndSwapInt(this, LIVE_OFFSET, 1, 0);
+    }
 }

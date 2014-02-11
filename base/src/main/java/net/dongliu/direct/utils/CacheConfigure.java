@@ -75,7 +75,7 @@ public class CacheConfigure {
 
     private int getInt(Properties p, String name, int defaultValue) {
         try {
-            return Integer.parseInt(p.getProperty("name", String.valueOf(defaultValue)));
+            return Integer.parseInt(p.getProperty(name, String.valueOf(defaultValue)));
         } catch (NumberFormatException e) {
             logger.warn("config " + name + " is not a valid int value.");
             return defaultValue;
@@ -84,7 +84,7 @@ public class CacheConfigure {
 
     private float getFloat(Properties p, String name, float defaultValue) {
         try {
-            return Float.parseFloat(p.getProperty("cache.map.concurrency", String.valueOf(defaultValue)));
+            return Float.parseFloat(p.getProperty(name, String.valueOf(defaultValue)));
         } catch (NumberFormatException e) {
             logger.warn("config " + name + " is not a valid float value.");
             return defaultValue;

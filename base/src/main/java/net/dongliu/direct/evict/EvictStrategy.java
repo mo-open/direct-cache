@@ -1,6 +1,6 @@
 package net.dongliu.direct.evict;
 
-import net.dongliu.direct.struct.ValueWrapper;
+import net.dongliu.direct.struct.ValueHolder;
 
 public interface EvictStrategy<T extends Node> {
     Node add(T node);
@@ -11,7 +11,7 @@ public interface EvictStrategy<T extends Node> {
 
     T[] evict(int count);
 
-    T newNode(ValueWrapper value);
+    T newNode(ValueHolder value);
 
     void clear();
 }

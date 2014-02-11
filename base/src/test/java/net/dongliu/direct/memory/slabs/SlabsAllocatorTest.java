@@ -29,8 +29,8 @@ public class SlabsAllocatorTest {
 
     @Test
     public void testMassAllocate() throws Exception {
-        MemoryBuffer buf = allocator.allocate(Size.Mb(20));
-        Assert.assertEquals(Size.Mb(20), buf.getCapacity());
+        MemoryBuffer buf = allocator.allocate(Size.Mb(50));
+        Assert.assertEquals(Size.Mb(50), buf.getCapacity());
         Assert.assertEquals(buf.getCapacity(), allocator.actualUsed());
 
         buf.dispose();

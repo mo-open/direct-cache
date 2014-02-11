@@ -3,7 +3,7 @@ package net.dongliu.direct.cache;
 import net.dongliu.direct.evict.EvictStrategy;
 import net.dongliu.direct.evict.LruStrategy;
 import net.dongliu.direct.evict.Node;
-import net.dongliu.direct.struct.ValueWrapper;
+import net.dongliu.direct.struct.ValueHolder;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -54,8 +54,8 @@ public class CacheConcurrentHashMap {
     private final CacheEventListener cacheEventListener;
 
     private Set<Object> keySet;
-    private Set<Map.Entry<Object, ValueWrapper>> entrySet;
-    private Collection<ValueWrapper> values;
+    private Set<Map.Entry<Object, ValueHolder>> entrySet;
+    private Collection<ValueHolder> values;
 
     public CacheConcurrentHashMap(int initialCapacity, float loadFactor, int concurrency,
                                   final CacheEventListener cacheEventListener) {
@@ -205,7 +205,7 @@ public class CacheConcurrentHashMap {
         return segments;
     }
 
-    public ValueWrapper get(Object key) {
+    public ValueHolder get(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).get(key, hash);
     }
@@ -220,9 +220,9 @@ public class CacheConcurrentHashMap {
      *
      * @param key
      * @param element
-     * @return the old ValueWrapper, null if not exists
+     * @return the old ValueHolder, null if not exists
      */
-    public ValueWrapper put(Object key, ValueWrapper element) {
+    public ValueHolder put(Object key, ValueHolder element) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).put(key, hash, element, false);
     }
@@ -234,7 +234,7 @@ public class CacheConcurrentHashMap {
      * @param element
      * @return
      */
-    public ValueWrapper putIfAbsent(Object key, ValueWrapper element) {
+    public ValueHolder putIfAbsent(Object key, ValueHolder element) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).put(key, hash, element, true);
     }
@@ -245,7 +245,7 @@ public class CacheConcurrentHashMap {
      * @param key
      * @return
      */
-    public ValueWrapper remove(Object key) {
+    public ValueHolder remove(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).remove(key, hash, null);
     }
@@ -258,7 +258,7 @@ public class CacheConcurrentHashMap {
     }
 
     /**
-     * clear also cause all ValueWrapper to be tryKill.
+     * clear also cause all ValueHolder to be tryKill.
      */
     public void clear() {
         for (Segment segment : segments) segment.clear();
@@ -269,13 +269,13 @@ public class CacheConcurrentHashMap {
         return (ks != null) ? ks : (keySet = new KeySet());
     }
 
-    public Collection<ValueWrapper> values() {
-        Collection<ValueWrapper> vs = values;
+    public Collection<ValueHolder> values() {
+        Collection<ValueHolder> vs = values;
         return (vs != null) ? vs : (values = new Values());
     }
 
-    public Set<Entry<Object, ValueWrapper>> entrySet() {
-        Set<Entry<Object, ValueWrapper>> es = entrySet;
+    public Set<Entry<Object, ValueHolder>> entrySet() {
+        Set<Entry<Object, ValueHolder>> es = entrySet;
         return (es != null) ? es : (entrySet = new EntrySet());
     }
 
@@ -362,9 +362,7 @@ public class CacheConcurrentHashMap {
 
         private void removeNode(Node node) {
             evictStrategy.remove(node);
-            if (node.getValue().tryKill()) {
-                node.getValue().getMemoryBuffer().dispose();
-            }
+            node.getValue().dispose();
         }
 
         /**
@@ -391,7 +389,7 @@ public class CacheConcurrentHashMap {
         }
 
         protected HashEntry createHashEntry(Object key, int hash, HashEntry next,
-                                            ValueWrapper value) {
+                                            ValueHolder value) {
             return new HashEntry(key, hash, next, evictStrategy.newNode(value));
         }
 
@@ -407,9 +405,7 @@ public class CacheConcurrentHashMap {
                     for (int i = 0; i < tab.length; i++) {
                         HashEntry entry = tab[i];
                         while (entry != null) {
-                            if (entry.node.getValue().tryKill()) {
-                                entry.node.getValue().getMemoryBuffer().dispose();
-                            }
+                            entry.node.getValue().dispose();
                             entry = entry.next;
                         }
                         tab[i] = null;
@@ -423,7 +419,7 @@ public class CacheConcurrentHashMap {
             }
         }
 
-        ValueWrapper remove(Object key, int hash, Object value) {
+        ValueHolder remove(Object key, int hash, Object value) {
             writeLock().lock();
             try {
                 int c = count - 1;
@@ -434,9 +430,9 @@ public class CacheConcurrentHashMap {
                 while (e != null && (e.hash != hash || !key.equals(e.key)))
                     e = e.next;
 
-                ValueWrapper oldValue = null;
+                ValueHolder oldValue = null;
                 if (e != null) {
-                    ValueWrapper v = e.node.getValue();
+                    ValueHolder v = e.node.getValue();
                     if (value == null || value.equals(v)) {
                         oldValue = v;
                         ++modCount;
@@ -455,7 +451,7 @@ public class CacheConcurrentHashMap {
             }
         }
 
-        protected ValueWrapper put(Object key, int hash, ValueWrapper value, boolean onlyIfAbsent) {
+        protected ValueHolder put(Object key, int hash, ValueHolder value, boolean onlyIfAbsent) {
             writeLock().lock();
             try {
                 int c = count;
@@ -468,7 +464,7 @@ public class CacheConcurrentHashMap {
                 while (oldEntry != null && (oldEntry.hash != hash || !key.equals(oldEntry.key)))
                     oldEntry = oldEntry.next;
 
-                ValueWrapper oldValue;
+                ValueHolder oldValue;
                 if (oldEntry != null) {
                     oldValue = oldEntry.node.getValue();
                     if (!onlyIfAbsent) { // replace
@@ -493,7 +489,7 @@ public class CacheConcurrentHashMap {
             }
         }
 
-        private void notifyEvictionOrExpiry(final ValueWrapper wrapper) {
+        private void notifyEvictionOrExpiry(final ValueHolder wrapper) {
             if (wrapper != null && cacheEventListener != null) {
                 if (wrapper.isExpired()) {
                     cacheEventListener.notifyExpired(wrapper);
@@ -503,7 +499,7 @@ public class CacheConcurrentHashMap {
             }
         }
 
-        ValueWrapper get(final Object key, final int hash) {
+        ValueHolder get(final Object key, final int hash) {
             readLock().lock();
             try {
                 if (count != 0) { // read-volatile
@@ -570,7 +566,7 @@ public class CacheConcurrentHashMap {
                     if (cacheEventListener != null) {
                         notifyEvictionOrExpiry(node.getValue());
                     }
-                    ValueWrapper removed = remove(key, hash(key.hashCode()), null);
+                    ValueHolder removed = remove(key, hash(key.hashCode()), null);
                     count++;
                 }
             } finally {
@@ -756,10 +752,10 @@ public class CacheConcurrentHashMap {
         }
     }
 
-    final class Values extends AbstractCollection<ValueWrapper> {
+    final class Values extends AbstractCollection<ValueHolder> {
 
         @Override
-        public Iterator<ValueWrapper> iterator() {
+        public Iterator<ValueHolder> iterator() {
             return new ValueIterator();
         }
 
@@ -800,10 +796,10 @@ public class CacheConcurrentHashMap {
         }
     }
 
-    final class EntrySet extends AbstractSet<Entry<Object, ValueWrapper>> {
+    final class EntrySet extends AbstractSet<Entry<Object, ValueHolder>> {
 
         @Override
-        public Iterator<Entry<Object, ValueWrapper>> iterator() {
+        public Iterator<Entry<Object, ValueHolder>> iterator() {
             return new EntryIterator();
         }
 
@@ -822,7 +818,7 @@ public class CacheConcurrentHashMap {
             if (!(o instanceof Entry))
                 return false;
             Entry<?, ?> e = (Entry<?, ?>) o;
-            ValueWrapper v = CacheConcurrentHashMap.this.get(e.getKey());
+            ValueHolder v = CacheConcurrentHashMap.this.get(e.getKey());
             return v != null && v.equals(e.getValue());
         }
 
@@ -864,32 +860,32 @@ public class CacheConcurrentHashMap {
         }
     }
 
-    final class ValueIterator extends HashEntryIterator implements Iterator<ValueWrapper> {
+    final class ValueIterator extends HashEntryIterator implements Iterator<ValueHolder> {
 
         @Override
-        public ValueWrapper next() {
+        public ValueHolder next() {
             return nextEntry().node.getValue();
         }
     }
 
-    final class EntryIterator extends HashEntryIterator implements Iterator<Entry<Object, ValueWrapper>> {
+    final class EntryIterator extends HashEntryIterator implements Iterator<Entry<Object, ValueHolder>> {
 
         @Override
-        public Entry<Object, ValueWrapper> next() {
+        public Entry<Object, ValueHolder> next() {
             HashEntry entry = nextEntry();
             final Object key = entry.key;
-            final ValueWrapper value = entry.node.getValue();
-            return new Entry<Object, ValueWrapper>() {
+            final ValueHolder value = entry.node.getValue();
+            return new Entry<Object, ValueHolder>() {
 
                 public Object getKey() {
                     return key;
                 }
 
-                public ValueWrapper getValue() {
+                public ValueHolder getValue() {
                     return value;
                 }
 
-                public ValueWrapper setValue(ValueWrapper value) {
+                public ValueHolder setValue(ValueHolder value) {
                     throw new UnsupportedOperationException();
                 }
             };

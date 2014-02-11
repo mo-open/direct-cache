@@ -1,6 +1,6 @@
 package net.dongliu.direct.evict;
 
-import net.dongliu.direct.struct.ValueWrapper;
+import net.dongliu.direct.struct.ValueHolder;
 
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -98,7 +98,7 @@ public class LruStrategy implements EvictStrategy<LruStrategy.LruNode> {
     }
 
     @Override
-    public LruNode newNode(ValueWrapper value) {
+    public LruNode newNode(ValueHolder value) {
         return new LruNode(value);
     }
 
@@ -108,16 +108,16 @@ public class LruStrategy implements EvictStrategy<LruStrategy.LruNode> {
     }
 
     protected static class LruNode implements net.dongliu.direct.evict.Node {
-        private final ValueWrapper value;
+        private final ValueHolder value;
         private volatile LruNode prev;
         private volatile LruNode next;
 
-        public LruNode(ValueWrapper value) {
+        public LruNode(ValueHolder value) {
             this.value = value;
         }
 
         @Override
-        public ValueWrapper getValue() {
+        public ValueHolder getValue() {
             return this.value;
         }
     }

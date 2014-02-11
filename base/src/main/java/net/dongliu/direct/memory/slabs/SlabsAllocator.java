@@ -80,7 +80,7 @@ public class SlabsAllocator implements Allocator {
     }
 
     @Override
-    public MemoryBuffer allocate(int size) throws AllocatorException {
+    public MemoryBuffer allocate(int size) {
         if (size <= 0) {
             throw new IllegalArgumentException("size must be large than 0");
         }

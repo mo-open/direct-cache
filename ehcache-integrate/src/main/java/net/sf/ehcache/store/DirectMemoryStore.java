@@ -2,16 +2,14 @@ package net.sf.ehcache.store;
 
 import net.dongliu.direct.cache.CacheConcurrentHashMap;
 import net.dongliu.direct.cache.CacheEventListener;
-import net.dongliu.direct.exception.AllocatorException;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
 import net.dongliu.direct.serialization.Serializer;
 import net.dongliu.direct.serialization.SerializerFactory;
-import net.dongliu.direct.struct.AbstractValueWrapper;
-import net.dongliu.direct.struct.EhcacheValueWrapper;
-import net.dongliu.direct.struct.NonHolder;
-import net.dongliu.direct.struct.ValueWrapper;
+import net.dongliu.direct.struct.BufferValueHolder;
+import net.dongliu.direct.struct.EhcacheValueHolder;
+import net.dongliu.direct.struct.ValueHolder;
 import net.dongliu.direct.utils.CacheConfigure;
 import net.sf.ehcache.*;
 import net.sf.ehcache.concurrent.CacheLockProvider;
@@ -66,13 +64,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         if (eventListener != null) {
             cacheEventListener = new CacheEventListener() {
                 @Override
-                public void notifyEvicted(ValueWrapper wrapper) {
-                    eventListener.notifyElementEvicted(toElement((EhcacheValueWrapper) wrapper), false);
+                public void notifyEvicted(ValueHolder wrapper) {
+                    eventListener.notifyElementEvicted(toElement((EhcacheValueHolder) wrapper), false);
                 }
 
                 @Override
-                public void notifyExpired(ValueWrapper wrapper) {
-                    eventListener.notifyElementEvicted(toElement((EhcacheValueWrapper) wrapper), false);
+                public void notifyExpired(ValueHolder wrapper) {
+                    eventListener.notifyElementEvicted(toElement((EhcacheValueHolder) wrapper), false);
                 }
             };
         }
@@ -110,10 +108,10 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            ValueWrapper oldValueWrapper;
-            AbstractValueWrapper valueWrapper = store(element);
+            ValueHolder oldValueHolder;
+            BufferValueHolder valueWrapper = store(element);
             if (valueWrapper != null) {
-                oldValueWrapper = map.put(key, valueWrapper);
+                oldValueHolder = map.put(key, valueWrapper);
             } else {
                 if (map.containsKey(key)) {
                     map.remove(key);
@@ -121,7 +119,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
                 notifyDirectEviction(element);
                 return true;
             }
-            return oldValueWrapper == null;
+            return oldValueHolder == null;
         } finally {
             lock.unlock();
         }
@@ -132,24 +130,19 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
      *
      * @return the point.null if failed.
      */
-    private EhcacheValueWrapper store(Element element) {
+    private EhcacheValueHolder store(Element element) {
         Object value = element.getValue();
         if (value == null) {
-            value = NonHolder.instance;
+            //TODO: deal with null value
         }
         byte[] bytes = objectToBytes(value);
-        MemoryBuffer buffer;
-        try {
-            buffer = allocator.allocate(bytes.length);
-        } catch (AllocatorException e) {
-            logger.error("Allocate new Buffer failed.", e);
-            buffer = null;
-        }
+        MemoryBuffer buffer = allocator.allocate(bytes.length);
         if (buffer == null) {
+            logger.debug("Allocate new Buffer failed.");
             return null;
         }
 
-        EhcacheValueWrapper wrapper = new EhcacheValueWrapper(buffer);
+        EhcacheValueHolder wrapper = new EhcacheValueHolder(buffer);
         buffer.write(bytes);
         wrapper.setKey(element.getKey());
         wrapper.setTimeToIdle(element.getTimeToIdle());
@@ -189,7 +182,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
      */
     @Override
     public Element getQuiet(Object key) {
-        EhcacheValueWrapper wrapper = (EhcacheValueWrapper) map.get(key);
+        EhcacheValueHolder wrapper = (EhcacheValueHolder) map.get(key);
         if (wrapper == null) {
             return null;
         }
@@ -199,7 +192,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             Lock lock = getWriteLock(key);
             lock.lock();
             try {
-                wrapper = (EhcacheValueWrapper) map.get(key);
+                wrapper = (EhcacheValueHolder) map.get(key);
                 if (wrapper.isExpired() || !wrapper.isLive()) {
                     map.remove(key);
                 }
@@ -241,16 +234,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
     }
 
-    private Element toElement(EhcacheValueWrapper wrapper) {
+    private Element toElement(EhcacheValueHolder wrapper) {
         if (!wrapper.isLive()) {
             //TODO: do someting when wrapper is already dead
         }
-        Object value;
-        if (wrapper.getValueClass() == NonHolder.class) {
-            value = null;
-        } else {
-            value = bytesToObject(wrapper.readValue(), wrapper.getValueClass());
-        }
+        Object value = bytesToObject(wrapper.readValue(), wrapper.getValueClass());
         Element e = new Element(wrapper.getKey(), value, wrapper.getVersion(),
                 wrapper.getCreationTime(), wrapper.getLastAccessTime(),
                 wrapper.getLastUpdateTime(), wrapper.getHitCount());
@@ -293,9 +281,9 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             if (oldElement != null) {
                 return oldElement;
             }
-            ValueWrapper valueWrapper = store(element);
-            if (valueWrapper != null) {
-                map.put(key, valueWrapper);
+            ValueHolder valueHolder = store(element);
+            if (valueHolder != null) {
+                map.put(key, valueHolder);
                 return null;
             } else {
                 notifyDirectEviction(element);
@@ -604,9 +592,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
     }
 
     private byte[] objectToBytes(Object o) {
-        if (o instanceof NonHolder) {
-            return new byte[0];
-        }
         try {
             return serializer.serialize(o);
         } catch (IOException e) {

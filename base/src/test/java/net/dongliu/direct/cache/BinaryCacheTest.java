@@ -1,26 +1,18 @@
 package net.dongliu.direct.cache;
 
 import net.dongliu.direct.utils.Size;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
 
 /**
  * @author: dongliu
  */
 public class BinaryCacheTest {
 
-    private BinaryCache cache;
+    private static BinaryCache cache;
 
-    @Before
-    public void init() {
+    @BeforeClass
+    public static void init() {
         cache = new BinaryCache(Size.Mb(100));
-    }
-
-    @After
-    public void destroy() {
-        cache.destroy();
     }
 
     @Test
@@ -30,5 +22,20 @@ public class BinaryCacheTest {
         cache.set(key, value.getBytes());
         String value2 = new String(cache.get(key));
         Assert.assertEquals(value, value2);
+    }
+
+    @Test
+    public void testPutNullAndEmpty() {
+        cache.set("test", null);
+        Assert.assertTrue(cache.exists("test"));
+        Assert.assertNull(cache.get("test"));
+        cache.set("test", new byte[0]);
+        Assert.assertTrue(cache.exists("test"));
+        Assert.assertArrayEquals(new byte[0], cache.get("test"));
+    }
+
+    @AfterClass
+    public static void destroy() {
+        cache.destroy();
     }
 }

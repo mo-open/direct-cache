@@ -3,11 +3,11 @@ package net.dongliu.direct.struct;
 import net.dongliu.direct.memory.MemoryBuffer;
 
 /**
- * interface of value holder.
+ * interface of cache-value holder.
  *
  * @author dongliu
  */
-public interface ValueWrapper {
+public interface ValueHolder {
 
     int getCapacity();
 
@@ -17,18 +17,14 @@ public interface ValueWrapper {
 
     boolean isLive();
 
-    MemoryBuffer getMemoryBuffer();
-
     Object getKey();
 
     void setKey(Object key);
 
     /**
-     * mark value wrapper to be dead if it is alive.
-     *
-     * @return true if value wrapper is alive before.
+     * release resources and mark as not live.
      */
-    boolean tryKill();
+    void dispose();
 
     /**
      * read value in bytes. this should only be called once

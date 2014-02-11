@@ -3,11 +3,11 @@ package net.dongliu.direct.struct;
 import net.dongliu.direct.memory.MemoryBuffer;
 
 /**
- * basic valuewrapper, for binary cache.
+ * basic valuewrapper, for base binary cache.
  *
  * @author dongliu
  */
-public class BaseValueWrapper extends AbstractValueWrapper {
+public class BaseValueHolder extends BufferValueHolder {
     /**
      * The amount of time for the element to live, in seconds. 0 indicates unlimited.
      */
@@ -15,27 +15,27 @@ public class BaseValueWrapper extends AbstractValueWrapper {
 
     /**
      * If there is an Element in the Cache and it is replaced with a new Element for the same key,
-     * then lastUpdateTime should be updated to reflect that.
+     * then lastUpdate should be updated to reflect that.
      */
-    private volatile long lastUpdateTime;
+    private volatile long lastUpdate;
 
-    public BaseValueWrapper(MemoryBuffer memoryBuffer) {
+    public BaseValueHolder(MemoryBuffer memoryBuffer) {
         super(memoryBuffer);
-        this.lastUpdateTime = System.currentTimeMillis();
+        this.lastUpdate = System.currentTimeMillis();
     }
 
     @Override
     public boolean isExpired() {
         long cur = System.currentTimeMillis();
-        return expiry > 0 && cur - lastUpdateTime > expiry;
+        return expiry > 0 && cur - lastUpdate > expiry;
     }
 
-    public void setLastUpdateTime(long lastUpdateTime) {
-        this.lastUpdateTime = lastUpdateTime;
+    public void setLastUpdate(long lastUpdate) {
+        this.lastUpdate = lastUpdate;
     }
 
-    public long getLastUpdateTime() {
-        return this.lastUpdateTime;
+    public long getLastUpdate() {
+        return this.lastUpdate;
     }
 
     public int getExpiry() {

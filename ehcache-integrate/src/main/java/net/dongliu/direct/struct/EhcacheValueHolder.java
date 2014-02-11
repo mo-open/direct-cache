@@ -8,7 +8,7 @@ import net.sf.ehcache.util.TimeUtil;
  *
  * @author dongliu
  */
-public class EhcacheValueWrapper extends AbstractValueWrapper {
+public class EhcacheValueHolder extends BufferValueHolder {
 
     /**
      * version of the element. System.currentTimeMillis() is actualUsed to compute version for updated elements. That
@@ -44,7 +44,7 @@ public class EhcacheValueWrapper extends AbstractValueWrapper {
 
     private Class valueClass;
 
-    public EhcacheValueWrapper(MemoryBuffer memoryBuffer) {
+    public EhcacheValueHolder(MemoryBuffer memoryBuffer) {
         super(memoryBuffer);
     }
 

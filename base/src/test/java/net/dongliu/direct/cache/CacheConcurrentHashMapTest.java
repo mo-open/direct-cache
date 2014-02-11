@@ -4,8 +4,8 @@ import net.dongliu.direct.exception.AllocatorException;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
-import net.dongliu.direct.struct.BaseValueWrapper;
-import net.dongliu.direct.struct.ValueWrapper;
+import net.dongliu.direct.struct.BaseValueHolder;
+import net.dongliu.direct.struct.ValueHolder;
 import net.dongliu.direct.utils.Size;
 import org.junit.After;
 import org.junit.Assert;
@@ -35,7 +35,7 @@ public class CacheConcurrentHashMapTest {
     @Test
     public void testSizeAndClear() throws Exception {
         Assert.assertEquals(0, map.size());
-        BaseValueWrapper valueWrapper1 = new BaseValueWrapper(allocator.allocate(1000));
+        BaseValueHolder valueWrapper1 = new BaseValueHolder(allocator.allocate(1000));
         map.put("test", valueWrapper1);
         Assert.assertEquals(1, map.size());
         map.clear();
@@ -48,41 +48,41 @@ public class CacheConcurrentHashMapTest {
         MemoryBuffer buffer = allocator.allocate(1000);
         byte[] data = "value".getBytes();
         buffer.write(data);
-        BaseValueWrapper valueWrapper1 = new BaseValueWrapper(buffer);
+        BaseValueHolder valueWrapper1 = new BaseValueHolder(buffer);
         map.put("test", valueWrapper1);
-        ValueWrapper value = map.get("test");
+        ValueHolder value = map.get("test");
         Assert.assertArrayEquals(data, value.readValue());
         map.clear();
     }
 
     @Test
     public void testPut() throws Exception {
-        BaseValueWrapper valueWrapper1 = new BaseValueWrapper(allocator.allocate(1000));
-        BaseValueWrapper valueWrapper2 = new BaseValueWrapper(allocator.allocate(1001));
-        ValueWrapper value1 = map.put("test", valueWrapper1);
+        BaseValueHolder valueWrapper1 = new BaseValueHolder(allocator.allocate(1000));
+        BaseValueHolder valueWrapper2 = new BaseValueHolder(allocator.allocate(1001));
+        ValueHolder value1 = map.put("test", valueWrapper1);
         Assert.assertNull(value1);
-        ValueWrapper value2 = map.put("test", valueWrapper2);
+        ValueHolder value2 = map.put("test", valueWrapper2);
         Assert.assertNotNull(value2);
-        ValueWrapper value3 = map.get("test");
+        ValueHolder value3 = map.get("test");
         Assert.assertEquals(valueWrapper2, value3);
         map.clear();
     }
 
     @Test
     public void testPutIfAbsent() throws Exception {
-        BaseValueWrapper valueWrapper1 = new BaseValueWrapper(allocator.allocate(1000));
-        BaseValueWrapper valueWrapper2 = new BaseValueWrapper(allocator.allocate(1001));
-        ValueWrapper value1 = map.putIfAbsent("test", valueWrapper1);
+        BaseValueHolder valueWrapper1 = new BaseValueHolder(allocator.allocate(1000));
+        BaseValueHolder valueWrapper2 = new BaseValueHolder(allocator.allocate(1001));
+        ValueHolder value1 = map.putIfAbsent("test", valueWrapper1);
         Assert.assertNull(value1);
-        ValueWrapper value2 = map.putIfAbsent("test", valueWrapper2);
+        ValueHolder value2 = map.putIfAbsent("test", valueWrapper2);
         Assert.assertNotNull(value2);
-        ValueWrapper value3 = map.get("test");
+        ValueHolder value3 = map.get("test");
         Assert.assertEquals(valueWrapper1, value3);
     }
 
     @Test
     public void testRemove() throws Exception {
-        BaseValueWrapper valueWrapper1 = new BaseValueWrapper(allocator.allocate(1000));
+        BaseValueHolder valueWrapper1 = new BaseValueHolder(allocator.allocate(1000));
         map.put("test", valueWrapper1);
         map.remove("test");
         Assert.assertEquals(0, map.size());

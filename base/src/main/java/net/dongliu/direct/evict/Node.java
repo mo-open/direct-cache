@@ -1,7 +1,7 @@
 package net.dongliu.direct.evict;
 
-import net.dongliu.direct.struct.ValueWrapper;
+import net.dongliu.direct.struct.ValueHolder;
 
 public interface Node {
-    ValueWrapper getValue();
+    ValueHolder getValue();
 }

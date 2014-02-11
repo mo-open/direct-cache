@@ -1,11 +1,11 @@
 package net.dongliu.direct.cache;
 
-import net.dongliu.direct.exception.AllocatorException;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
-import net.dongliu.direct.struct.BaseValueWrapper;
-import net.dongliu.direct.struct.ValueWrapper;
+import net.dongliu.direct.struct.BaseDummyValueHolder;
+import net.dongliu.direct.struct.BaseValueHolder;
+import net.dongliu.direct.struct.ValueHolder;
 import net.dongliu.direct.utils.CacheConfigure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,24 +51,18 @@ public class BinaryCache {
     /**
      * Put an element in the store only if no element is currently mapped to the elements key.
      *
-     * @return the ValueWrapper previously cached for this key, or null if none.
+     * @return the value previously cached for this key, or null if none.
      */
     public byte[] add(Object key, byte[] payload) {
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            ValueWrapper oldValueWrapper = null;
-            ValueWrapper valueWrapper = null;
-            try {
-                valueWrapper = store(key, payload);
-            } catch (AllocatorException e) {
-                logger.warn("Allocate new buffer failed.", e);
-                valueWrapper = null;
-            }
-            if (valueWrapper != null) {
-                oldValueWrapper = map.putIfAbsent(key, valueWrapper);
-                //TODO: we need read node, but oldValueWrapper is already freed.
-                //byte[] oldValue = oldValueWrapper.readValue();
+            ValueHolder oldValueHolder = null;
+            ValueHolder valueHolder = store(key, payload);
+            if (valueHolder != null) {
+                oldValueHolder = map.putIfAbsent(key, valueHolder);
+                //TODO: we need read node, but oldValueHolder is already freed.
+                //byte[] oldValue = oldValueHolder.readValue();
                 return null;
             }
             return null;
@@ -102,19 +96,16 @@ public class BinaryCache {
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            BaseValueWrapper valueWrapper;
-            try {
-                valueWrapper = store(key, payload);
-            } catch (AllocatorException e) {
-                logger.warn("Allocate new buffer failed.", e);
-                valueWrapper = null;
-            }
+            BaseValueHolder valueWrapper = store(key, payload);
             if (valueWrapper != null) {
                 if (expiresIn != 0) {
                     valueWrapper.setExpiry(expiresIn);
                 }
                 map.put(key, valueWrapper);
+            } else {
+                logger.debug("set value failed, cannot allocat memory");
             }
+
         } finally {
             lock.unlock();
         }
@@ -124,31 +115,31 @@ public class BinaryCache {
      * retrive node by key from cache.
      */
     public byte[] get(Object key) {
-        ValueWrapper valueWrapper = retrievePointer(key);
-        if (valueWrapper == null) {
+        ValueHolder valueHolder = retrievePointer(key);
+        if (valueHolder == null) {
             return null;
         }
-        return valueWrapper.readValue();
+        return valueHolder.readValue();
     }
 
     /**
      * retrive node by key from cache.
      */
-    private ValueWrapper retrievePointer(Object key) {
-        ValueWrapper valueWrapper = map.get(key);
-        if (valueWrapper == null) {
+    private ValueHolder retrievePointer(Object key) {
+        ValueHolder valueHolder = map.get(key);
+        if (valueHolder == null) {
             return null;
         }
 
-        if (!valueWrapper.isExpired() && valueWrapper.isLive()) {
-            return valueWrapper;
+        if (!valueHolder.isExpired() && valueHolder.isLive()) {
+            return valueHolder;
         }
 
         Lock lock = getWriteLock(key);
         lock.lock();
         try {
-            valueWrapper = map.get(key);
-            if (valueWrapper.isExpired() || !valueWrapper.isLive()) {
+            valueHolder = map.get(key);
+            if (valueHolder.isExpired() || !valueHolder.isLive()) {
                 map.remove(key);
             }
         } finally {
@@ -173,7 +164,7 @@ public class BinaryCache {
         return map.quickSize();
     }
 
-    public void delete(Object key) {
+    public void remove(Object key) {
         this.map.remove(key);
     }
 
@@ -182,22 +173,29 @@ public class BinaryCache {
      *
      * @return the point.null if failed.
      */
-    private BaseValueWrapper store(Object key, byte[] payload) throws AllocatorException {
-        MemoryBuffer buffer = allocator.allocate(payload.length);
+    private BaseValueHolder store(Object key, byte[] payload) {
 
-        // try to evict caches.
-        if (buffer == null) {
-            map.evict(key);
-            buffer = allocator.allocate(payload.length);
+        BaseValueHolder wrapper;
+        if (payload == null) {
+            wrapper = BaseDummyValueHolder.newNullValueHolder();
+        } else if (payload.length == 0) {
+            wrapper = BaseDummyValueHolder.newEmptyValueHolder();
+        } else {
+            MemoryBuffer buffer = allocator.allocate(payload.length);
+            // try to evict caches.
+            if (buffer == null) {
+                map.evict(key);
+                buffer = allocator.allocate(payload.length);
+            }
+
+            if (buffer == null) {
+                logger.debug("Cannot allocate buffer for new key:" + key.toString());
+                return null;
+            }
+
+            wrapper = new BaseValueHolder(buffer);
+            buffer.write(payload);
         }
-
-        if (buffer == null) {
-            logger.debug("Cannot allocate buffer for new key:" + key.toString());
-            return null;
-        }
-
-        BaseValueWrapper wrapper = new BaseValueWrapper(buffer);
-        buffer.write(payload);
         wrapper.setKey(key);
         return wrapper;
     }
