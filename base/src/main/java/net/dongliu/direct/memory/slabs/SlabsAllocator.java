@@ -64,7 +64,7 @@ public class SlabsAllocator implements Allocator {
     /**
      * offheap memory size had been actualUsed.
      */
-    private final AtomicLong actualUsed = new AtomicLong(0);
+    protected final AtomicLong actualUsed = new AtomicLong(0);
 
     private SlabsAllocator(long capacity) {
         this.capacity = capacity;
@@ -89,7 +89,7 @@ public class SlabsAllocator implements Allocator {
         if (size > SLAB_SIZE) {
             if (this.used.addAndGet(size) < this.capacity) {
                 this.actualUsed.addAndGet(size);
-                buffer = UnPooledBuffer.allocate(size);
+                buffer = UnPooledBuffer.allocate(this, size);
             } else {
                 this.used.addAndGet(-size);
                 return null;
@@ -103,7 +103,6 @@ public class SlabsAllocator implements Allocator {
             this.actualUsed.addAndGet(chunk.getCapacity());
             buffer = chunk;
         }
-        buffer.setAllocator(this);
         return buffer;
     }
 
@@ -139,19 +138,6 @@ public class SlabsAllocator implements Allocator {
             } while (mid >= 0 && this.slabClasses[mid].chunkSize > size);
             return this.slabClasses[mid + 1];
         }
-    }
-
-    @Override
-    public void free(MemoryBuffer memoryBuffer) {
-
-        if (memoryBuffer.isDispose()) {
-            return;
-        }
-
-        if (memoryBuffer instanceof UnPooledBuffer) {
-            this.used.addAndGet(-memoryBuffer.getCapacity());
-        }
-        this.actualUsed.addAndGet(-memoryBuffer.getCapacity());
     }
 
     @Override

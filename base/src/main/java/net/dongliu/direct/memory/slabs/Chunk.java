@@ -38,6 +38,7 @@ class Chunk extends MemoryBuffer {
     @Override
     public void dispose() {
         super.dispose();
+        this.slab.getSlabClass().allocator.actualUsed.addAndGet(-this.slab.chunkSize);
         this.slab.getSlabClass().freeChunk(this);
     }
 }

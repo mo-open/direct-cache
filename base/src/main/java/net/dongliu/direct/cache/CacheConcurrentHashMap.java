@@ -3,7 +3,6 @@ package net.dongliu.direct.cache;
 import net.dongliu.direct.evict.EvictStrategy;
 import net.dongliu.direct.evict.LruStrategy;
 import net.dongliu.direct.evict.Node;
-import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.struct.ValueWrapper;
 
 import java.util.*;

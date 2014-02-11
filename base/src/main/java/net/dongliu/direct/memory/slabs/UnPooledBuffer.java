@@ -12,14 +12,20 @@ public class UnPooledBuffer extends MemoryBuffer {
 
     private final UnsafeMemory memory;
 
-    private UnPooledBuffer(UnsafeMemory memory) {
+    /**
+     * the allocator which allocate this buf
+     */
+    private SlabsAllocator allocator;
+
+    private UnPooledBuffer(SlabsAllocator allocator, UnsafeMemory memory) {
         super();
         this.memory = memory;
+        this.allocator = allocator;
     }
 
-    public static UnPooledBuffer allocate(int size) {
+    public static UnPooledBuffer allocate(SlabsAllocator allocator, int size) {
         UnsafeMemory memory = UnsafeMemory.allocate(size);
-        return new UnPooledBuffer(memory);
+        return new UnPooledBuffer(allocator, memory);
     }
 
     @Override
@@ -40,6 +46,8 @@ public class UnPooledBuffer extends MemoryBuffer {
     @Override
     public void dispose() {
         super.dispose();
+        this.allocator.used.addAndGet(-memory.getSize());
+        this.allocator.actualUsed.addAndGet(-memory.getSize());
         this.memory.dispose();
     }
 }

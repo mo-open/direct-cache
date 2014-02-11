@@ -1,7 +1,5 @@
 package net.dongliu.direct.memory;
 
-import net.dongliu.direct.memory.slabs.SlabsAllocator;
-
 import java.nio.BufferOverflowException;
 
 /**
@@ -14,12 +12,7 @@ public abstract class MemoryBuffer {
     /**
      * size actual actualUsed
      */
-    protected volatile int size;
-
-    /**
-     * the allocator which allocate this buf
-     */
-    private SlabsAllocator allocator;
+    private volatile int size;
 
     protected MemoryBuffer() {
     }
@@ -79,7 +72,6 @@ public abstract class MemoryBuffer {
      * mark this buffer as destroyed.
      */
     public void dispose() {
-        this.allocator.free(this);
         this.size = -1;
     }
 
@@ -87,11 +79,4 @@ public abstract class MemoryBuffer {
         return this.size == -1;
     }
 
-    public SlabsAllocator getAllocator() {
-        return allocator;
-    }
-
-    public void setAllocator(SlabsAllocator allocator) {
-        this.allocator = allocator;
-    }
 }

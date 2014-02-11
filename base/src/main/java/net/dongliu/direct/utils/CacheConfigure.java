@@ -20,7 +20,7 @@ public class CacheConfigure {
     /**
      * Cache concurrent map initial size of one segement.
      */
-    private int initialSize = 1000;
+    private int initialSize = 1024;
 
     /**
      * cache map load factor
@@ -35,7 +35,7 @@ public class CacheConfigure {
     /**
      * max chunk size for slab allocator. It also determine how much the cache data can be.
      */
-    private int maxEntrySize = Size.Mb(8);
+    private int maxEntrySize = Size.Mb(16);
 
     /**
      * chunk expand factor.
@@ -75,7 +75,7 @@ public class CacheConfigure {
 
     private int getInt(Properties p, String name, int defaultValue) {
         try {
-            return Integer.parseInt(p.getProperty("cache.map.concurrency", String.valueOf(defaultValue)));
+            return Integer.parseInt(p.getProperty("name", String.valueOf(defaultValue)));
         } catch (NumberFormatException e) {
             logger.warn("config " + name + " is not a valid int value.");
             return defaultValue;

@@ -14,7 +14,7 @@ class SlabClass {
     private final List<Slab> slabList;
     private volatile Slab curSlab;
 
-    private final SlabsAllocator allocator;
+    protected final SlabsAllocator allocator;
     private final ConcurrentLinkedQueue<Chunk> freeChunkQueue;
     private final Object expandLock = new Object();
 
