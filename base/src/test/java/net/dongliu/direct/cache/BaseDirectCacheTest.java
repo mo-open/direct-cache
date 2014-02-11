@@ -6,13 +6,13 @@ import org.junit.*;
 /**
  * @author: dongliu
  */
-public class BinaryCacheTest {
+public class BaseDirectCacheTest {
 
-    private static BinaryCache cache;
+    private static BaseDirectCache cache;
 
     @BeforeClass
     public static void init() {
-        cache = new BinaryCache(Size.Mb(100));
+        cache = new BaseDirectCache(Size.Mb(100));
     }
 
     @Test

@@ -19,9 +19,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  *
  * @author dongliu
  */
-public class BinaryCache {
+public class BaseDirectCache {
 
-    private static final Logger logger = LoggerFactory.getLogger(BinaryCache.class);
+    private static final Logger logger = LoggerFactory.getLogger(BaseDirectCache.class);
 
     private CacheConcurrentHashMap map;
 
@@ -30,14 +30,14 @@ public class BinaryCache {
     /**
      * @param maxSize
      */
-    public BinaryCache(int maxSize) {
+    public BaseDirectCache(int maxSize) {
         this(null, maxSize);
     }
 
     /**
      * Constructor
      */
-    public BinaryCache(CacheEventListener cacheEventListener, int maxSize) {
+    public BaseDirectCache(CacheEventListener cacheEventListener, int maxSize) {
         this.allocator = SlabsAllocator.newInstance(maxSize);
         CacheConfigure cc = CacheConfigure.getConfigure();
         this.map = new CacheConcurrentHashMap(cc.getInitialSize(), cc.getLoadFactor(),

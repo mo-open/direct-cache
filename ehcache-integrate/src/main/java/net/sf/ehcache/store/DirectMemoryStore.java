@@ -8,6 +8,7 @@ import net.dongliu.direct.memory.slabs.SlabsAllocator;
 import net.dongliu.direct.serialization.Serializer;
 import net.dongliu.direct.serialization.SerializerFactory;
 import net.dongliu.direct.struct.BufferValueHolder;
+import net.dongliu.direct.struct.EhcacheDummyValueHolder;
 import net.dongliu.direct.struct.EhcacheValueHolder;
 import net.dongliu.direct.struct.ValueHolder;
 import net.dongliu.direct.utils.CacheConfigure;
@@ -132,18 +133,26 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
      */
     private EhcacheValueHolder store(Element element) {
         Object value = element.getValue();
-        if (value == null) {
-            //TODO: deal with null value
-        }
-        byte[] bytes = objectToBytes(value);
-        MemoryBuffer buffer = allocator.allocate(bytes.length);
-        if (buffer == null) {
-            logger.debug("Allocate new Buffer failed.");
-            return null;
-        }
+        EhcacheValueHolder wrapper;
+        if (value != null) {
+            byte[] bytes = objectToBytes(value);
+            if (bytes.length == 0) {
+                wrapper = EhcacheDummyValueHolder.newEmptyValueHolder();
+            } else {
+                MemoryBuffer buffer = allocator.allocate(bytes.length);
+                if (buffer == null) {
+                    logger.debug("Allocate new Buffer failed.");
+                    return null;
+                }
 
-        EhcacheValueHolder wrapper = new EhcacheValueHolder(buffer);
-        buffer.write(bytes);
+                wrapper = new EhcacheValueHolder(buffer);
+                buffer.write(bytes);
+            }
+            wrapper.setValueClass(value.getClass());
+        } else {
+            //TODO: deal with null value
+            wrapper = EhcacheDummyValueHolder.newNullValueHolder();
+        }
         wrapper.setKey(element.getKey());
         wrapper.setTimeToIdle(element.getTimeToIdle());
         wrapper.setTimeToLive(element.getTimeToLive());
@@ -152,7 +161,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         wrapper.setLastUpdateTime(element.getLastUpdateTime());
         wrapper.setCreationTime(element.getCreationTime());
         wrapper.setLastAccessTime(element.getLastAccessTime());
-        wrapper.setValueClass(value.getClass());
         return wrapper;
     }
 
@@ -592,18 +600,30 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
     }
 
     private byte[] objectToBytes(Object o) {
-        try {
-            return serializer.serialize(o);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if (o == null) {
+            return null;
+        } else if (o instanceof byte[]) {
+            return (byte[]) o;
+        } else {
+            try {
+                return serializer.serialize(o);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
     private <T> T bytesToObject(byte[] bytes, Class<T> clazz) {
-        try {
-            return serializer.deserialize(bytes, clazz);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        if (bytes == null) {
+            return null;
+        } else if (clazz.equals(byte[].class)) {
+            return (T) bytes;
+        } else {
+            try {
+                return serializer.deserialize(bytes, clazz);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }
