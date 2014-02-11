@@ -35,8 +35,7 @@ public final class DefaultSerializer implements Serializer {
         ByteArrayInputStream bis = new ByteArrayInputStream(source);
         ObjectInputStream ois = new ObjectInputStream(bis);
         try {
-            T obj = clazz.cast(ois.readObject());
-            return obj;
+            return clazz.cast(ois.readObject());
         } finally {
             IOUtils.closeQueitly(ois);
         }

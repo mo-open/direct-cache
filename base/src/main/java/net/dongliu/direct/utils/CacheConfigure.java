@@ -9,7 +9,9 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
- * @author: dongliu
+ * configures. load from configure file direct-cache.properties if any
+ *
+ * @author dongliu
  */
 public class CacheConfigure {
 
