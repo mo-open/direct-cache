@@ -45,7 +45,6 @@ public class UnPooledBuffer extends MemoryBuffer {
 
     @Override
     public void dispose() {
-        super.dispose();
         this.allocator.used.addAndGet(-memory.getSize());
         this.allocator.actualUsed.addAndGet(-memory.getSize());
         this.memory.dispose();

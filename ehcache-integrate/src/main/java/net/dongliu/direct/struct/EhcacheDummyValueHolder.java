@@ -1,8 +1,5 @@
 package net.dongliu.direct.struct;
 
-import net.dongliu.direct.memory.MemoryBuffer;
-import net.sf.ehcache.util.TimeUtil;
-
 /**
  * Value wrapper for ehcache elements
  *

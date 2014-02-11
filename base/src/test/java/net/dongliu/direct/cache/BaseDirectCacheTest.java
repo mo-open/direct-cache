@@ -1,7 +1,10 @@
 package net.dongliu.direct.cache;
 
 import net.dongliu.direct.utils.Size;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 /**
  * @author: dongliu
@@ -17,11 +20,9 @@ public class BaseDirectCacheTest {
 
     @Test
     public void testPut() {
-        String key = "tst";
-        String value = "test2";
-        cache.set(key, value.getBytes());
-        String value2 = new String(cache.get(key));
-        Assert.assertEquals(value, value2);
+        cache.set("test", "value".getBytes());
+        String value = new String(cache.get("test"));
+        Assert.assertEquals("value", value);
     }
 
     @Test

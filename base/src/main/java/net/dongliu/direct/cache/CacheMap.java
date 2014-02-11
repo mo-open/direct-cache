@@ -54,8 +54,6 @@ public class CacheMap {
     private final CacheEventListener cacheEventListener;
 
     private Set<Object> keySet;
-    private Set<Map.Entry<Object, ValueHolder>> entrySet;
-    private Collection<ValueHolder> values;
 
     public CacheMap(int initialCapacity, float loadFactor, int concurrency,
                     final CacheEventListener cacheEventListener) {
@@ -267,16 +265,6 @@ public class CacheMap {
     public Set<Object> keySet() {
         Set<Object> ks = keySet;
         return (ks != null) ? ks : (keySet = new KeySet());
-    }
-
-    public Collection<ValueHolder> values() {
-        Collection<ValueHolder> vs = values;
-        return (vs != null) ? vs : (values = new Values());
-    }
-
-    public Set<Entry<Object, ValueHolder>> entrySet() {
-        Set<Entry<Object, ValueHolder>> es = entrySet;
-        return (es != null) ? es : (entrySet = new EntrySet());
     }
 
     /**
@@ -752,143 +740,11 @@ public class CacheMap {
         }
     }
 
-    final class Values extends AbstractCollection<ValueHolder> {
-
-        @Override
-        public Iterator<ValueHolder> iterator() {
-            return new ValueIterator();
-        }
-
-        @Override
-        public int size() {
-            return CacheMap.this.size();
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return CacheMap.this.isEmpty();
-        }
-
-        @Override
-        public boolean contains(Object o) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void clear() {
-            CacheMap.this.clear();
-        }
-
-        @Override
-        public Object[] toArray() {
-            Collection<Object> c = new ArrayList<Object>();
-            for (Object object : this)
-                c.add(object);
-            return c.toArray();
-        }
-
-        @Override
-        public <T> T[] toArray(T[] a) {
-            Collection<Object> c = new ArrayList<Object>();
-            for (Object object : this)
-                c.add(object);
-            return c.toArray(a);
-        }
-    }
-
-    final class EntrySet extends AbstractSet<Entry<Object, ValueHolder>> {
-
-        @Override
-        public Iterator<Entry<Object, ValueHolder>> iterator() {
-            return new EntryIterator();
-        }
-
-        @Override
-        public int size() {
-            return CacheMap.this.size();
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return CacheMap.this.isEmpty();
-        }
-
-        @Override
-        public boolean contains(Object o) {
-            if (!(o instanceof Entry))
-                return false;
-            Entry<?, ?> e = (Entry<?, ?>) o;
-            ValueHolder v = CacheMap.this.get(e.getKey());
-            return v != null && v.equals(e.getValue());
-        }
-
-        @Override
-        public boolean remove(Object o) {
-            if (!(o instanceof Entry))
-                return false;
-            Entry<?, ?> e = (Entry<?, ?>) o;
-            return CacheMap.this.remove(e.getKey(), e.getValue());
-        }
-
-        @Override
-        public void clear() {
-            CacheMap.this.clear();
-        }
-
-        @Override
-        public Object[] toArray() {
-            Collection<Object> c = new ArrayList<Object>();
-            for (Object object : this)
-                c.add(object);
-            return c.toArray();
-        }
-
-        @Override
-        public <T> T[] toArray(T[] a) {
-            Collection<Object> c = new ArrayList<Object>();
-            for (Object object : this)
-                c.add(object);
-            return c.toArray(a);
-        }
-    }
-
     class KeyIterator extends HashEntryIterator implements Iterator<Object> {
 
         @Override
         public Object next() {
             return nextEntry().key;
-        }
-    }
-
-    final class ValueIterator extends HashEntryIterator implements Iterator<ValueHolder> {
-
-        @Override
-        public ValueHolder next() {
-            return nextEntry().node.getValue();
-        }
-    }
-
-    final class EntryIterator extends HashEntryIterator implements Iterator<Entry<Object, ValueHolder>> {
-
-        @Override
-        public Entry<Object, ValueHolder> next() {
-            HashEntry entry = nextEntry();
-            final Object key = entry.key;
-            final ValueHolder value = entry.node.getValue();
-            return new Entry<Object, ValueHolder>() {
-
-                public Object getKey() {
-                    return key;
-                }
-
-                public ValueHolder getValue() {
-                    return value;
-                }
-
-                public ValueHolder setValue(ValueHolder value) {
-                    throw new UnsupportedOperationException();
-                }
-            };
         }
     }
 
@@ -923,17 +779,13 @@ public class CacheMap {
             HashEntry myEntry = null;
             while (super.hasNext()) {
                 myEntry = super.nextEntry();
-                if (myEntry != null && !hideValue(myEntry)) {
+                if (myEntry != null) {
                     break;
                 } else {
                     myEntry = null;
                 }
             }
             return myEntry;
-        }
-
-        protected boolean hideValue(HashEntry hashEntry) {
-            return false;
         }
     }
 
@@ -948,10 +800,6 @@ public class CacheMap {
             nextSegmentIndex = segments.length - 1;
             nextTableIndex = -1;
             advance();
-        }
-
-        public boolean hasMoreElements() {
-            return hasNext();
         }
 
         final void advance() {

@@ -1,6 +1,5 @@
 package net.dongliu.direct.memory.slabs;
 
-import net.dongliu.direct.exception.AllocatorException;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.utils.CacheConfigure;

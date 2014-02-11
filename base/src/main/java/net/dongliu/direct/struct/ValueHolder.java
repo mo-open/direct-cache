@@ -1,7 +1,5 @@
 package net.dongliu.direct.struct;
 
-import net.dongliu.direct.memory.MemoryBuffer;
-
 /**
  * interface of cache-value holder.
  *

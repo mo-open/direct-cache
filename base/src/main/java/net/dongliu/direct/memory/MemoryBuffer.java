@@ -21,9 +21,6 @@ public abstract class MemoryBuffer {
      * write data.
      */
     public void write(byte[] data) {
-        if (isDispose()) {
-            throw new IllegalStateException("memory has been disposed");
-        }
         if (data.length > getCapacity()) {
             throw new BufferOverflowException();
         }
@@ -35,9 +32,6 @@ public abstract class MemoryBuffer {
      * read all data has been written in.
      */
     public byte[] read() {
-        if (isDispose()) {
-            throw new IllegalStateException("memory has been disposed");
-        }
         byte[] buf = new byte[this.size];
         getMemory().read(getOffset(), buf);
         return buf;
@@ -48,9 +42,6 @@ public abstract class MemoryBuffer {
      * we should reuse buf.
      */
     public byte[] read(byte[] buf) {
-        if (isDispose()) {
-            throw new IllegalStateException("memory has been disposed");
-        }
         if (buf.length < this.size) {
             throw new BufferOverflowException();
         }
@@ -71,12 +62,6 @@ public abstract class MemoryBuffer {
     /**
      * mark this buffer as destroyed.
      */
-    public void dispose() {
-        this.size = -1;
-    }
-
-    public boolean isDispose() {
-        return this.size == -1;
-    }
+    public abstract void dispose();
 
 }
