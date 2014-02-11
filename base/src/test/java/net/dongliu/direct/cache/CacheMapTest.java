@@ -15,15 +15,15 @@ import org.junit.Test;
 /**
  * @author: dongliu
  */
-public class CacheConcurrentHashMapTest {
+public class CacheMapTest {
 
-    private CacheConcurrentHashMap map;
+    private CacheMap map;
     private Allocator allocator;
 
     @Before
     public void setup() throws AllocatorException {
         allocator = SlabsAllocator.newInstance(Size.Mb(10));
-        map = new CacheConcurrentHashMap(1000, 0.75f, 16, null);
+        map = new CacheMap(1000, 0.75f, 16, null);
     }
 
     @After

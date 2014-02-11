@@ -1,6 +1,6 @@
 package net.sf.ehcache.store;
 
-import net.dongliu.direct.cache.CacheConcurrentHashMap;
+import net.dongliu.direct.cache.CacheMap;
 import net.dongliu.direct.cache.CacheEventListener;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
@@ -37,7 +37,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     private volatile Status status;
 
-    private CacheConcurrentHashMap map;
+    private CacheMap map;
 
     private final Allocator allocator;
 
@@ -77,7 +77,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
 
         CacheConfigure cc = CacheConfigure.getConfigure();
-        this.map = new CacheConcurrentHashMap(cc.getInitialSize(), cc.getLoadFactor(), cc.getConcurrency(),
+        this.map = new CacheMap(cc.getInitialSize(), cc.getLoadFactor(), cc.getConcurrency(),
                 cacheEventListener);
 
         serializer = SerializerFactory.getSerializer();

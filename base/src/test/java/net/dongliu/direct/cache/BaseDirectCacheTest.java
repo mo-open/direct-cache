@@ -34,6 +34,26 @@ public class BaseDirectCacheTest {
         Assert.assertArrayEquals(new byte[0], cache.get("test"));
     }
 
+    @Test
+    public void testAdd() {
+        cache.remove("test");
+        boolean f = cache.add("test", null);
+        Assert.assertTrue(f);
+        f = cache.add("test", "value".getBytes());
+        Assert.assertFalse(f);
+    }
+
+    @Test
+    public void testReplace() {
+        cache.set("test", null);
+        boolean f = cache.replace("test", "value".getBytes());
+        Assert.assertTrue(f);
+        Assert.assertArrayEquals("value".getBytes(), cache.get("test"));
+        cache.remove("test");
+        f = cache.replace("test", null);
+        Assert.assertFalse(f);
+    }
+
     @AfterClass
     public static void destroy() {
         cache.destroy();

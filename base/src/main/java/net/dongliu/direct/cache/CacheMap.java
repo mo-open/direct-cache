@@ -10,13 +10,13 @@ import java.util.Map.Entry;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * CacheConcurrentHashMap subclasses a repackaged version of ConcurrentHashMap
+ * CacheMap subclasses a repackaged version of ConcurrentHashMap
  * ito allow efficient random sampling of the map values.
  * <p/>
  * The random sampling technique involves randomly selecting a map Segment, and then
  * selecting a number of random entry chains from that segment.
  */
-public class CacheConcurrentHashMap {
+public class CacheMap {
 
     /**
      * The maximum capacity, actualUsed if a higher node is implicitly specified by either of the constructors with arguments.
@@ -57,8 +57,8 @@ public class CacheConcurrentHashMap {
     private Set<Map.Entry<Object, ValueHolder>> entrySet;
     private Collection<ValueHolder> values;
 
-    public CacheConcurrentHashMap(int initialCapacity, float loadFactor, int concurrency,
-                                  final CacheEventListener cacheEventListener) {
+    public CacheMap(int initialCapacity, float loadFactor, int concurrency,
+                    final CacheEventListener cacheEventListener) {
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrency <= 0)
             throw new IllegalArgumentException();
 
@@ -712,27 +712,27 @@ public class CacheConcurrentHashMap {
 
         @Override
         public int size() {
-            return CacheConcurrentHashMap.this.size();
+            return CacheMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return CacheConcurrentHashMap.this.isEmpty();
+            return CacheMap.this.isEmpty();
         }
 
         @Override
         public boolean contains(Object o) {
-            return CacheConcurrentHashMap.this.containsKey(o);
+            return CacheMap.this.containsKey(o);
         }
 
         @Override
         public boolean remove(Object o) {
-            return CacheConcurrentHashMap.this.remove(o) != null;
+            return CacheMap.this.remove(o) != null;
         }
 
         @Override
         public void clear() {
-            CacheConcurrentHashMap.this.clear();
+            CacheMap.this.clear();
         }
 
         @Override
@@ -761,12 +761,12 @@ public class CacheConcurrentHashMap {
 
         @Override
         public int size() {
-            return CacheConcurrentHashMap.this.size();
+            return CacheMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return CacheConcurrentHashMap.this.isEmpty();
+            return CacheMap.this.isEmpty();
         }
 
         @Override
@@ -776,7 +776,7 @@ public class CacheConcurrentHashMap {
 
         @Override
         public void clear() {
-            CacheConcurrentHashMap.this.clear();
+            CacheMap.this.clear();
         }
 
         @Override
@@ -805,12 +805,12 @@ public class CacheConcurrentHashMap {
 
         @Override
         public int size() {
-            return CacheConcurrentHashMap.this.size();
+            return CacheMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return CacheConcurrentHashMap.this.isEmpty();
+            return CacheMap.this.isEmpty();
         }
 
         @Override
@@ -818,7 +818,7 @@ public class CacheConcurrentHashMap {
             if (!(o instanceof Entry))
                 return false;
             Entry<?, ?> e = (Entry<?, ?>) o;
-            ValueHolder v = CacheConcurrentHashMap.this.get(e.getKey());
+            ValueHolder v = CacheMap.this.get(e.getKey());
             return v != null && v.equals(e.getValue());
         }
 
@@ -827,12 +827,12 @@ public class CacheConcurrentHashMap {
             if (!(o instanceof Entry))
                 return false;
             Entry<?, ?> e = (Entry<?, ?>) o;
-            return CacheConcurrentHashMap.this.remove(e.getKey(), e.getValue());
+            return CacheMap.this.remove(e.getKey(), e.getValue());
         }
 
         @Override
         public void clear() {
-            CacheConcurrentHashMap.this.clear();
+            CacheMap.this.clear();
         }
 
         @Override
@@ -992,7 +992,7 @@ public class CacheConcurrentHashMap {
         public void remove() {
             if (lastReturned == null)
                 throw new IllegalStateException();
-            CacheConcurrentHashMap.this.remove(lastReturned.key);
+            CacheMap.this.remove(lastReturned.key);
             lastReturned = null;
         }
     }

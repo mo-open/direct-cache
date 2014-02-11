@@ -23,7 +23,7 @@ public class BaseDirectCache {
 
     private static final Logger logger = LoggerFactory.getLogger(BaseDirectCache.class);
 
-    private CacheConcurrentHashMap map;
+    private CacheMap map;
 
     private final Allocator allocator;
 
@@ -40,10 +40,51 @@ public class BaseDirectCache {
     public BaseDirectCache(CacheEventListener cacheEventListener, int maxSize) {
         this.allocator = SlabsAllocator.newInstance(maxSize);
         CacheConfigure cc = CacheConfigure.getConfigure();
-        this.map = new CacheConcurrentHashMap(cc.getInitialSize(), cc.getLoadFactor(),
+        this.map = new CacheMap(cc.getInitialSize(), cc.getLoadFactor(),
                 cc.getConcurrency(), cacheEventListener);
     }
 
+    /**
+     * retrive node by key from cache.
+     */
+    public byte[] get(Object key) {
+        ValueHolder valueHolder = retrievePointer(key);
+        if (valueHolder == null) {
+            return null;
+        }
+        return valueHolder.readValue();
+    }
+
+    /**
+     * store the node, return pointer.
+     *
+     * @return the old pointer, null if no old node.
+     */
+    public void set(Object key, byte[] payload, int expiresIn) {
+        ReentrantReadWriteLock lock = lockFor(key);
+        lock.writeLock().lock();
+        try {
+            BaseValueHolder valueWrapper = store(key, payload);
+            if (valueWrapper != null) {
+                if (expiresIn != 0) {
+                    valueWrapper.setExpiry(expiresIn);
+                }
+                map.put(key, valueWrapper);
+            } else {
+                logger.debug("set value failed, cannot allocat memory");
+            }
+
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * set a value.
+     *
+     * @param key
+     * @param payload
+     */
     public void set(Object key, byte[] payload) {
         set(key, payload, 0);
     }
@@ -51,23 +92,46 @@ public class BaseDirectCache {
     /**
      * Put an element in the store only if no element is currently mapped to the elements key.
      *
-     * @return the value previously cached for this key, or null if none.
+     * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public byte[] add(Object key, byte[] payload) {
-        Lock lock = getWriteLock(key);
-        lock.lock();
+    public boolean add(Object key, byte[] payload) {
+        ReentrantReadWriteLock lock = lockFor(key);
+        lock.writeLock().lock();
         try {
-            ValueHolder oldValueHolder = null;
+            ValueHolder oldValueHolder = retrievePointer(key);
+            if (oldValueHolder != null) {
+                return false;
+            }
             ValueHolder valueHolder = store(key, payload);
             if (valueHolder != null) {
-                oldValueHolder = map.putIfAbsent(key, valueHolder);
-                //TODO: we need read node, but oldValueHolder is already freed.
-                //byte[] oldValue = oldValueHolder.readValue();
-                return null;
+                map.put(key, valueHolder);
             }
-            return null;
+            return true;
         } finally {
-            lock.unlock();
+            lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Put an element in the store only if the element is currently in cache.
+     *
+     * @return true if the key is in cache(even if put op is failed), false otherwise.
+     */
+    public boolean replace(Object key, byte[] payload) {
+        ReentrantReadWriteLock lock = lockFor(key);
+        lock.writeLock().lock();
+        try {
+            ValueHolder oldValueHolder = retrievePointer(key);
+            if (oldValueHolder == null) {
+                return false;
+            }
+            ValueHolder valueHolder = store(key, payload);
+            if (valueHolder != null) {
+                map.put(key, valueHolder);
+            }
+            return true;
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
@@ -88,41 +152,6 @@ public class BaseDirectCache {
     }
 
     /**
-     * store the node, return pointer.
-     *
-     * @return the old pointer, null if no old node.
-     */
-    public void set(Object key, byte[] payload, int expiresIn) {
-        Lock lock = getWriteLock(key);
-        lock.lock();
-        try {
-            BaseValueHolder valueWrapper = store(key, payload);
-            if (valueWrapper != null) {
-                if (expiresIn != 0) {
-                    valueWrapper.setExpiry(expiresIn);
-                }
-                map.put(key, valueWrapper);
-            } else {
-                logger.debug("set value failed, cannot allocat memory");
-            }
-
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /**
-     * retrive node by key from cache.
-     */
-    public byte[] get(Object key) {
-        ValueHolder valueHolder = retrievePointer(key);
-        if (valueHolder == null) {
-            return null;
-        }
-        return valueHolder.readValue();
-    }
-
-    /**
      * retrive node by key from cache.
      */
     private ValueHolder retrievePointer(Object key) {
@@ -135,15 +164,15 @@ public class BaseDirectCache {
             return valueHolder;
         }
 
-        Lock lock = getWriteLock(key);
-        lock.lock();
+        ReentrantReadWriteLock lock = lockFor(key);
+        lock.writeLock().lock();
         try {
             valueHolder = map.get(key);
             if (valueHolder.isExpired() || !valueHolder.isLive()) {
                 map.remove(key);
             }
         } finally {
-            lock.unlock();
+            lock.writeLock().unlock();
         }
         return null;
     }
@@ -164,6 +193,11 @@ public class BaseDirectCache {
         return map.quickSize();
     }
 
+    /**
+     * remove key from cache
+     *
+     * @param key
+     */
     public void remove(Object key) {
         this.map.remove(key);
     }
@@ -200,10 +234,6 @@ public class BaseDirectCache {
         return wrapper;
     }
 
-    private Lock getWriteLock(Object key) {
-        return map.lockFor(key).writeLock();
-    }
-
     /**
      * return the actualUsed offheap memory in bytes.
      */
@@ -211,7 +241,7 @@ public class BaseDirectCache {
         return this.allocator.actualUsed();
     }
 
-    public ReentrantReadWriteLock.WriteLock lockFor(Object key) {
-        return map.lockFor(key).writeLock();
+    private ReentrantReadWriteLock lockFor(Object key) {
+        return map.lockFor(key);
     }
 }
