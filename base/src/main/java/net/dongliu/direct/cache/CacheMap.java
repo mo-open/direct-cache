@@ -6,7 +6,6 @@ import net.dongliu.direct.evict.Node;
 import net.dongliu.direct.struct.ValueHolder;
 
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -199,10 +198,6 @@ public class CacheMap {
         return segmentFor(hash);
     }
 
-    public ReentrantReadWriteLock[] locks() {
-        return segments;
-    }
-
     public ValueHolder get(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).get(key, hash);
@@ -216,8 +211,6 @@ public class CacheMap {
     /**
      * set key - element. if has old node, also tryKill the old pointer.
      *
-     * @param key
-     * @param element
      * @return the old ValueHolder, null if not exists
      */
     public ValueHolder put(Object key, ValueHolder element) {
@@ -227,10 +220,6 @@ public class CacheMap {
 
     /**
      * set key - element if absent.
-     *
-     * @param key
-     * @param element
-     * @return
      */
     public ValueHolder putIfAbsent(Object key, ValueHolder element) {
         int hash = hash(key.hashCode());
@@ -239,9 +228,6 @@ public class CacheMap {
 
     /**
      * remove also tryKill Poniter.
-     *
-     * @param key
-     * @return
      */
     public ValueHolder remove(Object key) {
         int hash = hash(key.hashCode());
@@ -348,6 +334,7 @@ public class CacheMap {
             removeNode(e.node);
         }
 
+        @SuppressWarnings("unchecked")
         private void removeNode(Node node) {
             evictStrategy.remove(node);
             node.getValue().dispose();
@@ -356,6 +343,7 @@ public class CacheMap {
         /**
          * oprations after put.
          */
+        @SuppressWarnings("unchecked")
         protected void postInstall(Object key, Node node) {
             evictStrategy.add(node);
         }
@@ -487,6 +475,7 @@ public class CacheMap {
             }
         }
 
+        @SuppressWarnings("unchecked")
         ValueHolder get(final Object key, final int hash) {
             readLock().lock();
             try {
@@ -582,20 +571,17 @@ public class CacheMap {
             HashEntry[] newTable = new HashEntry[oldCapacity << 1];
             threshold = (int) (newTable.length * loadFactor);
             int sizeMask = newTable.length - 1;
-            for (int i = 0; i < oldCapacity; i++) {
+            for (HashEntry e : oldTable) {
                 // We need to guarantee that any existing reads of old Map can
                 //  proceed. So we cannot yet null out each bin.
-                HashEntry e = oldTable[i];
-
                 if (e != null) {
                     HashEntry next = e.next;
                     int idx = e.hash & sizeMask;
 
                     //  Single node on list
-                    if (next == null)
+                    if (next == null) {
                         newTable[idx] = e;
-
-                    else {
+                    } else {
                         // Reuse trailing consecutive sequence at same slot
                         HashEntry lastRun = e;
                         int lastIdx = idx;

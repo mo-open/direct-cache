@@ -27,7 +27,9 @@ public class BaseDirectCache {
     private final Allocator allocator;
 
     /**
-     * @param maxSize
+     * Constructor
+     *
+     * @param maxSize the max offheap size could use.
      */
     public BaseDirectCache(int maxSize) {
         this(null, maxSize);
@@ -56,8 +58,6 @@ public class BaseDirectCache {
 
     /**
      * store the node, return pointer.
-     *
-     * @return the old pointer, null if no old node.
      */
     public void set(Object key, byte[] payload, int expiresIn) {
         ReentrantReadWriteLock lock = lockFor(key);
@@ -80,9 +80,6 @@ public class BaseDirectCache {
 
     /**
      * set a value.
-     *
-     * @param key
-     * @param payload
      */
     public void set(Object key, byte[] payload) {
         set(key, payload, 0);
@@ -98,14 +95,16 @@ public class BaseDirectCache {
         lock.writeLock().lock();
         try {
             ValueHolder oldValueHolder = retrievePointer(key);
-            if (oldValueHolder != null) {
+            if (oldValueHolder == null) {
+                ValueHolder valueHolder = store(key, payload);
+                if (valueHolder != null) {
+                    map.put(key, valueHolder);
+                }
+                return true;
+            } else {
                 return false;
             }
-            ValueHolder valueHolder = store(key, payload);
-            if (valueHolder != null) {
-                map.put(key, valueHolder);
-            }
-            return true;
+
         } finally {
             lock.writeLock().unlock();
         }
@@ -121,14 +120,15 @@ public class BaseDirectCache {
         lock.writeLock().lock();
         try {
             ValueHolder oldValueHolder = retrievePointer(key);
-            if (oldValueHolder == null) {
+            if (oldValueHolder != null) {
+                ValueHolder valueHolder = store(key, payload);
+                if (valueHolder != null) {
+                    map.put(key, valueHolder);
+                }
+                return true;
+            } else {
                 return false;
             }
-            ValueHolder valueHolder = store(key, payload);
-            if (valueHolder != null) {
-                map.put(key, valueHolder);
-            }
-            return true;
         } finally {
             lock.writeLock().unlock();
         }
@@ -182,7 +182,7 @@ public class BaseDirectCache {
     public void destroy() {
         map.clear();
         this.allocator.destroy();
-        logger.info("Cache closed");
+        logger.debug("Cache closed");
     }
 
     /**
@@ -194,8 +194,6 @@ public class BaseDirectCache {
 
     /**
      * remove key from cache
-     *
-     * @param key
      */
     public void remove(Object key) {
         this.map.remove(key);
@@ -208,11 +206,11 @@ public class BaseDirectCache {
      */
     private BaseValueHolder store(Object key, byte[] payload) {
 
-        BaseValueHolder wrapper;
+        BaseValueHolder holder;
         if (payload == null) {
-            wrapper = BaseDummyValueHolder.newNullValueHolder();
+            holder = BaseDummyValueHolder.newNullValueHolder();
         } else if (payload.length == 0) {
-            wrapper = BaseDummyValueHolder.newEmptyValueHolder();
+            holder = BaseDummyValueHolder.newEmptyValueHolder();
         } else {
             MemoryBuffer buffer = allocator.allocate(payload.length);
             // try to evict caches.
@@ -226,11 +224,11 @@ public class BaseDirectCache {
                 return null;
             }
 
-            wrapper = new BaseValueHolder(buffer);
+            holder = new BaseValueHolder(buffer);
             buffer.write(payload);
         }
-        wrapper.setKey(key);
-        return wrapper;
+        holder.setKey(key);
+        return holder;
     }
 
     /**

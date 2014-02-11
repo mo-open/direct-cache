@@ -3,6 +3,8 @@ package net.dongliu.direct.memory.slabs;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.utils.CacheConfigure;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,6 +67,8 @@ public class SlabsAllocator implements Allocator {
      */
     protected final AtomicLong actualUsed = new AtomicLong(0);
 
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+
     private SlabsAllocator(long capacity) {
         this.capacity = capacity;
         slabClasses = new SlabClass[CHUNK_SIZE_LIST.length];
@@ -72,6 +76,12 @@ public class SlabsAllocator implements Allocator {
             SlabClass slabClass = new SlabClass(this, CHUNK_SIZE_LIST[i]);
             slabClasses[i] = slabClass;
         }
+        if (logger.isDebugEnabled()) {
+            logger.debug("new slab allocator, capacity:" + this.capacity);
+            logger.debug("chunk size:" + CHUNK_SIZE);
+            logger.debug("slab size:" + SLAB_SIZE);
+        }
+
     }
 
     public static SlabsAllocator newInstance(long size) {

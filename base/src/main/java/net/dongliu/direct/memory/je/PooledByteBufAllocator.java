@@ -63,21 +63,6 @@ public class PooledByteBufAllocator {
         final int defaultChunkSize = PAGE_SIZE << MAX_ORDER;
         ARENA_NUM = Math.max(0,
                 Math.min(runtime.availableProcessors(), maxDirectMemory / defaultChunkSize / 2 / 3));
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("-Dio.netty.allocator.numDirectArenas: {}", ARENA_NUM);
-            if (pageSizeFallbackCause == null) {
-                logger.debug("-Dio.netty.allocator.pageSize: {}", PAGE_SIZE);
-            } else {
-                logger.debug("-Dio.netty.allocator.pageSize: {}", PAGE_SIZE, pageSizeFallbackCause);
-            }
-            if (maxOrderFallbackCause == null) {
-                logger.debug("-Dio.netty.allocator.maxOrder: {}", MAX_ORDER);
-            } else {
-                logger.debug("-Dio.netty.allocator.maxOrder: {}", MAX_ORDER, maxOrderFallbackCause);
-            }
-            logger.debug("-Dio.netty.allocator.chunkSize: {}", PAGE_SIZE << MAX_ORDER);
-        }
     }
 
     public static final PooledByteBufAllocator DEFAULT = new PooledByteBufAllocator();
