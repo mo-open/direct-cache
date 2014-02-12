@@ -68,12 +68,12 @@ public class BaseDirectCache {
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
-            BaseValueHolder valueWrapper = store(key, payload);
-            if (valueWrapper != null) {
+            BaseValueHolder holder = store(key, payload);
+            if (holder != null) {
                 if (expiresIn != 0) {
-                    valueWrapper.setExpiry(expiresIn);
+                    holder.setExpiry(expiresIn);
                 }
-                map.put(key, valueWrapper);
+                map.put(key, holder);
             } else {
                 map.remove(key);
                 //TODO: notify evict

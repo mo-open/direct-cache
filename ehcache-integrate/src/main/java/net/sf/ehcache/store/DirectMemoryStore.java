@@ -68,13 +68,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         if (eventListener != null) {
             cacheEventListener = new CacheEventListener() {
                 @Override
-                public void notifyEvicted(ValueHolder wrapper) {
-                    eventListener.notifyElementEvicted(toElement((EhcacheValueHolder) wrapper), false);
+                public void notifyEvicted(ValueHolder holder) {
+                    eventListener.notifyElementEvicted(toElement((EhcacheValueHolder) holder), false);
                 }
 
                 @Override
-                public void notifyExpired(ValueHolder wrapper) {
-                    eventListener.notifyElementEvicted(toElement((EhcacheValueHolder) wrapper), false);
+                public void notifyExpired(ValueHolder holder) {
+                    eventListener.notifyElementEvicted(toElement((EhcacheValueHolder) holder), false);
                 }
             };
         }
@@ -113,16 +113,16 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
 
         Object key = element.getKey();
-        BufferValueHolder valueWrapper = store(element);
+        BufferValueHolder holder = store(element);
 
-        if (doEvict && valueWrapper == null) {
+        if (doEvict && holder == null) {
             map.evictEntries(key);
-            valueWrapper = store(element);
+            holder = store(element);
         }
 
         ValueHolder oldValueHolder;
-        if (valueWrapper != null) {
-            oldValueHolder = map.put(key, valueWrapper);
+        if (holder != null) {
+            oldValueHolder = map.put(key, holder);
         } else {
             map.remove(key);
             notifyDirectEviction(element);

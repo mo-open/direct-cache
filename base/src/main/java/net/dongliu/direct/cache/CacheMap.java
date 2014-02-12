@@ -473,12 +473,12 @@ public class CacheMap {
             }
         }
 
-        private void notifyEvictionOrExpiry(final ValueHolder wrapper) {
-            if (wrapper != null && cacheEventListener != null) {
-                if (wrapper.isExpired()) {
-                    cacheEventListener.notifyExpired(wrapper);
+        private void notifyEvictionOrExpiry(final ValueHolder holder) {
+            if (holder != null && cacheEventListener != null) {
+                if (holder.isExpired()) {
+                    cacheEventListener.notifyExpired(holder);
                 } else {
-                    cacheEventListener.notifyEvicted(wrapper);
+                    cacheEventListener.notifyEvicted(holder);
                 }
             }
         }
