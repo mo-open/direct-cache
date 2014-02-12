@@ -287,7 +287,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         lock.lock();
         try {
             Element oldElement = getQuiet(key);
-            if (oldElement != null) {
+            if (oldElement == null) {
                 put(element);
             }
             return oldElement;
