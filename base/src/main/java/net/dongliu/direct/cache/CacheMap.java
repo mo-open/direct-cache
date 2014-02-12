@@ -328,7 +328,6 @@ public class CacheMap {
 
         /**
          * operations before delete from hashmap.
-         * TODO: remove make value unusable.
          */
         protected void preRemove(HashEntry e) {
             removeNode(e.node);
@@ -337,7 +336,8 @@ public class CacheMap {
         @SuppressWarnings("unchecked")
         private void removeNode(Node node) {
             evictStrategy.remove(node);
-            node.getValue().dispose();
+            //TODO: realse should be called after removed.
+            node.getValue().release();
         }
 
         /**
@@ -381,7 +381,7 @@ public class CacheMap {
                     for (int i = 0; i < tab.length; i++) {
                         HashEntry entry = tab[i];
                         while (entry != null) {
-                            entry.node.getValue().dispose();
+                            entry.node.getValue().release();
                             entry = entry.next;
                         }
                         tab[i] = null;
@@ -427,6 +427,10 @@ public class CacheMap {
             }
         }
 
+        /**
+         * internal put.
+         * @return the old value
+         */
         protected ValueHolder put(Object key, int hash, ValueHolder value, boolean onlyIfAbsent) {
             writeLock().lock();
             try {
@@ -436,18 +440,19 @@ public class CacheMap {
                 HashEntry[] tab = table;
                 int index = hash & (tab.length - 1);
                 HashEntry first = tab[index];
-                HashEntry oldEntry = first;
-                while (oldEntry != null && (oldEntry.hash != hash || !key.equals(oldEntry.key)))
-                    oldEntry = oldEntry.next;
+                HashEntry entry = first;
+                while (entry != null && (entry.hash != hash || !key.equals(entry.key)))
+                    entry = entry.next;
 
                 ValueHolder oldValue;
-                if (oldEntry != null) {
-                    oldValue = oldEntry.node.getValue();
+                if (entry != null) {
+                    oldValue = entry.node.getValue();
                     if (!onlyIfAbsent) { // replace
-                        removeNode(oldEntry.node);
-                        oldEntry.node = evictStrategy.newNode(value);
-                        postInstall(key, oldEntry.node);
+                        removeNode(entry.node);
+                        entry.node = evictStrategy.newNode(value);
+                        postInstall(key, entry.node);
                     } else {
+                        value.release();
                         return oldValue;
                     }
                 } else {

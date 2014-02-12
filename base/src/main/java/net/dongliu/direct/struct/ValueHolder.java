@@ -7,26 +7,45 @@ package net.dongliu.direct.struct;
  */
 public interface ValueHolder {
 
+    /**
+     * the off heap capcity
+     */
     int getCapacity();
 
+    /**
+     * the value have expired
+     */
     boolean isExpired();
 
+    /**
+     * the offheap buffer size actual used
+     */
     int getSize();
-
-    boolean isLive();
 
     Object getKey();
 
     void setKey(Object key);
 
     /**
-     * release resources and mark as not live.
-     */
-    void dispose();
-
-    /**
      * read value in bytes. this should only be called once
      */
     byte[] readValue();
 
+    /**
+     * if is still alive.
+     */
+    boolean isLive();
+
+
+    // this two methods is for refrence count, to make sure dispose after no more used.
+
+    /**
+     * call when need to hold this value.
+     */
+    void release();
+
+    /**
+     * call when no longer used. if the reference count is descrease to 0, it is disposed.
+     */
+    void acquire();
 }

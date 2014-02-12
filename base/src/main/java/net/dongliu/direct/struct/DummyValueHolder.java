@@ -5,31 +5,17 @@ package net.dongliu.direct.struct;
  *
  * @author dongliu
  */
-public class BaseDummyValueHolder extends BaseValueHolder {
+public abstract class DummyValueHolder implements ValueHolder {
+    private final byte[] value;
+    private Object key;
 
-    public final byte[] value;
-
-    private BaseDummyValueHolder(byte[] value) {
-        super(null);
+    protected DummyValueHolder(byte[] value) {
         this.value = value;
-    }
-
-    public static BaseDummyValueHolder newNullValueHolder() {
-        return new BaseDummyValueHolder(null);
-    }
-
-    public static BaseDummyValueHolder newEmptyValueHolder() {
-        return new BaseDummyValueHolder(new byte[0]);
     }
 
     @Override
     public int getCapacity() {
         return 0;
-    }
-
-    @Override
-    public boolean isExpired() {
-        return super.isExpired();
     }
 
     @Override
@@ -39,17 +25,17 @@ public class BaseDummyValueHolder extends BaseValueHolder {
 
     @Override
     public boolean isLive() {
-        return super.isLive();
+        return true;
     }
 
     @Override
     public Object getKey() {
-        return super.getKey();
+        return this.key;
     }
 
     @Override
     public void setKey(Object key) {
-        super.setKey(key);
+        this.key = key;
     }
 
     @Override

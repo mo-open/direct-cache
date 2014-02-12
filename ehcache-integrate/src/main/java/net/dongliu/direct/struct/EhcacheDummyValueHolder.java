@@ -53,12 +53,15 @@ public class EhcacheDummyValueHolder extends EhcacheValueHolder {
     }
 
     @Override
-    public void dispose() {
-        super.markDead();
+    public byte[] readValue() {
+        return this.value;
     }
 
     @Override
-    public byte[] readValue() {
-        return this.value;
+    public void release() {
+    }
+
+    @Override
+    public void acquire() {
     }
 }

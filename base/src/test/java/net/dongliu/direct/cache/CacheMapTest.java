@@ -7,86 +7,87 @@ import net.dongliu.direct.memory.slabs.SlabsAllocator;
 import net.dongliu.direct.struct.BaseValueHolder;
 import net.dongliu.direct.struct.ValueHolder;
 import net.dongliu.direct.utils.Size;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
 
 /**
  * @author: dongliu
  */
 public class CacheMapTest {
 
-    private CacheMap map;
-    private Allocator allocator;
+    private static CacheMap map;
+    private static Allocator allocator;
 
-    @Before
-    public void setup() throws AllocatorException {
+    @BeforeClass
+    public static void setup() throws AllocatorException {
         allocator = SlabsAllocator.newInstance(Size.Mb(10));
         map = new CacheMap(1000, 0.75f, 16, null);
     }
 
-    @After
-    public void destroy() {
-        map.clear();
-        allocator.destroy();
-    }
-
     @Test
     public void testSizeAndClear() throws Exception {
+        map.clear();
         Assert.assertEquals(0, map.size());
-        BaseValueHolder valueWrapper1 = new BaseValueHolder(allocator.allocate(1000));
-        map.put("test", valueWrapper1);
+        BaseValueHolder holder = new BaseValueHolder(allocator.allocate(1000));
+        map.put("test", holder);
         Assert.assertEquals(1, map.size());
         map.clear();
         Assert.assertEquals(0, map.size());
         Assert.assertEquals(0, allocator.actualUsed());
+        Assert.assertFalse(holder.isLive());
     }
 
     @Test
     public void testGet() throws Exception {
+        map.clear();
         MemoryBuffer buffer = allocator.allocate(1000);
         byte[] data = "value".getBytes();
         buffer.write(data);
-        BaseValueHolder valueWrapper1 = new BaseValueHolder(buffer);
-        map.put("test", valueWrapper1);
+        BaseValueHolder holder = new BaseValueHolder(buffer);
+        map.put("test", holder);
         ValueHolder value = map.get("test");
         Assert.assertArrayEquals(data, value.readValue());
-        map.clear();
     }
 
     @Test
     public void testPut() throws Exception {
-        BaseValueHolder valueWrapper1 = new BaseValueHolder(allocator.allocate(1000));
-        BaseValueHolder valueWrapper2 = new BaseValueHolder(allocator.allocate(1001));
-        ValueHolder value1 = map.put("test", valueWrapper1);
+        map.clear();
+        BaseValueHolder holder1 = new BaseValueHolder(allocator.allocate(1000));
+        BaseValueHolder holder2 = new BaseValueHolder(allocator.allocate(1001));
+        ValueHolder value1 = map.put("test", holder1);
         Assert.assertNull(value1);
-        ValueHolder value2 = map.put("test", valueWrapper2);
+        ValueHolder value2 = map.put("test", holder2);
         Assert.assertNotNull(value2);
         ValueHolder value3 = map.get("test");
-        Assert.assertEquals(valueWrapper2, value3);
-        map.clear();
+        Assert.assertEquals(holder2, value3);
     }
 
     @Test
     public void testPutIfAbsent() throws Exception {
-        BaseValueHolder valueWrapper1 = new BaseValueHolder(allocator.allocate(1000));
-        BaseValueHolder valueWrapper2 = new BaseValueHolder(allocator.allocate(1001));
-        ValueHolder value1 = map.putIfAbsent("test", valueWrapper1);
+        map.clear();
+        BaseValueHolder holder1 = new BaseValueHolder(allocator.allocate(1000));
+        BaseValueHolder holder2 = new BaseValueHolder(allocator.allocate(1001));
+        ValueHolder value1 = map.putIfAbsent("test", holder1);
         Assert.assertNull(value1);
-        ValueHolder value2 = map.putIfAbsent("test", valueWrapper2);
+        ValueHolder value2 = map.putIfAbsent("test", holder2);
         Assert.assertNotNull(value2);
         ValueHolder value3 = map.get("test");
-        Assert.assertEquals(valueWrapper1, value3);
+        Assert.assertEquals(holder1, value3);
     }
 
     @Test
     public void testRemove() throws Exception {
-        BaseValueHolder valueWrapper1 = new BaseValueHolder(allocator.allocate(1000));
-        map.put("test", valueWrapper1);
+        map.clear();
+        Assert.assertEquals(0, allocator.actualUsed());
+        BaseValueHolder valueHolder = new BaseValueHolder(allocator.allocate(1000));
+        map.put("test", valueHolder);
         map.remove("test");
         Assert.assertEquals(0, map.size());
         Assert.assertEquals(0, allocator.actualUsed());
     }
 
+    @AfterClass
+    public static void destroy() {
+        map.clear();
+        allocator.destroy();
+    }
 }

@@ -31,7 +31,8 @@ public final class DefaultSerializer implements Serializer {
      * {@inheritDoc}
      */
     @Override
-    public <T> T deserialize(byte[] source, final Class<T> clazz) throws IOException, ClassNotFoundException {
+    public <T> T deserialize(byte[] source, final Class<T> clazz)
+            throws IOException, ClassNotFoundException {
         ByteArrayInputStream bis = new ByteArrayInputStream(source);
         ObjectInputStream ois = new ObjectInputStream(bis);
         try {

@@ -22,7 +22,6 @@ import net.sf.ehcache.writer.CacheWriterManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 
@@ -60,7 +59,8 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
         this.allocator = SlabsAllocator.newInstance(offHeapSizeBytes);
 
-        final RegisteredEventListeners eventListener = doNotifications ? cache.getCacheEventNotificationService() : null;
+        final RegisteredEventListeners eventListener =
+                doNotifications ? cache.getCacheEventNotificationService() : null;
         CacheEventListener cacheEventListener = null;
         if (eventListener != null) {
             cacheEventListener = new CacheEventListener() {
@@ -81,6 +81,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
                 cacheEventListener);
 
         serializer = SerializerFactory.getSerializer();
+        logger.debug("use serializer:" + serializer.getClass().getName());
         this.status = Status.STATUS_ALIVE;
     }
 
@@ -105,12 +106,12 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
 
         Object key = element.getKey();
+        BufferValueHolder valueWrapper = store(element);
 
-        Lock lock = getWriteLock(key);
+        Lock lock = writeLock(key);
         lock.lock();
         try {
             ValueHolder oldValueHolder;
-            BufferValueHolder valueWrapper = store(element);
             if (valueWrapper != null) {
                 oldValueHolder = map.put(key, valueWrapper);
             } else {
@@ -133,11 +134,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
      */
     private EhcacheValueHolder store(Element element) {
         Object value = element.getValue();
-        EhcacheValueHolder wrapper;
+        EhcacheValueHolder holder;
         if (value != null) {
             byte[] bytes = objectToBytes(value);
             if (bytes.length == 0) {
-                wrapper = EhcacheDummyValueHolder.newEmptyValueHolder();
+                holder = EhcacheDummyValueHolder.newEmptyValueHolder();
             } else {
                 MemoryBuffer buffer = allocator.allocate(bytes.length);
                 if (buffer == null) {
@@ -145,27 +146,28 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
                     return null;
                 }
 
-                wrapper = new EhcacheValueHolder(buffer);
+                holder = new EhcacheValueHolder(buffer);
                 buffer.write(bytes);
             }
-            wrapper.setValueClass(value.getClass());
+            holder.setValueClass(value.getClass());
         } else {
             //TODO: deal with null value
-            wrapper = EhcacheDummyValueHolder.newNullValueHolder();
+            holder = EhcacheDummyValueHolder.newNullValueHolder();
         }
-        wrapper.setKey(element.getKey());
-        wrapper.setTimeToIdle(element.getTimeToIdle());
-        wrapper.setTimeToLive(element.getTimeToLive());
-        wrapper.setHitCount(element.getHitCount());
-        wrapper.setVersion(element.getVersion());
-        wrapper.setLastUpdateTime(element.getLastUpdateTime());
-        wrapper.setCreationTime(element.getCreationTime());
-        wrapper.setLastAccessTime(element.getLastAccessTime());
-        return wrapper;
+        holder.setKey(element.getKey());
+        holder.setTimeToIdle(element.getTimeToIdle());
+        holder.setTimeToLive(element.getTimeToLive());
+        holder.setHitCount(element.getHitCount());
+        holder.setVersion(element.getVersion());
+        holder.setLastUpdateTime(element.getLastUpdateTime());
+        holder.setCreationTime(element.getCreationTime());
+        holder.setLastAccessTime(element.getLastAccessTime());
+        return holder;
     }
 
     @Override
-    public boolean putWithWriter(Element element, CacheWriterManager writerManager) throws CacheException {
+    public boolean putWithWriter(Element element, CacheWriterManager writerManager)
+            throws CacheException {
         boolean newPut = put(element);
         if (writerManager != null) {
             try {
@@ -190,27 +192,38 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
      */
     @Override
     public Element getQuiet(Object key) {
-        EhcacheValueHolder wrapper = (EhcacheValueHolder) map.get(key);
-        if (wrapper == null) {
+        Lock readLock = readLock(key);
+        readLock.lock();
+        EhcacheValueHolder holder;
+        try {
+            holder = (EhcacheValueHolder) map.get(key);
+            holder.acquire();
+        } finally {
+            readLock.unlock();
+        }
+        if (holder == null) {
             return null;
         }
 
-        // remove expired items.
-        if (wrapper.isExpired() || !wrapper.isLive()) {
-            Lock lock = getWriteLock(key);
-            lock.lock();
-            try {
-                wrapper = (EhcacheValueHolder) map.get(key);
-                if (wrapper.isExpired() || !wrapper.isLive()) {
-                    map.remove(key);
+        try {
+            // remove expired items.
+            if (holder.isExpired()) {
+                Lock lock = writeLock(key);
+                lock.lock();
+                try {
+                    holder = (EhcacheValueHolder) map.get(key);
+                    if (holder.isExpired()) {
+                        map.remove(key);
+                    }
+                } finally {
+                    lock.unlock();
                 }
-            } finally {
-                lock.unlock();
+                return null;
             }
-            return null;
+            return toElement(holder);
+        } finally {
+            holder.release();
         }
-
-        return toElement(wrapper);
     }
 
     @Override
@@ -231,7 +244,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     @Override
     public Element remove(Object key) {
-        Lock lock = getWriteLock(key);
+        Lock lock = writeLock(key);
         lock.lock();
         try {
             Element oldElement = getQuiet(key);
@@ -282,7 +295,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
         Object key = element.getKey();
 
-        Lock lock = getWriteLock(element.getObjectKey());
+        Lock lock = writeLock(element.getObjectKey());
         lock.lock();
         try {
             Element oldElement = getQuiet(key);
@@ -334,7 +347,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             return null;
         }
 
-        Lock lock = getWriteLock(element.getObjectKey());
+        Lock lock = writeLock(element.getObjectKey());
         lock.lock();
 
         try {
@@ -368,7 +381,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             return false;
         }
 
-        Lock lock = getWriteLock(element.getKey());
+        Lock lock = writeLock(element.getKey());
         lock.lock();
         try {
             Element toUpdate = getQuiet(element.getObjectKey());
@@ -395,7 +408,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         if (element == null || element.getObjectKey() == null) {
             return null;
         }
-        Lock lock = getWriteLock(element.getKey());
+        Lock lock = writeLock(element.getKey());
         lock.lock();
         try {
             Element toUpdate = getQuiet(element.getObjectKey());
@@ -580,8 +593,12 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         remove(key);
     }
 
-    private Lock getWriteLock(Object key) {
+    private Lock writeLock(Object key) {
         return map.lockFor(key).writeLock();
+    }
+
+    private Lock readLock(Object key) {
+        return map.lockFor(key).readLock();
     }
 
     public Collection<Element> elementSet() {
@@ -607,7 +624,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         } else {
             try {
                 return serializer.serialize(o);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }

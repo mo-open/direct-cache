@@ -29,6 +29,7 @@ class SlabClass {
      * tryKill a chunk. lock tryKill
      */
     public void freeChunk(Chunk chunk) {
+        this.allocator.actualUsed.addAndGet(-chunkSize);
         this.freeChunkQueue.add(chunk);
     }
 

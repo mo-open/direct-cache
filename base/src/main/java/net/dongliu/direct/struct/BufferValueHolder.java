@@ -3,6 +3,8 @@ package net.dongliu.direct.struct;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.utils.U;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * Wrapper the memoryBuffer, and provide info-fields a cache entry needed, to store cache values.
  *
@@ -14,22 +16,16 @@ public abstract class BufferValueHolder implements ValueHolder {
 
     public final MemoryBuffer memoryBuffer;
 
-    private volatile int live;
-
-    private static final long LIVE_OFFSET;
-
-    static {
-        LIVE_OFFSET = U.objectFieldOffset(BufferValueHolder.class, "live");
-    }
+    private final AtomicInteger count;
 
     public BufferValueHolder(MemoryBuffer memoryBuffer) {
         this.memoryBuffer = memoryBuffer;
-        this.live = 1;
+        this.count = new AtomicInteger(1);
     }
 
     @Override
     public boolean isLive() {
-        return this.live == 1;
+        return this.count.intValue() > 0;
     }
 
     @Override
@@ -58,13 +54,17 @@ public abstract class BufferValueHolder implements ValueHolder {
     }
 
     @Override
-    public void dispose() {
-        if (U.compareAndSwapInt(this, LIVE_OFFSET, 1, 0)) {
+    public void release() {
+        if (count.decrementAndGet() == 0) {
             this.memoryBuffer.dispose();
         }
     }
 
-    public void markDead() {
-        U.compareAndSwapInt(this, LIVE_OFFSET, 1, 0);
+    @Override
+    public void acquire() {
+        if (count.incrementAndGet() <= 1) {
+            count.decrementAndGet();
+            throw new IllegalArgumentException("This buffer has been disposed.");
+        }
     }
 }

@@ -49,11 +49,16 @@ public class BaseDirectCache {
      * retrive node by key from cache.
      */
     public byte[] get(Object key) {
-        ValueHolder valueHolder = retrievePointer(key);
+        ValueHolder valueHolder = retrieve(key);
         if (valueHolder == null) {
             return null;
         }
-        return valueHolder.readValue();
+
+        try {
+            return valueHolder.readValue();
+        } finally {
+            valueHolder.release();
+        }
     }
 
     /**
@@ -94,7 +99,7 @@ public class BaseDirectCache {
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
-            ValueHolder oldValueHolder = retrievePointer(key);
+            ValueHolder oldValueHolder = retrieve(key);
             if (oldValueHolder == null) {
                 ValueHolder valueHolder = store(key, payload);
                 if (valueHolder != null) {
@@ -102,6 +107,7 @@ public class BaseDirectCache {
                 }
                 return true;
             } else {
+                oldValueHolder.release();
                 return false;
             }
 
@@ -119,8 +125,9 @@ public class BaseDirectCache {
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
-            ValueHolder oldValueHolder = retrievePointer(key);
+            ValueHolder oldValueHolder = retrieve(key);
             if (oldValueHolder != null) {
+                oldValueHolder.release();
                 ValueHolder valueHolder = store(key, payload);
                 if (valueHolder != null) {
                     map.put(key, valueHolder);
@@ -152,22 +159,34 @@ public class BaseDirectCache {
 
     /**
      * retrive node by key from cache.
+     * NOTE: the value hoder return need to be released!
      */
-    private ValueHolder retrievePointer(Object key) {
-        ValueHolder valueHolder = map.get(key);
-        if (valueHolder == null) {
-            return null;
+    private ValueHolder retrieve(Object key) {
+        ReentrantReadWriteLock lock = lockFor(key);
+
+        lock.readLock().lock();
+        ValueHolder valueHolder;
+        try {
+            valueHolder = map.get(key);
+            if (valueHolder == null) {
+                return null;
+            }
+            // make sure valueHolder is not disposed.
+            valueHolder.acquire();
+        } finally {
+            lock.readLock().unlock();
         }
 
-        if (!valueHolder.isExpired() && valueHolder.isLive()) {
+        if (!valueHolder.isExpired()) {
             return valueHolder;
         }
 
-        ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
             valueHolder = map.get(key);
-            if (valueHolder.isExpired() || !valueHolder.isLive()) {
+            // judge again.
+            if (valueHolder.isExpired()) {
+                valueHolder.release();
                 map.remove(key);
             }
         } finally {
