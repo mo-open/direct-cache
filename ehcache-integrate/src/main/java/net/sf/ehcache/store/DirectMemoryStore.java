@@ -22,7 +22,10 @@ import net.sf.ehcache.writer.CacheWriterManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.locks.Lock;
 
 /**
@@ -127,6 +130,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
         return oldValueHolder == null;
     }
+
     /**
      * allocate memory and store the payload, return the pointer.
      *
@@ -279,24 +283,16 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             return null;
         }
         Object key = element.getKey();
-        Element oldElement = getQuiet(key);
-        if (oldElement != null) {
+        Lock lock = writeLock(key);
+        lock.lock();
+        try {
+            Element oldElement = getQuiet(key);
+            if (oldElement != null) {
+                put(element);
+            }
             return oldElement;
-        }
-
-        ValueHolder valueHolder = store(element);
-        if (valueHolder == null) {
-            notifyDirectEviction(element);
-            return null;
-        }
-        EhcacheValueHolder oldValueHolder = (EhcacheValueHolder) map.putIfAbsent(key, valueHolder);
-        if (oldValueHolder != null) {
-            valueHolder.release();
-            notifyDirectEviction(element);
-            //TODO: oldValueHolder may be disposed
-            return toElement(oldValueHolder);
-        } else {
-            return null;
+        } finally {
+            lock.unlock();
         }
     }
 
