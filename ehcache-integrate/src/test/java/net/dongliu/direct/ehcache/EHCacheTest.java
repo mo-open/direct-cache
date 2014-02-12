@@ -27,10 +27,11 @@ public class EHCacheTest {
     }
 
     @Test
-    public void testPutRetreive() {
+    public void testPutRetrieve() {
+        ehcache.remove("testKey");
+        Assert.assertNull(ehcache.get("testKey"));
         ehcache.put(new Element("testKey", "testValue"));
         Assert.assertEquals("testValue", ehcache.get("testKey").getObjectValue());
-
         ehcache.put(new Element("testKey", 1));
         Assert.assertEquals(1, ehcache.get("testKey").getObjectValue());
     }

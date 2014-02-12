@@ -46,13 +46,13 @@ public class BaseDirectCacheTest {
 
     @Test
     public void testReplace() {
-        cache.set("test", null);
-        boolean f = cache.replace("test", "value".getBytes());
-        Assert.assertTrue(f);
+        cache.set("test", "".getBytes());
+        byte[] value = cache.replace("test", "value".getBytes());
+        Assert.assertArrayEquals("".getBytes(), value);
         Assert.assertArrayEquals("value".getBytes(), cache.get("test"));
         cache.remove("test");
-        f = cache.replace("test", null);
-        Assert.assertFalse(f);
+        value = cache.replace("test", null);
+        Assert.assertNull(value);
     }
 
     @AfterClass

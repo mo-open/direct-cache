@@ -29,7 +29,7 @@ public class BaseDirectCache {
     /**
      * Constructor
      *
-     * @param maxSize the max offheap size could use.
+     * @param maxSize the max off-heap size could use.
      */
     public BaseDirectCache(int maxSize) {
         this(null, maxSize);
@@ -46,7 +46,7 @@ public class BaseDirectCache {
     }
 
     /**
-     * retrive node by key from cache.
+     * retrieve node by key from cache.
      */
     public byte[] get(Object key) {
         ValueHolder valueHolder = retrieve(key);
@@ -75,7 +75,8 @@ public class BaseDirectCache {
                 }
                 map.put(key, valueWrapper);
             } else {
-                logger.debug("set value failed, cannot allocat memory");
+                map.remove(key);
+                //TODO: notify evict
             }
 
         } finally {
@@ -96,53 +97,77 @@ public class BaseDirectCache {
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
     public boolean add(Object key, byte[] payload) {
-        ReentrantReadWriteLock lock = lockFor(key);
-        lock.writeLock().lock();
+
+        ValueHolder oldValueHolder = retrieve(key);
+        if (oldValueHolder != null) {
+            return false;
+        }
+        ValueHolder valueHolder = store(key, payload);
+        if (valueHolder == null) {
+            //TODO: notify evict
+            return true;
+        }
+        boolean needRelease = true;
+
         try {
-            ValueHolder oldValueHolder = retrieve(key);
+            oldValueHolder = map.putIfAbsent(key, valueHolder);
             if (oldValueHolder == null) {
-                ValueHolder valueHolder = store(key, payload);
-                if (valueHolder != null) {
-                    map.put(key, valueHolder);
-                }
+                needRelease = false;
                 return true;
             } else {
-                oldValueHolder.release();
                 return false;
             }
-
         } finally {
-            lock.writeLock().unlock();
+            if (needRelease) {
+                valueHolder.release();
+            }
         }
     }
 
     /**
      * Put an element in the store only if the element is currently in cache.
      *
-     * @return true if the key is in cache(even if put op is failed), false otherwise.
+     * @return the previous value, if key is in cache(even if put op is failed), null otherwise.
      */
-    public boolean replace(Object key, byte[] payload) {
+    public byte[] replace(Object key, byte[] payload) {
+        ValueHolder oldValueHolder = retrieve(key);
+        if (oldValueHolder == null) {
+            return null;
+        }
+        ValueHolder valueHolder = store(key, payload);
+        boolean needRelease = true;
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
-            ValueHolder oldValueHolder = retrieve(key);
-            if (oldValueHolder != null) {
-                oldValueHolder.release();
-                ValueHolder valueHolder = store(key, payload);
+            oldValueHolder = retrieve(key);
+            if (oldValueHolder == null) {
+                return null;
+            } else {
+                needRelease = false;
+                byte[] value;
+                try {
+                    value = oldValueHolder.readValue();
+                } finally {
+                    oldValueHolder.release();
+                }
                 if (valueHolder != null) {
                     map.put(key, valueHolder);
+                } else {
+                    //TODO: notify evict
+                    map.remove(key);
                 }
-                return true;
-            } else {
-                return false;
+                return value;
             }
         } finally {
+            if (needRelease) {
+                valueHolder.release();
+            }
             lock.writeLock().unlock();
         }
     }
 
     /**
-     * to see wether the key exists or not.if the entry is expired still return true.
+     * to see weather the key exists or not.if the entry is expired still return true.
      *
      * @return true if key exists.
      */
@@ -158,35 +183,34 @@ public class BaseDirectCache {
     }
 
     /**
-     * retrive node by key from cache.
-     * NOTE: the value hoder return need to be released!
+     * retrieve node by key from cache.
+     * NOTE: the value holder return need to be released!
      */
     private ValueHolder retrieve(Object key) {
         ReentrantReadWriteLock lock = lockFor(key);
 
         lock.readLock().lock();
-        ValueHolder valueHolder;
+        ValueHolder holder;
         try {
-            valueHolder = map.get(key);
-            if (valueHolder == null) {
+            holder = map.get(key);
+            if (holder == null) {
                 return null;
             }
             // make sure valueHolder is not disposed.
-            valueHolder.acquire();
+            holder.acquire();
         } finally {
             lock.readLock().unlock();
         }
 
-        if (!valueHolder.isExpired()) {
-            return valueHolder;
+        if (!holder.isExpired()) {
+            return holder;
         }
 
+        holder.release();
         lock.writeLock().lock();
         try {
-            valueHolder = map.get(key);
-            // judge again.
-            if (valueHolder.isExpired()) {
-                valueHolder.release();
+            ValueHolder newHolder = map.get(key);
+            if (newHolder != null && newHolder.isExpired()) {
                 map.remove(key);
             }
         } finally {
@@ -234,7 +258,7 @@ public class BaseDirectCache {
             MemoryBuffer buffer = allocator.allocate(payload.length);
             // try to evict caches.
             if (buffer == null) {
-                map.evict(key);
+                map.evictEntries(key);
                 buffer = allocator.allocate(payload.length);
             }
 
@@ -251,7 +275,7 @@ public class BaseDirectCache {
     }
 
     /**
-     * return the actualUsed offheap memory in bytes.
+     * return the actualUsed off-heap memory in bytes.
      */
     public long offHeapSize() {
         return this.allocator.actualUsed();

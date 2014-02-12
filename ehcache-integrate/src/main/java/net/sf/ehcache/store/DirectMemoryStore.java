@@ -53,7 +53,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
     protected DirectMemoryStore(Ehcache cache, boolean doNotifications) {
         this.status = Status.STATUS_UNINITIALISED;
         // we have checked the offHeapBytes setting before creatint DirectMemoryStore.
-        // asume it's all right here.
+        // assume it's all right here.
         long offHeapSizeBytes = cache.getCacheConfiguration().getMaxMemoryOffHeapInBytes();
         this.cache = cache;
 
@@ -108,23 +108,15 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         Object key = element.getKey();
         BufferValueHolder valueWrapper = store(element);
 
-        Lock lock = writeLock(key);
-        lock.lock();
-        try {
-            ValueHolder oldValueHolder;
-            if (valueWrapper != null) {
-                oldValueHolder = map.put(key, valueWrapper);
-            } else {
-                if (map.containsKey(key)) {
-                    map.remove(key);
-                }
-                notifyDirectEviction(element);
-                return true;
-            }
-            return oldValueHolder == null;
-        } finally {
-            lock.unlock();
+        ValueHolder oldValueHolder;
+        if (valueWrapper != null) {
+            oldValueHolder = map.put(key, valueWrapper);
+        } else {
+            map.remove(key);
+            notifyDirectEviction(element);
+            return true;
         }
+        return oldValueHolder == null;
     }
 
     /**
@@ -151,7 +143,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             }
             holder.setValueClass(value.getClass());
         } else {
-            //TODO: deal with null value
             holder = EhcacheDummyValueHolder.newNullValueHolder();
         }
         holder.setKey(element.getKey());
@@ -197,33 +188,35 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         EhcacheValueHolder holder;
         try {
             holder = (EhcacheValueHolder) map.get(key);
-            holder.acquire();
+            if (holder == null) {
+                return null;
+            } else {
+                holder.acquire();
+            }
         } finally {
             readLock.unlock();
         }
-        if (holder == null) {
-            return null;
-        }
 
         try {
-            // remove expired items.
-            if (holder.isExpired()) {
-                Lock lock = writeLock(key);
-                lock.lock();
-                try {
-                    holder = (EhcacheValueHolder) map.get(key);
-                    if (holder.isExpired()) {
-                        map.remove(key);
-                    }
-                } finally {
-                    lock.unlock();
-                }
-                return null;
+            if (!holder.isExpired()) {
+                return toElement(holder);
             }
-            return toElement(holder);
         } finally {
             holder.release();
         }
+
+        // remove expired item.
+        Lock lock = writeLock(key);
+        lock.lock();
+        try {
+            EhcacheValueHolder newHolder = (EhcacheValueHolder) map.get(key);
+            if (newHolder != null && newHolder.isExpired()) {
+                map.remove(key);
+            }
+        } finally {
+            lock.unlock();
+        }
+        return null;
     }
 
     @Override
@@ -255,19 +248,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
     }
 
-    private Element toElement(EhcacheValueHolder wrapper) {
-        if (!wrapper.isLive()) {
-            //TODO: do someting when wrapper is already dead
-        }
-        Object value = bytesToObject(wrapper.readValue(), wrapper.getValueClass());
-        Element e = new Element(wrapper.getKey(), value, wrapper.getVersion(),
-                wrapper.getCreationTime(), wrapper.getLastAccessTime(),
-                wrapper.getLastUpdateTime(), wrapper.getHitCount());
-        e.setTimeToLive(wrapper.getTimeToLive());
-        e.setTimeToIdle(wrapper.getTimeToIdle());
-        return e;
-    }
-
     @Override
     public Element removeWithWriter(Object key, CacheWriterManager writerManager)
             throws CacheException {
@@ -289,29 +269,29 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
     }
 
     @Override
-    public Element putIfAbsent(Element element) throws NullPointerException {
+    public Element putIfAbsent(Element element) {
         if (element == null) {
             return null;
         }
         Object key = element.getKey();
+        Element oldElement = getQuiet(key);
+        if (oldElement != null) {
+            return oldElement;
+        }
 
-        Lock lock = writeLock(element.getObjectKey());
-        lock.lock();
-        try {
-            Element oldElement = getQuiet(key);
-            if (oldElement != null) {
-                return oldElement;
-            }
-            ValueHolder valueHolder = store(element);
-            if (valueHolder != null) {
-                map.put(key, valueHolder);
-                return null;
-            } else {
-                notifyDirectEviction(element);
-                return null;
-            }
-        } finally {
-            lock.unlock();
+        ValueHolder valueHolder = store(element);
+        if (valueHolder == null) {
+            notifyDirectEviction(element);
+            return null;
+        }
+        EhcacheValueHolder oldValueHolder = (EhcacheValueHolder) map.putIfAbsent(key, valueHolder);
+        if (oldValueHolder != null) {
+            valueHolder.release();
+            notifyDirectEviction(element);
+            //TODO: oldValueHolder may be disposed
+            return toElement(oldValueHolder);
+        } else {
+            return null;
         }
     }
 
@@ -363,17 +343,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
     }
 
-    /**
-     * Replace the cached element only if the node of the current Element is
-     * equal to the node of the supplied old Element.
-     *
-     * @param old
-     * @param element
-     * @param comparator
-     * @return
-     * @throws NullPointerException
-     * @throws IllegalArgumentException
-     */
     @Override
     public boolean replace(Element old, Element element, ElementValueComparator comparator)
             throws NullPointerException, IllegalArgumentException {
@@ -614,6 +583,16 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         public Sync getSyncForKey(Object key) {
             return new ReadWriteLockSync(map.lockFor(key));
         }
+    }
+
+    private Element toElement(EhcacheValueHolder holder) {
+        Object value = bytesToObject(holder.readValue(), holder.getValueClass());
+        Element e = new Element(holder.getKey(), value, holder.getVersion(),
+                holder.getCreationTime(), holder.getLastAccessTime(),
+                holder.getLastUpdateTime(), holder.getHitCount());
+        e.setTimeToLive(holder.getTimeToLive());
+        e.setTimeToIdle(holder.getTimeToIdle());
+        return e;
     }
 
     private byte[] objectToBytes(Object o) {

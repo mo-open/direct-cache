@@ -220,6 +220,8 @@ public class CacheMap {
 
     /**
      * set key - element if absent.
+     *
+     * @return the previous value holder, null if not exists.
      */
     public ValueHolder putIfAbsent(Object key, ValueHolder element) {
         int hash = hash(key.hashCode());
@@ -227,7 +229,7 @@ public class CacheMap {
     }
 
     /**
-     * remove also tryKill Poniter.
+     * remove also tryKill Pointer.
      */
     public ValueHolder remove(Object key) {
         int hash = hash(key.hashCode());
@@ -254,11 +256,11 @@ public class CacheMap {
     }
 
     /**
-     * evict entries in the segement containing the key.
+     * evictEntries entries in the segment containing the key.
      */
-    public int evict(Object key) {
+    public int evictEntries(Object key) {
         int hash = hash(key.hashCode());
-        return segmentFor(hash).evict();
+        return segmentFor(hash).evictEntries();
     }
 
     protected Segment createSegment(int initialCapacity, float lf) {
@@ -429,6 +431,7 @@ public class CacheMap {
 
         /**
          * internal put.
+         *
          * @return the old value
          */
         protected ValueHolder put(Object key, int hash, ValueHolder value, boolean onlyIfAbsent) {
@@ -522,11 +525,11 @@ public class CacheMap {
         }
 
         /**
-         * evict by lru.
+         * evict entries selected by lru or other strategy.
          *
-         * @return
+         * @return the entry count evicted
          */
-        private int evict() {
+        private int evictEntries() {
             int evictCount = 100;
             if (evictCount > this.count / 10) {
                 evictCount = this.count / 10;
