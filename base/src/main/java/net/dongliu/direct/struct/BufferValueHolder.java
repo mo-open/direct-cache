@@ -50,6 +50,10 @@ public abstract class BufferValueHolder implements ValueHolder {
 
     @Override
     public byte[] readValue() {
+        // this guard is not thread-safe
+        if (count.intValue() <=0) {
+            throw new IllegalArgumentException("This buffer has been disposed.");
+        }
         return memoryBuffer.read();
     }
 

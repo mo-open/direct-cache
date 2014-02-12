@@ -52,7 +52,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     protected DirectMemoryStore(Ehcache cache, boolean doNotifications) {
         this.status = Status.STATUS_UNINITIALISED;
-        // we have checked the offHeapBytes setting before creatint DirectMemoryStore.
+        // we have checked the offHeapBytes setting before create DirectMemoryStore.
         // assume it's all right here.
         long offHeapSizeBytes = cache.getCacheConfiguration().getMaxMemoryOffHeapInBytes();
         this.cache = cache;
@@ -101,12 +101,21 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     @Override
     public boolean put(Element element) throws CacheException {
+        return put(element, true);
+    }
+
+    private boolean put(Element element, boolean doEvict) {
         if (element == null) {
             return true;
         }
 
         Object key = element.getKey();
         BufferValueHolder valueWrapper = store(element);
+
+        if (doEvict && valueWrapper == null) {
+            map.evictEntries(key);
+            valueWrapper = store(element);
+        }
 
         ValueHolder oldValueHolder;
         if (valueWrapper != null) {
@@ -118,7 +127,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
         return oldValueHolder == null;
     }
-
     /**
      * allocate memory and store the payload, return the pointer.
      *
@@ -177,9 +185,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     /**
      * Gets an Element from the Store, without updating statistics.
-     *
-     * @param key
-     * @return
      */
     @Override
     public Element getQuiet(Object key) {
@@ -529,11 +534,10 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     @Override
     public void fill(Element element) {
-        //TODO: check if has mem space for new element
         if (element == null) {
             return;
         }
-        put(element);
+        put(element, false);
     }
 
     @Override
@@ -562,17 +566,14 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         remove(key);
     }
 
+    // -------------------------- util methods ---------------------------------------
+
     private Lock writeLock(Object key) {
         return map.lockFor(key).writeLock();
     }
 
     private Lock readLock(Object key) {
         return map.lockFor(key).readLock();
-    }
-
-    public Collection<Element> elementSet() {
-        // TODO: to be implemented.
-        return Collections.emptyList();
     }
 
     /**
