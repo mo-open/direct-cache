@@ -28,9 +28,7 @@ public class SlabsAllocatorTest {
     public void testAllocate() throws Exception {
         MemoryBuffer buffer = allocator.allocate(10);
         Assert.assertTrue(buffer.getCapacity() >= 10);
-
-        //allocate a emtpy value buffer
-        MemoryBuffer emptyBuffer = allocator.allocate(0);
-        Assert.assertEquals(0, emptyBuffer.getCapacity());
+        buffer.dispose();
+        Assert.assertEquals(0, allocator.actualUsed());
     }
 }
