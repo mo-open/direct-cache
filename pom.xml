@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
-    <groupId>net.dongliu</groupId>
+    <groupId>net.dongliu.cache</groupId>
 
     <artifactId>direct-cache</artifactId>
     <version>0.2-SNAPSHOT</version>
@@ -79,13 +79,13 @@
         <dependencies>
             <!-- Internal Project Artifacts -->
             <dependency>
-                <groupId>net.dongliu.directmemory</groupId>
-                <artifactId>directmemory-cache</artifactId>
+                <groupId>net.dongliu.cache</groupId>
+                <artifactId>base</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>net.dongliu.directmemory</groupId>
-                <artifactId>directmemory-ehcache</artifactId>
+                <groupId>net.dongliu.cache</groupId>
+                <artifactId>ehcache-integrate</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

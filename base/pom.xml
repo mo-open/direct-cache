@@ -7,7 +7,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>net.dongliu</groupId>
+        <groupId>net.dongliu.cache</groupId>
         <artifactId>direct-cache</artifactId>
         <version>0.2-SNAPSHOT</version>
         <relativePath>../</relativePath>
