@@ -42,8 +42,6 @@ public class EhcacheValueHolder extends BufferValueHolder {
 
     private volatile long lastAccessTime;
 
-    private Class valueClass;
-
     public EhcacheValueHolder(MemoryBuffer memoryBuffer) {
         super(memoryBuffer);
     }
@@ -157,11 +155,4 @@ public class EhcacheValueHolder extends BufferValueHolder {
         this.lastAccessTime = lastAccessTime;
     }
 
-    public Class getValueClass() {
-        return valueClass;
-    }
-
-    public void setValueClass(Class valueClass) {
-        this.valueClass = valueClass;
-    }
 }

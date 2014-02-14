@@ -153,7 +153,6 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
                 holder = new EhcacheValueHolder(buffer);
                 buffer.write(bytes);
             }
-            holder.setValueClass(value.getClass());
         } else {
             holder = EhcacheDummyValueHolder.newNullValueHolder();
         }
@@ -583,7 +582,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
     }
 
     private Element toElement(EhcacheValueHolder holder) {
-        Object value = bytesToObject(holder.readValue(), holder.getValueClass());
+        Object value = bytesToObject(holder.readValue());
         Element e = new Element(holder.getKey(), value, holder.getVersion(),
                 holder.getCreationTime(), holder.getLastAccessTime(),
                 holder.getLastUpdateTime(), holder.getHitCount());
@@ -595,28 +594,22 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
     private byte[] objectToBytes(Object o) {
         if (o == null) {
             return null;
-        } else if (o instanceof byte[]) {
-            return (byte[]) o;
-        } else {
-            try {
-                return serializer.serialize(o);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        }
+        try {
+            return serializer.serialize(o);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
-    private <T> T bytesToObject(byte[] bytes, Class<T> clazz) {
+    private Object bytesToObject(byte[] bytes) {
         if (bytes == null) {
             return null;
-        } else if (clazz.equals(byte[].class)) {
-            return (T) bytes;
-        } else {
-            try {
-                return serializer.deserialize(bytes, clazz);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        }
+        try {
+            return serializer.deserialize(bytes);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }

@@ -1,12 +1,14 @@
 package net.dongliu.direct.serialization;
 
 /**
- * <b>All implementations must be thread-safe</b>
+ * serializer interface.
+ *
+ * @author dongliu
  */
 public interface Serializer {
 
-    <T> byte[] serialize(T obj) throws Exception;
+    byte[] serialize(Object obj) throws Exception;
 
-    <T> T deserialize(byte[] source, Class<T> clazz) throws Exception;
+    Object deserialize(byte[] source) throws Exception;
 
 }

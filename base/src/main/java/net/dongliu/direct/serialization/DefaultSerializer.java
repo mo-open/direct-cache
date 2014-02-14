@@ -11,32 +11,26 @@ import java.io.*;
  */
 public final class DefaultSerializer implements Serializer {
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public <T> byte[] serialize(T obj) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
+    public byte[] serialize(Object obj) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(bos);
         try {
             oos.writeObject(obj);
             oos.flush();
         } finally {
             IOUtils.closeQueitly(oos);
         }
-        return baos.toByteArray();
+        return bos.toByteArray();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public <T> T deserialize(byte[] source, final Class<T> clazz)
+    public Object deserialize(byte[] source)
             throws IOException, ClassNotFoundException {
         ByteArrayInputStream bis = new ByteArrayInputStream(source);
         ObjectInputStream ois = new ObjectInputStream(bis);
         try {
-            return clazz.cast(ois.readObject());
+            return ois.readObject();
         } finally {
             IOUtils.closeQueitly(ois);
         }
