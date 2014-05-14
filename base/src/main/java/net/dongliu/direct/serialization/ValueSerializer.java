@@ -10,7 +10,7 @@ import java.io.OutputStream;
  * @author dongliu
  */
 public interface ValueSerializer<T> {
-    void writeObject(T value, OutputStream out) throws SerializeException;
+    byte[] serialize(T value) throws SerializeException;
 
-    T readValue(InputStream in) throws DeSerializeException;
+    T deserialize(byte[] bytes) throws DeSerializeException;
 }

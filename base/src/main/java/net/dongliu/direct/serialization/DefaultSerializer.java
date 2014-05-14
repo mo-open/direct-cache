@@ -15,18 +15,20 @@ public final class DefaultSerializer implements ValueSerializer<Object> {
 
 
     @Override
-    public void writeObject(Object value, OutputStream out) throws SerializeException {
-        try (ObjectOutputStream oos = new ObjectOutputStream(out)) {
+    public byte[] serialize(Object value) throws SerializeException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
             oos.writeObject(value);
             oos.flush();
+            return baos.toByteArray();
         } catch (IOException e) {
             throw new SerializeException(e);
         }
     }
 
     @Override
-    public Object readValue(InputStream in) throws DeSerializeException {
-        try (ObjectInputStream ois = new ObjectInputStream(in)) {
+    public Object deserialize(byte[] bytes) throws DeSerializeException {
+        try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
             return ois.readObject();
         } catch (ClassNotFoundException | IOException e) {
             throw new DeserializationException(e);

@@ -32,45 +32,10 @@ public abstract class MemoryBuffer {
     /**
      * read all data has been written in.
      */
-    public byte[] readAll() {
+    public byte[] toBytes() {
         byte[] buf = new byte[this.size];
         getMemory().read(getOffset(), buf);
         return buf;
-    }
-
-    /**
-     * read data
-     *
-     * @param offset the offset of dest array
-     * @param pos    the offset of this buffer to read
-     * @param size   the size to read
-     * @return size actually read.  -1 if no data available
-     */
-    public int read(byte[] buf, int offset, int pos, int size) {
-        if (buf.length - offset < size) {
-            throw new BufferOverflowException();
-        }
-        if (pos >= this.size) {
-            return -1;
-        }
-        int readed = size;
-        if (readed + pos > this.size) {
-            readed = this.size - pos;
-        }
-        getMemory().read(getOffset() + pos, buf, offset, readed);
-        return readed;
-    }
-
-    /**
-     * read one byte at the offset of this buffer
-     *
-     * @return the byte value by int, -1 if no data available
-     */
-    public int read(int pos) {
-        if (pos >= size) {
-            return -1;
-        }
-        return getMemory().read(pos) & 0xff;
     }
 
     public abstract int getCapacity();

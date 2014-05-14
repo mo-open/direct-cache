@@ -2,6 +2,8 @@ package net.sf.ehcache.store;
 
 import net.dongliu.direct.cache.CacheEventListener;
 import net.dongliu.direct.cache.ConcurrentMap;
+import net.dongliu.direct.exception.DeSerializeException;
+import net.dongliu.direct.exception.SerializeException;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
@@ -82,8 +84,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         this.map = new ConcurrentMap(cc.getInitialSize(), cc.getLoadFactor(), cc.getConcurrency(),
                 cacheEventListener);
 
-        DefaultSerializer defaultSerializer = new DefaultSerializer();
-        this.serializer = defaultSerializer;
+        this.serializer = new DefaultSerializer();
         this.status = Status.STATUS_ALIVE;
     }
 
@@ -139,19 +140,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         Object value = element.getValue();
         EhcacheValueHolder holder;
         if (value != null) {
-            byte[] bytes = objectToBytes(value);
-            if (bytes.length == 0) {
-                holder = EhcacheDummyValueHolder.newEmptyValueHolder();
-            } else {
-                MemoryBuffer buffer = allocator.allocate(bytes.length);
-                if (buffer == null) {
-                    logger.debug("Allocate new Buffer failed.");
-                    return null;
-                }
-
-                holder = new EhcacheValueHolder(buffer);
-                buffer.write(bytes);
+            MemoryBuffer buffer = objectToBuffer(value);
+            if (buffer == null) {
+                logger.debug("Allocate new Buffer failed.");
+                return null;
             }
+
+            holder = new EhcacheValueHolder(buffer);
         } else {
             holder = EhcacheDummyValueHolder.newNullValueHolder();
         }
@@ -581,7 +576,12 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
     }
 
     private Element toElement(EhcacheValueHolder holder) {
-        Object value = bytesToObject(holder.readValue());
+        Object value;
+        if (holder instanceof EhcacheDummyValueHolder) {
+            value = null;
+        } else {
+            value = bufferToObject(holder.getMemoryBuffer());
+        }
         Element e = new Element(holder.getKey(), value, holder.getVersion(),
                 holder.getCreationTime(), holder.getLastAccessTime(),
                 holder.getLastUpdateTime(), holder.getHitCount());
@@ -590,25 +590,38 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         return e;
     }
 
-    private byte[] objectToBytes(Object o) {
-        if (o == null) {
+    /**
+     * write object to byte buffer
+     *
+     * @param o not null
+     * @return
+     */
+    private MemoryBuffer objectToBuffer(Object o) {
+        byte[] bytes;
+        try {
+            bytes = serializer.serialize(o);
+        } catch (SerializeException e) {
+            throw new CacheException("serialize value failed", e);
+        }
+        MemoryBuffer buffer = this.allocator.allocate(bytes.length);
+        if (buffer == null) {
             return null;
         }
-        try {
-            return null;//serializer.serialize(o);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        buffer.write(bytes);
+        return buffer;
     }
 
-    private Object bytesToObject(byte[] bytes) {
-        if (bytes == null) {
-            return null;
-        }
+    /**
+     * deserialize mem buffer to object
+     *
+     * @param buffer not null
+     * @return
+     */
+    private Object bufferToObject(MemoryBuffer buffer) {
         try {
-            return null;//serializer.deserialize(bytes);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            return serializer.deserialize(buffer.toBytes());
+        } catch (DeSerializeException e) {
+            throw new CacheException("deserialize value failed", e);
         }
     }
 }

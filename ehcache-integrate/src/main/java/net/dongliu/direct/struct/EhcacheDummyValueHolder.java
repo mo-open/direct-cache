@@ -18,10 +18,6 @@ public class EhcacheDummyValueHolder extends EhcacheValueHolder {
         return new EhcacheDummyValueHolder(null);
     }
 
-    public static EhcacheDummyValueHolder newEmptyValueHolder() {
-        return new EhcacheDummyValueHolder(new byte[0]);
-    }
-
     @Override
     public int getCapacity() {
         return 0;

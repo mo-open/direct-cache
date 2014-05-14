@@ -59,7 +59,7 @@ public class ValueHolder {
         if (count.intValue() <= 0) {
             throw new IllegalArgumentException("This buffer has been disposed.");
         }
-        return memoryBuffer.readAll();
+        return memoryBuffer.toBytes();
     }
 
     public void release() {

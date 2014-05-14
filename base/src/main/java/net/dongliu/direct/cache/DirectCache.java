@@ -6,8 +6,6 @@ import net.dongliu.direct.exception.SerializeException;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
-import net.dongliu.direct.serialization.DirectInputStream;
-import net.dongliu.direct.serialization.DirectOutputStream;
 import net.dongliu.direct.serialization.ValueSerializer;
 import net.dongliu.direct.struct.ValueHolder;
 import net.dongliu.direct.utils.CacheConfigure;
@@ -244,14 +242,18 @@ public class DirectCache {
 
 
     private <T> ValueHolder store(Object key, T value, ValueSerializer<T> serializer) {
-        DirectOutputStream out = new DirectOutputStream(allocator);
+        byte[] bytes;
         try {
-            serializer.writeObject(value, out);
+            bytes = serializer.serialize(value);
         } catch (SerializeException e) {
             throw new CacheException(e);
         }
-        MemoryBuffer memoryBuffer = out.getMemoryBuffer();
-        ValueHolder holder = new ValueHolder(memoryBuffer);
+        MemoryBuffer buffer = this.allocator.allocate(bytes.length);
+        if (buffer == null) {
+            return null;
+        }
+        buffer.write(bytes);
+        ValueHolder holder = new ValueHolder(buffer);
         holder.setKey(key);
         return holder;
     }
@@ -268,10 +270,9 @@ public class DirectCache {
     }
 
 
-    private <T> T readValue(ValueHolder holder, ValueSerializer<T> deSerializer) {
-        DirectInputStream in = new DirectInputStream(holder.getMemoryBuffer());
+    private <T> T readValue(ValueHolder holder, ValueSerializer<T> serializer) {
         try {
-            return deSerializer.readValue(in);
+            return serializer.deserialize(holder.getMemoryBuffer().toBytes());
         } catch (DeSerializeException e) {
             throw new CacheException(e);
         }
