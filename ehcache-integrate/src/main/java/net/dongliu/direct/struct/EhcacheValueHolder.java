@@ -8,7 +8,7 @@ import net.sf.ehcache.util.TimeUtil;
  *
  * @author dongliu
  */
-public class EhcacheValueHolder extends BufferValueHolder {
+public class EhcacheValueHolder extends ValueHolder {
 
     /**
      * version of the element. System.currentTimeMillis() is actualUsed to compute version for updated elements. That

@@ -52,4 +52,13 @@ public class UnsafeMemory {
     public int getSize() {
         return size;
     }
+
+    /**
+     * read one byte
+     * @param pos
+     * @return
+     */
+    public byte read(long pos) {
+        return U.getByte(address + pos);
+    }
 }

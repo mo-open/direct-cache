@@ -4,30 +4,32 @@ import net.dongliu.direct.exception.AllocatorException;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
-import net.dongliu.direct.struct.BaseValueHolder;
 import net.dongliu.direct.struct.ValueHolder;
 import net.dongliu.direct.utils.Size;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 /**
  * @author: dongliu
  */
-public class CacheMapTest {
+public class ConcurrentMapTest {
 
-    private static CacheMap map;
+    private static ConcurrentMap map;
     private static Allocator allocator;
 
     @BeforeClass
     public static void setup() throws AllocatorException {
         allocator = SlabsAllocator.newInstance(Size.Mb(10));
-        map = new CacheMap(1000, 0.75f, 16, null);
+        map = new ConcurrentMap(1000, 0.75f, 16, null);
     }
 
     @Test
     public void testSizeAndClear() throws Exception {
         map.clear();
         Assert.assertEquals(0, map.size());
-        BaseValueHolder holder = new BaseValueHolder(allocator.allocate(1000));
+        ValueHolder holder = new ValueHolder(allocator.allocate(1000));
         map.put("test", holder);
         Assert.assertEquals(1, map.size());
         map.clear();
@@ -42,7 +44,7 @@ public class CacheMapTest {
         MemoryBuffer buffer = allocator.allocate(1000);
         byte[] data = "value".getBytes();
         buffer.write(data);
-        BaseValueHolder holder = new BaseValueHolder(buffer);
+        ValueHolder holder = new ValueHolder(buffer);
         map.put("test", holder);
         ValueHolder value = map.get("test");
         Assert.assertArrayEquals(data, value.readValue());
@@ -51,8 +53,8 @@ public class CacheMapTest {
     @Test
     public void testPut() throws Exception {
         map.clear();
-        BaseValueHolder holder1 = new BaseValueHolder(allocator.allocate(1000));
-        BaseValueHolder holder2 = new BaseValueHolder(allocator.allocate(1001));
+        ValueHolder holder1 = new ValueHolder(allocator.allocate(1000));
+        ValueHolder holder2 = new ValueHolder(allocator.allocate(1001));
         ValueHolder value1 = map.put("test", holder1);
         Assert.assertNull(value1);
         ValueHolder value2 = map.put("test", holder2);
@@ -64,8 +66,8 @@ public class CacheMapTest {
     @Test
     public void testPutIfAbsent() throws Exception {
         map.clear();
-        BaseValueHolder holder1 = new BaseValueHolder(allocator.allocate(1000));
-        BaseValueHolder holder2 = new BaseValueHolder(allocator.allocate(1001));
+        ValueHolder holder1 = new ValueHolder(allocator.allocate(1000));
+        ValueHolder holder2 = new ValueHolder(allocator.allocate(1001));
         ValueHolder value1 = map.putIfAbsent("test", holder1);
         Assert.assertNull(value1);
         ValueHolder value2 = map.putIfAbsent("test", holder2);
@@ -78,7 +80,7 @@ public class CacheMapTest {
     public void testRemove() throws Exception {
         map.clear();
         Assert.assertEquals(0, allocator.actualUsed());
-        BaseValueHolder valueHolder = new BaseValueHolder(allocator.allocate(1000));
+        ValueHolder valueHolder = new ValueHolder(allocator.allocate(1000));
         map.put("test", valueHolder);
         map.remove("test");
         Assert.assertEquals(0, map.size());

@@ -1,51 +1,102 @@
 package net.dongliu.direct.struct;
 
+import net.dongliu.direct.memory.MemoryBuffer;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * interface of cache-value holder.
  *
  * @author dongliu
  */
-public interface ValueHolder {
+public class ValueHolder {
+
+    private Object key;
+
+    public final MemoryBuffer memoryBuffer;
+
+    private final AtomicInteger count;
 
     /**
-     * the off heap capcity
+     * The amount of time for the element to live, in seconds. 0 indicates unlimited.
      */
-    int getCapacity();
+    private volatile int expiry = 0;
 
     /**
-     * the value have expired
+     * If there is an Element in the Cache and it is replaced with a new Element for the same key,
+     * then lastUpdate should be updated to reflect that.
      */
-    boolean isExpired();
+    private volatile long lastUpdate;
 
-    /**
-     * the offheap buffer size actual used
-     */
-    int getSize();
+    public ValueHolder(MemoryBuffer memoryBuffer) {
+        this.memoryBuffer = memoryBuffer;
+        this.count = new AtomicInteger(1);
+        this.lastUpdate = System.currentTimeMillis();
+    }
 
-    Object getKey();
+    public boolean isLive() {
+        return this.count.intValue() > 0;
+    }
 
-    void setKey(Object key);
+    public int getCapacity() {
+        return memoryBuffer.getCapacity();
+    }
 
-    /**
-     * read value in bytes. this should only be called once
-     */
-    byte[] readValue();
+    public int getSize() {
+        return memoryBuffer.getSize();
+    }
 
-    /**
-     * if is still alive.
-     */
-    boolean isLive();
+    public Object getKey() {
+        return key;
+    }
 
+    public void setKey(Object key) {
+        this.key = key;
+    }
 
-    // this two methods is for refrence count, to make sure dispose after no more used.
+    public byte[] readValue() {
+        // this guard is not thread-safe
+        if (count.intValue() <= 0) {
+            throw new IllegalArgumentException("This buffer has been disposed.");
+        }
+        return memoryBuffer.readAll();
+    }
 
-    /**
-     * call when need to hold this value.
-     */
-    void release();
+    public void release() {
+        if (count.decrementAndGet() == 0) {
+            this.memoryBuffer.dispose();
+        }
+    }
 
-    /**
-     * call when no longer used. if the reference count is descrease to 0, it is disposed.
-     */
-    void acquire();
+    public void acquire() {
+        if (count.incrementAndGet() <= 1) {
+            count.decrementAndGet();
+            throw new IllegalArgumentException("This buffer has been disposed.");
+        }
+    }
+
+    public boolean isExpired() {
+        long cur = System.currentTimeMillis();
+        return expiry > 0 && cur - lastUpdate > expiry;
+    }
+
+    public void setLastUpdate(long lastUpdate) {
+        this.lastUpdate = lastUpdate;
+    }
+
+    public long getLastUpdate() {
+        return this.lastUpdate;
+    }
+
+    public int getExpiry() {
+        return this.expiry;
+    }
+
+    public void setExpiry(int expiry) {
+        this.expiry = expiry;
+    }
+
+    public MemoryBuffer getMemoryBuffer (){
+        return this.memoryBuffer;
+    }
 }

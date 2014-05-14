@@ -4,7 +4,7 @@ import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.UnsafeMemory;
 
 /**
- * for large datas. a
+ * direct-memory for large data
  *
  * @author dongliu
  */

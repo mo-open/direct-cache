@@ -1,13 +1,12 @@
 package net.sf.ehcache.store;
 
 import net.dongliu.direct.cache.CacheEventListener;
-import net.dongliu.direct.cache.CacheMap;
+import net.dongliu.direct.cache.ConcurrentMap;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
-import net.dongliu.direct.serialization.Serializer;
-import net.dongliu.direct.serialization.SerializerFactory;
-import net.dongliu.direct.struct.BufferValueHolder;
+import net.dongliu.direct.serialization.DefaultSerializer;
+import net.dongliu.direct.serialization.ValueSerializer;
 import net.dongliu.direct.struct.EhcacheDummyValueHolder;
 import net.dongliu.direct.struct.EhcacheValueHolder;
 import net.dongliu.direct.struct.ValueHolder;
@@ -39,13 +38,13 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
 
     private volatile Status status;
 
-    private CacheMap map;
+    private ConcurrentMap map;
 
     private final Allocator allocator;
 
     private final Ehcache cache;
 
-    private Serializer serializer;
+    private ValueSerializer<Object> serializer;
 
     private volatile CacheLockProvider lockProvider;
 
@@ -80,11 +79,11 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
 
         CacheConfigure cc = CacheConfigure.getConfigure();
-        this.map = new CacheMap(cc.getInitialSize(), cc.getLoadFactor(), cc.getConcurrency(),
+        this.map = new ConcurrentMap(cc.getInitialSize(), cc.getLoadFactor(), cc.getConcurrency(),
                 cacheEventListener);
 
-        serializer = SerializerFactory.getSerializer();
-        logger.debug("use serializer:" + serializer.getClass().getName());
+        DefaultSerializer defaultSerializer = new DefaultSerializer();
+        this.serializer = defaultSerializer;
         this.status = Status.STATUS_ALIVE;
     }
 
@@ -113,10 +112,10 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
         }
 
         Object key = element.getKey();
-        BufferValueHolder holder = store(element);
+        ValueHolder holder = store(element);
 
         if (doEvict && holder == null) {
-            map.evictEntries(key);
+            //map.evictEntries(key);
             holder = store(element);
         }
 
@@ -596,7 +595,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             return null;
         }
         try {
-            return serializer.serialize(o);
+            return null;//serializer.serialize(o);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -607,7 +606,7 @@ public class DirectMemoryStore extends AbstractStore implements TierableStore {
             return null;
         }
         try {
-            return serializer.deserialize(bytes);
+            return null;//serializer.deserialize(bytes);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -105,4 +105,7 @@ public class U {
         return UNSAFE.compareAndSwapInt(o, offset, expect, value);
     }
 
+    public static byte getByte(long pos) {
+        return UNSAFE.getByte(pos);
+    }
 }

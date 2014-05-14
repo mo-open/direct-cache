@@ -1,6 +1,8 @@
 package net.dongliu.direct.serialization;
 
-import net.dongliu.direct.utils.IOUtils;
+import com.sun.xml.internal.ws.encoding.soap.DeserializationException;
+import net.dongliu.direct.exception.DeSerializeException;
+import net.dongliu.direct.exception.SerializeException;
 
 import java.io.*;
 
@@ -9,31 +11,25 @@ import java.io.*;
  *
  * @author dongliu
  */
-public final class DefaultSerializer implements Serializer {
+public final class DefaultSerializer implements ValueSerializer<Object> {
+
 
     @Override
-    public byte[] serialize(Object obj) throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(bos);
-        try {
-            oos.writeObject(obj);
+    public void writeObject(Object value, OutputStream out) throws SerializeException {
+        try (ObjectOutputStream oos = new ObjectOutputStream(out)) {
+            oos.writeObject(value);
             oos.flush();
-        } finally {
-            IOUtils.closeQueitly(oos);
+        } catch (IOException e) {
+            throw new SerializeException(e);
         }
-        return bos.toByteArray();
     }
 
     @Override
-    public Object deserialize(byte[] source)
-            throws IOException, ClassNotFoundException {
-        ByteArrayInputStream bis = new ByteArrayInputStream(source);
-        ObjectInputStream ois = new ObjectInputStream(bis);
-        try {
+    public Object readValue(InputStream in) throws DeSerializeException {
+        try (ObjectInputStream ois = new ObjectInputStream(in)) {
             return ois.readObject();
-        } finally {
-            IOUtils.closeQueitly(ois);
+        } catch (ClassNotFoundException | IOException e) {
+            throw new DeserializationException(e);
         }
     }
-
 }

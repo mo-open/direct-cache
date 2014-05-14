@@ -1,10 +1,14 @@
 package net.dongliu.direct.cache;
 
+import net.dongliu.direct.exception.CacheException;
+import net.dongliu.direct.exception.DeSerializeException;
+import net.dongliu.direct.exception.SerializeException;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
-import net.dongliu.direct.struct.BaseDummyValueHolder;
-import net.dongliu.direct.struct.BaseValueHolder;
+import net.dongliu.direct.serialization.DirectInputStream;
+import net.dongliu.direct.serialization.DirectOutputStream;
+import net.dongliu.direct.serialization.ValueSerializer;
 import net.dongliu.direct.struct.ValueHolder;
 import net.dongliu.direct.utils.CacheConfigure;
 import org.slf4j.Logger;
@@ -14,15 +18,15 @@ import java.util.Collection;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * A cache store binary values.The base for all caches.
+ * LRU, direct-memory cache. both key and value cannot be null.
  *
  * @author dongliu
  */
-public class BaseDirectCache {
+public class DirectCache {
 
-    private static final Logger logger = LoggerFactory.getLogger(BaseDirectCache.class);
+    private static final Logger logger = LoggerFactory.getLogger(DirectCache.class);
 
-    private CacheMap map;
+    private ConcurrentMap map;
 
     private final Allocator allocator;
 
@@ -31,53 +35,50 @@ public class BaseDirectCache {
      *
      * @param maxSize the max off-heap size could use.
      */
-    public BaseDirectCache(int maxSize) {
+    public DirectCache(int maxSize) {
         this(null, maxSize);
     }
 
     /**
      * Constructor
      */
-    public BaseDirectCache(CacheEventListener cacheEventListener, int maxSize) {
+    public DirectCache(CacheEventListener cacheEventListener, int maxSize) {
         this.allocator = SlabsAllocator.newInstance(maxSize);
         CacheConfigure cc = CacheConfigure.getConfigure();
-        this.map = new CacheMap(cc.getInitialSize(), cc.getLoadFactor(),
+        this.map = new ConcurrentMap(cc.getInitialSize(), cc.getLoadFactor(),
                 cc.getConcurrency(), cacheEventListener);
     }
 
     /**
      * retrieve node by key from cache.
      */
-    public byte[] get(Object key) {
-        ValueHolder valueHolder = retrieve(key);
-        if (valueHolder == null) {
+    public <T> T get(Object key, ValueSerializer<T> deSerializer) {
+        ValueHolder holder = retrieve(key);
+        if (holder == null) {
             return null;
         }
 
         try {
-            return valueHolder.readValue();
+            return readValue(holder, deSerializer);
         } finally {
-            valueHolder.release();
+            holder.release();
         }
     }
 
     /**
-     * store the node, return pointer.
+     * set a value.
+     *
+     * @param value cannot be null
      */
-    public void set(Object key, byte[] payload, int expiresIn) {
+    public <T> void set(Object key, T value, ValueSerializer<T> serializer, int expiresIn) {
+        ValueHolder holder = store(key, value, serializer);
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
-            BaseValueHolder holder = store(key, payload);
-            if (holder != null) {
-                if (expiresIn != 0) {
-                    holder.setExpiry(expiresIn);
-                }
-                map.put(key, holder);
-            } else {
-                map.remove(key);
-                //TODO: notify evict
+            if (expiresIn > 0) {
+                holder.setExpiry(expiresIn);
             }
+            map.put(key, holder);
 
         } finally {
             lock.writeLock().unlock();
@@ -86,9 +87,11 @@ public class BaseDirectCache {
 
     /**
      * set a value.
+     *
+     * @param value cannot be null
      */
-    public void set(Object key, byte[] payload) {
-        set(key, payload, 0);
+    public <T> void set(Object key, T value, ValueSerializer<T> serializer) {
+        set(key, value, serializer, 0);
     }
 
     /**
@@ -96,17 +99,13 @@ public class BaseDirectCache {
      *
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public boolean add(Object key, byte[] payload) {
+    public <T> boolean add(Object key, T value, ValueSerializer<T> serializer) {
 
         ValueHolder oldValueHolder = retrieve(key);
         if (oldValueHolder != null) {
             return false;
         }
-        ValueHolder valueHolder = store(key, payload);
-        if (valueHolder == null) {
-            //TODO: notify evict
-            return true;
-        }
+        ValueHolder valueHolder = store(key, value, serializer);
         boolean needRelease = true;
 
         try {
@@ -129,38 +128,39 @@ public class BaseDirectCache {
      *
      * @return the previous value, if key is in cache(even if put op is failed), null otherwise.
      */
-    public byte[] replace(Object key, byte[] payload) {
-        ValueHolder oldValueHolder = retrieve(key);
-        if (oldValueHolder == null) {
+    public <T> T replace(Object key, T value, ValueSerializer<T> serializer) {
+        ValueHolder oldHolder = retrieve(key);
+        if (oldHolder == null) {
             return null;
         }
-        ValueHolder valueHolder = store(key, payload);
+        ValueHolder holder = store(key, value, serializer);
         boolean needRelease = true;
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
-            oldValueHolder = retrieve(key);
-            if (oldValueHolder == null) {
+            oldHolder = retrieve(key);
+            if (oldHolder == null) {
                 return null;
             } else {
                 needRelease = false;
-                byte[] value;
+                T oldValue;
+                // TODO: move deSerialization out of locks
                 try {
-                    value = oldValueHolder.readValue();
+                    oldValue = readValue(oldHolder, serializer);
                 } finally {
-                    oldValueHolder.release();
+                    oldHolder.release();
                 }
-                if (valueHolder != null) {
-                    map.put(key, valueHolder);
+                if (holder != null) {
+                    map.put(key, holder);
                 } else {
                     //TODO: notify evict
                     map.remove(key);
                 }
-                return value;
+                return oldValue;
             }
         } finally {
             if (needRelease) {
-                valueHolder.release();
+                holder.release();
             }
             lock.writeLock().unlock();
         }
@@ -242,34 +242,16 @@ public class BaseDirectCache {
         this.map.remove(key);
     }
 
-    /**
-     * allocate memory and store the payload, return the pointer.
-     *
-     * @return the point.null if failed.
-     */
-    private BaseValueHolder store(Object key, byte[] payload) {
 
-        BaseValueHolder holder;
-        if (payload == null) {
-            holder = BaseDummyValueHolder.newNullValueHolder();
-        } else if (payload.length == 0) {
-            holder = BaseDummyValueHolder.newEmptyValueHolder();
-        } else {
-            MemoryBuffer buffer = allocator.allocate(payload.length);
-            // try to evict caches.
-            if (buffer == null) {
-                map.evictEntries(key);
-                buffer = allocator.allocate(payload.length);
-            }
-
-            if (buffer == null) {
-                logger.debug("Cannot allocate buffer for new key:" + key.toString());
-                return null;
-            }
-
-            holder = new BaseValueHolder(buffer);
-            buffer.write(payload);
+    private <T> ValueHolder store(Object key, T value, ValueSerializer<T> serializer) {
+        DirectOutputStream out = new DirectOutputStream(allocator);
+        try {
+            serializer.writeObject(value, out);
+        } catch (SerializeException e) {
+            throw new CacheException(e);
         }
+        MemoryBuffer memoryBuffer = out.getMemoryBuffer();
+        ValueHolder holder = new ValueHolder(memoryBuffer);
         holder.setKey(key);
         return holder;
     }
@@ -284,4 +266,15 @@ public class BaseDirectCache {
     private ReentrantReadWriteLock lockFor(Object key) {
         return map.lockFor(key);
     }
+
+
+    private <T> T readValue(ValueHolder holder, ValueSerializer<T> deSerializer) {
+        DirectInputStream in = new DirectInputStream(holder.getMemoryBuffer());
+        try {
+            return deSerializer.readValue(in);
+        } catch (DeSerializeException e) {
+            throw new CacheException(e);
+        }
+    }
+
 }

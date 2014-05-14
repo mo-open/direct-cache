@@ -1,47 +1,67 @@
+/**
+ *  Copyright Terracotta, Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
 package net.dongliu.direct.cache;
 
-import net.dongliu.direct.evict.EvictStrategy;
-import net.dongliu.direct.evict.LruStrategy;
-import net.dongliu.direct.evict.Node;
 import net.dongliu.direct.struct.ValueHolder;
 
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * CacheMap subclasses a repackaged version of ConcurrentHashMap
+ * ConcurrentMap subclasses a repackaged version of ConcurrentHashMap
  * ito allow efficient random sampling of the map values.
  * <p/>
  * The random sampling technique involves randomly selecting a map Segment, and then
  * selecting a number of random entry chains from that segment.
+ *
+ * @author Chris Dennis
  */
-public class CacheMap {
+public class ConcurrentMap {
 
     /**
-     * The maximum capacity, actualUsed if a higher node is implicitly specified by either of the constructors with arguments.
-     * MUST be a power of two <= 1<<30 to ensure that entries are indexable using ints.
+     * The maximum capacity, used if a higher value is implicitly
+     * specified by either of the constructors with arguments.  MUST
+     * be a power of two <= 1<<30 to ensure that entries are indexable
+     * using ints.
      */
     private static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
-     * The maximum number of segments to allow; actualUsed to bound constructor arguments.
+     * The maximum number of segments to allow; used to bound
+     * constructor arguments.
      */
     private static final int MAX_SEGMENTS = 1 << 16; // slightly conservative
 
     /**
-     * Number of unsynchronized retries in size and before resorting to locking.
-     * This is actualUsed to avoid unbounded retries if tables undergo continuous modification
+     * Number of unsynchronized retries in size and containsValue
+     * methods before resorting to locking. This is used to avoid
+     * unbounded retries if tables undergo continuous modification
      * which would make it impossible to obtain an accurate result.
      */
     private static final int RETRIES_BEFORE_LOCK = 2;
 
     /**
-     * Mask node for indexing into segments. The upper bits of a key's hash code are actualUsed to choose the segment.
+     * Mask value for indexing into segments. The upper bits of a
+     * key's hash code are used to choose the segment.
      */
     private final int segmentMask;
 
     /**
-     * Shift node for indexing within segments.
+     * Shift value for indexing within segments.
      */
     private final int segmentShift;
 
@@ -50,12 +70,15 @@ public class CacheMap {
      */
     private final Segment[] segments;
 
+    private final Random random = new Random();
     private final CacheEventListener cacheEventListener;
 
     private Set<Object> keySet;
+    private Set<Map.Entry<Object, ValueHolder>> entrySet;
+    private Collection<ValueHolder> values;
 
-    public CacheMap(int initialCapacity, float loadFactor, int concurrency,
-                    final CacheEventListener cacheEventListener) {
+    public ConcurrentMap(int initialCapacity, float loadFactor, int concurrency,
+                         final CacheEventListener cacheEventListener) {
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrency <= 0)
             throw new IllegalArgumentException();
 
@@ -88,14 +111,65 @@ public class CacheMap {
         this.cacheEventListener = cacheEventListener;
     }
 
+    public ValueHolder[] getRandomValues(final int size, Object keyHint) {
+        ArrayList<ValueHolder> sampled = new ArrayList<ValueHolder>(size * 2);
+
+        // pick a random starting point in the map
+        int randomHash = random.nextInt();
+
+        final int segmentStart;
+        if (keyHint == null) {
+            segmentStart = (randomHash >>> segmentShift) & segmentMask;
+        } else {
+            segmentStart = (hash(keyHint.hashCode()) >>> segmentShift) & segmentMask;
+        }
+
+        int segmentIndex = segmentStart;
+        do {
+            final HashEntry[] table = segments[segmentIndex].table;
+            final int tableStart = randomHash & (table.length - 1);
+            int tableIndex = tableStart;
+            do {
+                for (HashEntry e = table[tableIndex]; e != null; e = e.next) {
+                    ValueHolder value = e.value;
+                    if (value != null) {
+                        sampled.add(value);
+                    }
+                }
+
+                if (sampled.size() >= size) {
+                    return sampled.toArray(new ValueHolder[sampled.size()]);
+                }
+
+                //move to next table slot
+                tableIndex = (tableIndex + 1) & (table.length - 1);
+            } while (tableIndex != tableStart);
+
+            //move to next segment
+            segmentIndex = (segmentIndex + 1) & segmentMask;
+        } while (segmentIndex != segmentStart);
+
+        return sampled.toArray(new ValueHolder[sampled.size()]);
+    }
 
     /**
-     * Returns the number of key-node mappings in this map without locking anything.
-     * This may not give the exact element count as locking is avoided.
+     * Return an object of the kind which will be stored when
+     * the ValueHolder is going to be inserted
+     *
+     * @param e the ValueHolder
+     * @return an object looking-alike the stored one
+     */
+    public Object storedObject(ValueHolder e) {
+        return new HashEntry(null, 0, null, e);
+    }
+
+    /**
+     * Returns the number of key-value mappings in this map without locking anything.
+     * This may not give the exact ValueHolder count as locking is avoided.
      * If the map contains more than <tt>Integer.MAX_VALUE</tt> elements, returns
      * <tt>Integer.MAX_VALUE</tt>.
      *
-     * @return the number of key-node mappings in this map
+     * @return the number of key-value mappings in this map
      */
     public int quickSize() {
         final Segment[] segments = this.segments;
@@ -115,10 +189,11 @@ public class CacheMap {
         final Segment[] segments = this.segments;
         /*
          * We keep track of per-segment modCounts to avoid ABA
-         * problems in which an element in one segment was added and
+         * problems in which an ValueHolder in one segment was added and
          * in another removed during traversal, in which case the
          * table was never actually empty at any point. Note the
-         * similar use of modCounts in the size() methods, which are the only other methods also susceptible
+         * similar use of modCounts in the size() and containsValue()
+         * methods, which are the only other methods also susceptible
          * to ABA problems.
          */
         int[] mc = new int[segments.length];
@@ -198,6 +273,10 @@ public class CacheMap {
         return segmentFor(hash);
     }
 
+    public ReentrantReadWriteLock[] locks() {
+        return segments;
+    }
+
     public ValueHolder get(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).get(key, hash);
@@ -208,29 +287,63 @@ public class CacheMap {
         return segmentFor(hash).containsKey(key, hash);
     }
 
-    /**
-     * set key - element. if has old node, also tryKill the old pointer.
-     *
-     * @return the old ValueHolder, null if not exists
-     */
-    public ValueHolder put(Object key, ValueHolder element) {
-        int hash = hash(key.hashCode());
-        return segmentFor(hash).put(key, hash, element, false);
+    public boolean containsValue(Object value) {
+        if (value == null)
+            throw new NullPointerException();
+
+        // See explanation of modCount use above
+
+        final Segment[] segments = this.segments;
+        int[] mc = new int[segments.length];
+
+        // Try a few times without locking
+        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
+            int sum = 0;
+            int mcsum = 0;
+            for (int i = 0; i < segments.length; ++i) {
+                int c = segments[i].count;
+                mcsum += mc[i] = segments[i].modCount;
+                if (segments[i].containsValue(value))
+                    return true;
+            }
+            boolean cleanSweep = true;
+            if (mcsum != 0) {
+                for (int i = 0; i < segments.length; ++i) {
+                    int c = segments[i].count;
+                    if (mc[i] != segments[i].modCount) {
+                        cleanSweep = false;
+                        break;
+                    }
+                }
+            }
+            if (cleanSweep)
+                return false;
+        }
+
+        // Resort to locking all segments
+        for (Segment segment : segments) segment.readLock().lock();
+        try {
+            for (Segment segment : segments) {
+                if (segment.containsValue(value)) {
+                    return true;
+                }
+            }
+        } finally {
+            for (Segment segment : segments) segment.readLock().unlock();
+        }
+        return false;
     }
 
-    /**
-     * set key - element if absent.
-     *
-     * @return the previous value holder, null if not exists.
-     */
-    public ValueHolder putIfAbsent(Object key, ValueHolder element) {
+    public ValueHolder put(Object key, ValueHolder ValueHolder) {
         int hash = hash(key.hashCode());
-        return segmentFor(hash).put(key, hash, element, true);
+        return segmentFor(hash).put(key, hash, ValueHolder, false);
     }
 
-    /**
-     * remove also tryKill Pointer.
-     */
+    public ValueHolder putIfAbsent(Object key, ValueHolder ValueHolder) {
+        int hash = hash(key.hashCode());
+        return segmentFor(hash).put(key, hash, ValueHolder, true);
+    }
+
     public ValueHolder remove(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).remove(key, hash, null);
@@ -243,9 +356,6 @@ public class CacheMap {
         return segmentFor(hash).remove(key, hash, value) != null;
     }
 
-    /**
-     * clear also cause all ValueHolder to be tryKill.
-     */
     public void clear() {
         for (Segment segment : segments) segment.clear();
     }
@@ -255,20 +365,31 @@ public class CacheMap {
         return (ks != null) ? ks : (keySet = new KeySet());
     }
 
-    /**
-     * evictEntries entries in the segment containing the key.
-     */
-    public int evictEntries(Object key) {
-        int hash = hash(key.hashCode());
-        return segmentFor(hash).evictEntries();
+    public Collection<ValueHolder> values() {
+        Collection<ValueHolder> vs = values;
+        return (vs != null) ? vs : (values = new Values());
+    }
+
+    public Set<Entry<Object, ValueHolder>> entrySet() {
+        Set<Entry<Object, ValueHolder>> es = entrySet;
+        return (es != null) ? es : (entrySet = new EntrySet());
     }
 
     protected Segment createSegment(int initialCapacity, float lf) {
         return new Segment(initialCapacity, lf);
     }
 
+    public boolean evict() {
+        return getRandomSegment().evict();
+    }
+
+    private Segment getRandomSegment() {
+        int randomHash = random.nextInt();
+        return segments[((randomHash >>> segmentShift) & segmentMask)];
+    }
+
     /**
-     * Returns the segment that should be actualUsed for key with given hash
+     * Returns the segment that should be used for key with given hash
      *
      * @param hash the hash code for the key
      * @return the segment
@@ -281,10 +402,9 @@ public class CacheMap {
         return Collections.unmodifiableList(Arrays.asList(segments));
     }
 
-    /**
-     * Segments.
-     */
     public class Segment extends ReentrantReadWriteLock {
+
+        private static final int MAX_EVICTION = 5;
 
         /**
          * The number of elements in this segment's region.
@@ -293,7 +413,7 @@ public class CacheMap {
 
         /**
          * Number of updates that alter the size of the table. This is
-         * actualUsed during bulk-read methods to make sure they see a
+         * used during bulk-read methods to make sure they see a
          * consistent snapshot: If modCounts change during a traversal
          * of segments computing size or checking containsValue, then
          * we might have an inconsistent view of state so (usually)
@@ -303,7 +423,7 @@ public class CacheMap {
 
         /**
          * The table is rehashed when its size exceeds this threshold.
-         * (The node of this field is always <tt>(int)(capacity *
+         * (The value of this field is always <tt>(int)(capacity *
          * loadFactor)</tt>.)
          */
         int threshold;
@@ -314,44 +434,40 @@ public class CacheMap {
         protected volatile HashEntry[] table;
 
         /**
-         * The load factor for the hash table.  Even though this node is same for all segments,
-         * it is replicated to avoid needing links to outer object.
+         * The load factor for the hash table.  Even though this value
+         * is same for all segments, it is replicated to avoid needing
+         * links to outer object.
          *
          * @serial
          */
         final float loadFactor;
 
-        private final EvictStrategy evictStrategy = new LruStrategy();
+        private Iterator<HashEntry> evictionIterator = iterator();
 
         protected Segment(int initialCapacity, float lf) {
             loadFactor = lf;
             setTable(new HashEntry[initialCapacity]);
         }
 
-        /**
-         * operations before delete from hashmap.
-         */
-        protected void preRemove(HashEntry e) {
-            removeNode(e.node);
+        void preRemove(HashEntry e) {
+
         }
 
-        @SuppressWarnings("unchecked")
-        private void removeNode(Node node) {
-            evictStrategy.remove(node);
-            //TODO: realse should be called after removed.
-            node.getValue().release();
+        void postRemove(HashEntry e) {
+            e.value.release();
         }
 
-        /**
-         * oprations after put.
-         */
-        @SuppressWarnings("unchecked")
-        protected void postInstall(Object key, Node node) {
-            evictStrategy.add(node);
+        void preInstall(Object key, ValueHolder value) {
+            value.acquire();
+        }
+
+        void postInstall(Object key, ValueHolder value) {
+
         }
 
         /**
-         * Sets table to new HashEntry array. Call only while holding lock or in constructor.
+         * Sets table to new HashEntry array.
+         * Call only while holding lock or in constructor.
          */
         void setTable(HashEntry[] newTable) {
             threshold = (int) (newTable.length * loadFactor);
@@ -366,13 +482,12 @@ public class CacheMap {
             return tab[hash & (tab.length - 1)];
         }
 
-        protected HashEntry createHashEntry(Object key, int hash, HashEntry next,
-                                            ValueHolder value) {
-            return new HashEntry(key, hash, next, evictStrategy.newNode(value));
+        protected HashEntry createHashEntry(Object key, int hash, HashEntry next, ValueHolder value) {
+            return new HashEntry(key, hash, next, value);
         }
 
         protected HashEntry relinkHashEntry(HashEntry e, HashEntry next) {
-            return new HashEntry(e.key, e.hash, next, e.node);
+            return new HashEntry(e.key, e.hash, next, e.value);
         }
 
         protected void clear() {
@@ -380,18 +495,11 @@ public class CacheMap {
             try {
                 if (count != 0) {
                     HashEntry[] tab = table;
-                    for (int i = 0; i < tab.length; i++) {
-                        HashEntry entry = tab[i];
-                        while (entry != null) {
-                            entry.node.getValue().release();
-                            entry = entry.next;
-                        }
+                    for (int i = 0; i < tab.length; i++)
                         tab[i] = null;
-                    }
                     ++modCount;
                     count = 0; // write-volatile
                 }
-                evictStrategy.clear();
             } finally {
                 writeLock().unlock();
             }
@@ -410,17 +518,19 @@ public class CacheMap {
 
                 ValueHolder oldValue = null;
                 if (e != null) {
-                    ValueHolder v = e.node.getValue();
+                    ValueHolder v = e.value;
                     if (value == null || value.equals(v)) {
                         oldValue = v;
                         ++modCount;
                         preRemove(e);
-                        // All entries following removed node can stay in list, but all preceding ones need to be cloned.
+                        // All entries following removed node can stay in list, but all preceding ones need to be
+                        // cloned.
                         HashEntry newFirst = e.next;
                         for (HashEntry p = first; p != e; p = p.next)
                             newFirst = relinkHashEntry(p, newFirst);
                         tab[index] = newFirst;
                         count = c; // write-volatile
+                        postRemove(e);
                     }
                 }
                 return oldValue;
@@ -429,11 +539,6 @@ public class CacheMap {
             }
         }
 
-        /**
-         * internal put.
-         *
-         * @return the old value
-         */
         protected ValueHolder put(Object key, int hash, ValueHolder value, boolean onlyIfAbsent) {
             writeLock().lock();
             try {
@@ -443,28 +548,25 @@ public class CacheMap {
                 HashEntry[] tab = table;
                 int index = hash & (tab.length - 1);
                 HashEntry first = tab[index];
-                HashEntry entry = first;
-                while (entry != null && (entry.hash != hash || !key.equals(entry.key)))
-                    entry = entry.next;
+                HashEntry e = first;
+                while (e != null && (e.hash != hash || !key.equals(e.key)))
+                    e = e.next;
 
                 ValueHolder oldValue;
-                if (entry != null) {
-                    oldValue = entry.node.getValue();
-                    if (!onlyIfAbsent) { // replace
-                        removeNode(entry.node);
-                        entry.node = evictStrategy.newNode(value);
-                        postInstall(key, entry.node);
-                    } else {
-                        value.release();
-                        return oldValue;
+                if (e != null) {
+                    oldValue = e.value;
+                    if (!onlyIfAbsent) {
+                        preInstall(key, value);
+                        e.value = value;
+                        postInstall(key, value);
                     }
                 } else {
-                    // add
                     oldValue = null;
+                    preInstall(key, value);
                     ++modCount;
                     tab[index] = createHashEntry(key, hash, first, value);
                     count = c; // write-volatile
-                    postInstall(key, tab[index].node);
+                    postInstall(key, value);
                 }
 
                 return oldValue;
@@ -473,17 +575,16 @@ public class CacheMap {
             }
         }
 
-        private void notifyEvictionOrExpiry(final ValueHolder holder) {
-            if (holder != null && cacheEventListener != null) {
-                if (holder.isExpired()) {
-                    cacheEventListener.notifyExpired(holder);
+        private void notifyEvictionOrExpiry(final ValueHolder ValueHolder) {
+            if (ValueHolder != null && cacheEventListener != null) {
+                if (ValueHolder.isExpired()) {
+                    cacheEventListener.notifyExpired(ValueHolder);
                 } else {
-                    cacheEventListener.notifyEvicted(holder);
+                    cacheEventListener.notifyEvicted(ValueHolder);
                 }
             }
         }
 
-        @SuppressWarnings("unchecked")
         ValueHolder get(final Object key, final int hash) {
             readLock().lock();
             try {
@@ -491,8 +592,7 @@ public class CacheMap {
                     HashEntry e = getFirst(hash);
                     while (e != null) {
                         if (e.hash == hash && key.equals(e.key)) {
-                            evictStrategy.visit(e.node);
-                            return e.node.getValue();
+                            return e.value;
                         }
                         e = e.next;
                     }
@@ -520,44 +620,50 @@ public class CacheMap {
             }
         }
 
+        boolean containsValue(Object value) {
+            readLock().lock();
+            try {
+                if (count != 0) { // read-volatile
+                    HashEntry[] tab = table;
+                    for (HashEntry aTab : tab) {
+                        for (HashEntry e = aTab; e != null; e = e.next) {
+                            ValueHolder v = e.value;
+                            if (value.equals(v))
+                                return true;
+                        }
+                    }
+                }
+                return false;
+            } finally {
+                readLock().unlock();
+            }
+        }
+
+        private ValueHolder nextExpiredOrToEvict(final ValueHolder justAdded) {
+            if (!evictionIterator.hasNext()) {
+                evictionIterator = iterator();
+            }
+            final HashEntry next = evictionIterator.next();
+            return next.value;
+        }
+
         protected Iterator<HashEntry> iterator() {
             return new SegmentIterator(this);
         }
 
-        /**
-         * evict entries selected by lru or other strategy.
-         *
-         * @return the entry count evicted
-         */
-        private int evictEntries() {
-            int evictCount = 100;
-            if (evictCount > this.count / 10) {
-                evictCount = this.count / 10;
-            }
-            if (evictCount < 5) {
-                evictCount = 5;
-            }
-
-            int count = 0;
+        private boolean evict() {
+            ValueHolder remove = null;
             writeLock().lock();
             try {
-                Node[] nodes = evictStrategy.evict(evictCount);
-                for (Node node : nodes) {
-                    if (node == null) {
-                        break;
-                    }
-                    Object key = node.getValue().getKey();
-                    // removed cannot read value buf, so we do notify first.
-                    if (cacheEventListener != null) {
-                        notifyEvictionOrExpiry(node.getValue());
-                    }
-                    ValueHolder removed = remove(key, hash(key.hashCode()), null);
-                    count++;
+                ValueHolder evict = nextExpiredOrToEvict(null);
+                if (evict != null) {
+                    remove = remove(evict.getKey(), hash(evict.getKey().hashCode()), null);
                 }
             } finally {
                 writeLock().unlock();
             }
-            return count;
+            notifyEvictionOrExpiry(remove);
+            return remove != null;
         }
 
         void rehash() {
@@ -565,16 +671,6 @@ public class CacheMap {
             int oldCapacity = oldTable.length;
             if (oldCapacity >= MAXIMUM_CAPACITY)
                 return;
-
-            /*
-             * Reclassify nodes in each list to new Map.
-             * Because we are using power-of-two expansion, the elements from each bin must either stay at same index,
-             * or move with a power of two offset. We eliminate unnecessary node creation by catching
-             * cases where old nodes can be reused because their next fields won't change.
-             * Statistically, at the default threshold, only about one-sixth of them need cloning when a table doubles.
-             * The nodes they replace will be garbage collectable as soon as they are no longer referenced by any
-             * reader thread that may be in the midst of traversing table right now.
-             */
 
             HashEntry[] newTable = new HashEntry[oldCapacity << 1];
             threshold = (int) (newTable.length * loadFactor);
@@ -593,9 +689,7 @@ public class CacheMap {
                         // Reuse trailing consecutive sequence at same slot
                         HashEntry lastRun = e;
                         int lastIdx = idx;
-                        for (HashEntry last = next;
-                             last != null;
-                             last = last.next) {
+                        for (HashEntry last = next; last != null; last = last.next) {
                             int k = last.hash & sizeMask;
                             if (k != lastIdx) {
                                 lastIdx = k;
@@ -617,21 +711,18 @@ public class CacheMap {
         }
     }
 
-    /**
-     * HashEntry.
-     */
     public static class HashEntry {
         public final Object key;
         public final int hash;
         public final HashEntry next;
 
-        public volatile Node node;
+        public volatile ValueHolder value;
 
-        protected HashEntry(Object key, int hash, HashEntry next, Node node) {
+        protected HashEntry(Object key, int hash, HashEntry next, ValueHolder value) {
             this.key = key;
             this.hash = hash;
             this.next = next;
-            this.node = node;
+            this.value = value;
         }
     }
 
@@ -662,7 +753,7 @@ public class CacheMap {
         }
 
         public void remove() {
-            throw new UnsupportedOperationException("Segment remove is not supported");
+            throw new UnsupportedOperationException("remove is not supported");
         }
 
         final void advance() {
@@ -684,7 +775,6 @@ public class CacheMap {
         }
     }
 
-
     final class KeySet extends AbstractSet<Object> {
 
         @Override
@@ -694,32 +784,32 @@ public class CacheMap {
 
         @Override
         public int size() {
-            return CacheMap.this.size();
+            return ConcurrentMap.this.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return CacheMap.this.isEmpty();
+            return ConcurrentMap.this.isEmpty();
         }
 
         @Override
         public boolean contains(Object o) {
-            return CacheMap.this.containsKey(o);
+            return ConcurrentMap.this.containsKey(o);
         }
 
         @Override
         public boolean remove(Object o) {
-            return CacheMap.this.remove(o) != null;
+            return ConcurrentMap.this.remove(o) != null;
         }
 
         @Override
         public void clear() {
-            CacheMap.this.clear();
+            ConcurrentMap.this.clear();
         }
 
         @Override
         public Object[] toArray() {
-            Collection<Object> c = new ArrayList<Object>();
+            Collection<Object> c = new ArrayList<>();
             for (Object object : this)
                 c.add(object);
             return c.toArray();
@@ -727,7 +817,107 @@ public class CacheMap {
 
         @Override
         public <T> T[] toArray(T[] a) {
-            Collection<Object> c = new ArrayList<Object>();
+            Collection<Object> c = new ArrayList<>();
+            for (Object object : this)
+                c.add(object);
+            return c.toArray(a);
+        }
+    }
+
+    final class Values extends AbstractCollection<ValueHolder> {
+
+        @Override
+        public Iterator<ValueHolder> iterator() {
+            return new ValueIterator();
+        }
+
+        @Override
+        public int size() {
+            return ConcurrentMap.this.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return ConcurrentMap.this.isEmpty();
+        }
+
+        @Override
+        public boolean contains(Object o) {
+            return ConcurrentMap.this.containsValue(o);
+        }
+
+        @Override
+        public void clear() {
+            ConcurrentMap.this.clear();
+        }
+
+        @Override
+        public Object[] toArray() {
+            Collection<Object> c = new ArrayList<>();
+            for (Object object : this)
+                c.add(object);
+            return c.toArray();
+        }
+
+        @Override
+        public <T> T[] toArray(T[] a) {
+            Collection<Object> c = new ArrayList<>();
+            for (Object object : this)
+                c.add(object);
+            return c.toArray(a);
+        }
+    }
+
+    final class EntrySet extends AbstractSet<Entry<Object, ValueHolder>> {
+
+        @Override
+        public Iterator<Entry<Object, ValueHolder>> iterator() {
+            return new EntryIterator();
+        }
+
+        @Override
+        public int size() {
+            return ConcurrentMap.this.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return ConcurrentMap.this.isEmpty();
+        }
+
+        @Override
+        public boolean contains(Object o) {
+            if (!(o instanceof Entry))
+                return false;
+            Entry<?, ?> e = (Entry<?, ?>) o;
+            ValueHolder v = ConcurrentMap.this.get(e.getKey());
+            return v != null && v.equals(e.getValue());
+        }
+
+        @Override
+        public boolean remove(Object o) {
+            if (!(o instanceof Entry))
+                return false;
+            Entry<?, ?> e = (Entry<?, ?>) o;
+            return ConcurrentMap.this.remove(e.getKey(), e.getValue());
+        }
+
+        @Override
+        public void clear() {
+            ConcurrentMap.this.clear();
+        }
+
+        @Override
+        public Object[] toArray() {
+            Collection<Object> c = new ArrayList<>();
+            for (Object object : this)
+                c.add(object);
+            return c.toArray();
+        }
+
+        @Override
+        public <T> T[] toArray(T[] a) {
+            Collection<Object> c = new ArrayList<>();
             for (Object object : this)
                 c.add(object);
             return c.toArray(a);
@@ -739,6 +929,38 @@ public class CacheMap {
         @Override
         public Object next() {
             return nextEntry().key;
+        }
+    }
+
+    final class ValueIterator extends HashEntryIterator implements Iterator<ValueHolder> {
+
+        @Override
+        public ValueHolder next() {
+            return nextEntry().value;
+        }
+    }
+
+    final class EntryIterator extends HashEntryIterator implements Iterator<Entry<Object, ValueHolder>> {
+
+        @Override
+        public Entry<Object, ValueHolder> next() {
+            HashEntry entry = nextEntry();
+            final Object key = entry.key;
+            final ValueHolder value = entry.value;
+            return new Entry<Object, ValueHolder>() {
+
+                public Object getKey() {
+                    return key;
+                }
+
+                public ValueHolder getValue() {
+                    return value;
+                }
+
+                public ValueHolder setValue(ValueHolder value) {
+                    throw new UnsupportedOperationException();
+                }
+            };
         }
     }
 
@@ -775,12 +997,11 @@ public class CacheMap {
                 myEntry = super.nextEntry();
                 if (myEntry != null) {
                     break;
-                } else {
-                    myEntry = null;
                 }
             }
             return myEntry;
         }
+
     }
 
     abstract class HashIterator {
@@ -794,6 +1015,10 @@ public class CacheMap {
             nextSegmentIndex = segments.length - 1;
             nextTableIndex = -1;
             advance();
+        }
+
+        public boolean hasMoreElements() {
+            return hasNext();
         }
 
         final void advance() {
@@ -834,7 +1059,7 @@ public class CacheMap {
         public void remove() {
             if (lastReturned == null)
                 throw new IllegalStateException();
-            CacheMap.this.remove(lastReturned.key);
+            ConcurrentMap.this.remove(lastReturned.key);
             lastReturned = null;
         }
     }
