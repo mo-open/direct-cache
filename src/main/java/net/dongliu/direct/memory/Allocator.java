@@ -19,7 +19,7 @@ public interface Allocator {
     MemoryBuffer allocate(final int size);
 
     /**
-     * destroy allocator, release all resources.
+     * destroy allocator, dispose all resources.
      * after destroy this cannot be actualUsed any more
      */
     void destroy();

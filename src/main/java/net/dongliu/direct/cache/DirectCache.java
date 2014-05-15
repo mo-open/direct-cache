@@ -59,7 +59,7 @@ public class DirectCache {
         try {
             return readValue(holder, deSerializer);
         } finally {
-            holder.release();
+            holder.dispose();
         }
     }
 
@@ -116,7 +116,7 @@ public class DirectCache {
             }
         } finally {
             if (needRelease) {
-                valueHolder.release();
+                valueHolder.dispose();
             }
         }
     }
@@ -146,7 +146,7 @@ public class DirectCache {
                 try {
                     oldValue = readValue(oldHolder, serializer);
                 } finally {
-                    oldHolder.release();
+                    oldHolder.dispose();
                 }
                 if (holder != null) {
                     map.put(key, holder);
@@ -158,7 +158,7 @@ public class DirectCache {
             }
         } finally {
             if (needRelease) {
-                holder.release();
+                holder.dispose();
             }
             lock.writeLock().unlock();
         }
@@ -195,7 +195,6 @@ public class DirectCache {
                 return null;
             }
             // make sure valueHolder is not disposed.
-            holder.acquire();
         } finally {
             lock.readLock().unlock();
         }
@@ -204,7 +203,7 @@ public class DirectCache {
             return holder;
         }
 
-        holder.release();
+        holder.dispose();
         lock.writeLock().lock();
         try {
             ValueHolder newHolder = map.get(key);
@@ -218,7 +217,7 @@ public class DirectCache {
     }
 
     /**
-     * destroy cache, release all resources.
+     * destroy cache, dispose all resources.
      */
     public void destroy() {
         map.clear();

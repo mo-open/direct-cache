@@ -27,20 +27,18 @@ public class ConcurrentMapTest {
 
     @Test
     public void testSizeAndClear() throws Exception {
-        map.clear();
-        Assert.assertEquals(0, map.size());
         ValueHolder holder = new ValueHolder(allocator.allocate(1000));
         map.put("test", holder);
         Assert.assertEquals(1, map.size());
         map.clear();
         Assert.assertEquals(0, map.size());
         Assert.assertEquals(0, allocator.actualUsed());
-        Assert.assertFalse(holder.isLive());
+        map.clear();
+        Assert.assertEquals(0, allocator.actualUsed());
     }
 
     @Test
     public void testGet() throws Exception {
-        map.clear();
         MemoryBuffer buffer = allocator.allocate(1000);
         byte[] data = "value".getBytes();
         buffer.write(data);
@@ -48,11 +46,12 @@ public class ConcurrentMapTest {
         map.put("test", holder);
         ValueHolder value = map.get("test");
         Assert.assertArrayEquals(data, value.readValue());
+        map.clear();
+        Assert.assertEquals(0, allocator.actualUsed());
     }
 
     @Test
     public void testPut() throws Exception {
-        map.clear();
         ValueHolder holder1 = new ValueHolder(allocator.allocate(1000));
         ValueHolder holder2 = new ValueHolder(allocator.allocate(1001));
         ValueHolder value1 = map.put("test", holder1);
@@ -61,11 +60,12 @@ public class ConcurrentMapTest {
         Assert.assertNotNull(value2);
         ValueHolder value3 = map.get("test");
         Assert.assertEquals(holder2, value3);
+        map.clear();
+        Assert.assertEquals(0, allocator.actualUsed());
     }
 
     @Test
     public void testPutIfAbsent() throws Exception {
-        map.clear();
         ValueHolder holder1 = new ValueHolder(allocator.allocate(1000));
         ValueHolder holder2 = new ValueHolder(allocator.allocate(1001));
         ValueHolder value1 = map.putIfAbsent("test", holder1);
@@ -74,16 +74,18 @@ public class ConcurrentMapTest {
         Assert.assertNotNull(value2);
         ValueHolder value3 = map.get("test");
         Assert.assertEquals(holder1, value3);
+        map.clear();
+        Assert.assertEquals(0, allocator.actualUsed());
     }
 
     @Test
     public void testRemove() throws Exception {
-        map.clear();
-        Assert.assertEquals(0, allocator.actualUsed());
         ValueHolder valueHolder = new ValueHolder(allocator.allocate(1000));
         map.put("test", valueHolder);
         map.remove("test");
         Assert.assertEquals(0, map.size());
+        Assert.assertEquals(0, allocator.actualUsed());
+        map.clear();
         Assert.assertEquals(0, allocator.actualUsed());
     }
 

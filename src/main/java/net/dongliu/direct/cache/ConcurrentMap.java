@@ -449,20 +449,11 @@ public class ConcurrentMap {
             setTable(new HashEntry[initialCapacity]);
         }
 
-        void preRemove(HashEntry e) {
-
-        }
-
         void postRemove(HashEntry e) {
-            e.value.release();
+            e.value.dispose();
         }
 
         void preInstall(Object key, ValueHolder value) {
-            value.acquire();
-        }
-
-        void postInstall(Object key, ValueHolder value) {
-
         }
 
         /**
@@ -495,8 +486,13 @@ public class ConcurrentMap {
             try {
                 if (count != 0) {
                     HashEntry[] tab = table;
-                    for (int i = 0; i < tab.length; i++)
+                    for (int i = 0; i < tab.length; i++) {
+                        HashEntry entry = tab[i];
                         tab[i] = null;
+                        if (entry != null) {
+                            postRemove(entry);
+                        }
+                    }
                     ++modCount;
                     count = 0; // write-volatile
                 }
@@ -522,7 +518,6 @@ public class ConcurrentMap {
                     if (value == null || value.equals(v)) {
                         oldValue = v;
                         ++modCount;
-                        preRemove(e);
                         // All entries following removed node can stay in list, but all preceding ones need to be
                         // cloned.
                         HashEntry newFirst = e.next;
@@ -558,7 +553,6 @@ public class ConcurrentMap {
                     if (!onlyIfAbsent) {
                         preInstall(key, value);
                         e.value = value;
-                        postInstall(key, value);
                     }
                 } else {
                     oldValue = null;
@@ -566,7 +560,6 @@ public class ConcurrentMap {
                     ++modCount;
                     tab[index] = createHashEntry(key, hash, first, value);
                     count = c; // write-volatile
-                    postInstall(key, value);
                 }
 
                 return oldValue;

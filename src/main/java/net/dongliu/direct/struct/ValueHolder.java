@@ -15,8 +15,6 @@ public class ValueHolder {
 
     public final MemoryBuffer memoryBuffer;
 
-    private final AtomicInteger count;
-
     /**
      * The amount of time for the element to live, in seconds. 0 indicates unlimited.
      */
@@ -30,12 +28,7 @@ public class ValueHolder {
 
     public ValueHolder(MemoryBuffer memoryBuffer) {
         this.memoryBuffer = memoryBuffer;
-        this.count = new AtomicInteger(1);
         this.lastUpdate = System.currentTimeMillis();
-    }
-
-    public boolean isLive() {
-        return this.count.intValue() > 0;
     }
 
     public int getCapacity() {
@@ -56,23 +49,11 @@ public class ValueHolder {
 
     public byte[] readValue() {
         // this guard is not thread-safe
-        if (count.intValue() <= 0) {
-            throw new IllegalArgumentException("This buffer has been disposed.");
-        }
         return memoryBuffer.toBytes();
     }
 
-    public void release() {
-        if (count.decrementAndGet() == 0) {
-            this.memoryBuffer.dispose();
-        }
-    }
-
-    public void acquire() {
-        if (count.incrementAndGet() <= 1) {
-            count.decrementAndGet();
-            throw new IllegalArgumentException("This buffer has been disposed.");
-        }
+    public void dispose() {
+        this.memoryBuffer.dispose();
     }
 
     public boolean isExpired() {
@@ -96,7 +77,7 @@ public class ValueHolder {
         this.expiry = expiry;
     }
 
-    public MemoryBuffer getMemoryBuffer (){
+    public MemoryBuffer getMemoryBuffer() {
         return this.memoryBuffer;
     }
 }
