@@ -1,6 +1,5 @@
 package net.dongliu.direct.serialization;
 
-import com.sun.xml.internal.ws.encoding.soap.DeserializationException;
 import net.dongliu.direct.exception.DeSerializeException;
 import net.dongliu.direct.exception.SerializeException;
 
@@ -31,7 +30,7 @@ public final class DefaultSerializer implements ValueSerializer<Object> {
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
             return ois.readObject();
         } catch (ClassNotFoundException | IOException e) {
-            throw new DeserializationException(e);
+            throw new DeSerializeException(e);
         }
     }
 }
