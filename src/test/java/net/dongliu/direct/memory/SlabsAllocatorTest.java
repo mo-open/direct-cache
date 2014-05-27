@@ -16,7 +16,7 @@ public class SlabsAllocatorTest {
 
     @Before
     public void setUp() throws Exception {
-        allocator = SlabsAllocator.newInstance(Size.Mb(10));
+        allocator = new SlabsAllocator(Size.Mb(256), 1.25f, 48, Size.Mb(4));
     }
 
     @After
@@ -27,7 +27,7 @@ public class SlabsAllocatorTest {
     @Test
     public void testAllocate() throws Exception {
         MemoryBuffer buffer = allocator.allocate(10);
-        Assert.assertTrue(buffer.getCapacity() >= 10);
+        Assert.assertTrue(buffer.capacity() >= 10);
         buffer.dispose();
         Assert.assertEquals(0, allocator.actualUsed());
     }

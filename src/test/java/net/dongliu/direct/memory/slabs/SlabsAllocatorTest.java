@@ -15,14 +15,14 @@ public class SlabsAllocatorTest {
 
     @Before
     public void init() {
-        allocator = SlabsAllocator.newInstance(Size.Mb(256));
+        allocator = new SlabsAllocator(Size.Mb(256), 1.25f, 48, Size.Mb(4));
     }
 
     @Test
     public void testAllocate() throws Exception {
         MemoryBuffer buf = allocator.allocate(1000);
-        Assert.assertTrue(1000 <= buf.getCapacity());
-        Assert.assertEquals(buf.getCapacity(), allocator.actualUsed());
+        Assert.assertTrue(1000 <= buf.capacity());
+        Assert.assertEquals(buf.capacity(), allocator.actualUsed());
         buf.dispose();
         Assert.assertEquals(0, allocator.actualUsed());
     }
@@ -30,8 +30,8 @@ public class SlabsAllocatorTest {
     @Test
     public void testMassAllocate() throws Exception {
         MemoryBuffer buf = allocator.allocate(Size.Mb(50));
-        Assert.assertEquals(Size.Mb(50), buf.getCapacity());
-        Assert.assertEquals(buf.getCapacity(), allocator.actualUsed());
+        Assert.assertEquals(Size.Mb(50), buf.capacity());
+        Assert.assertEquals(buf.capacity(), allocator.actualUsed());
 
         buf.dispose();
         Assert.assertEquals(0, allocator.actualUsed());

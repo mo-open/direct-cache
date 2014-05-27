@@ -21,7 +21,7 @@ class Chunk extends MemoryBuffer {
     }
 
     @Override
-    public int getCapacity() {
+    public int capacity() {
         return this.slab.chunkSize;
     }
 

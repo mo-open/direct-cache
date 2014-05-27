@@ -22,7 +22,7 @@ public abstract class MemoryBuffer {
      * write data.
      */
     public void write(byte[] data) {
-        if (data.length > getCapacity()) {
+        if (data.length > capacity()) {
             throw new BufferOverflowException();
         }
         this.size = data.length;
@@ -38,9 +38,9 @@ public abstract class MemoryBuffer {
         return buf;
     }
 
-    public abstract int getCapacity();
+    public abstract int capacity();
 
-    public int getSize() {
+    public int size() {
         return this.size;
     }
 

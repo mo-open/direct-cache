@@ -2,8 +2,6 @@ package net.dongliu.direct.struct;
 
 import net.dongliu.direct.memory.MemoryBuffer;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * interface of cache-value holder.
  *
@@ -31,12 +29,12 @@ public class ValueHolder {
         this.lastUpdate = System.currentTimeMillis();
     }
 
-    public int getCapacity() {
-        return memoryBuffer.getCapacity();
+    public int capacity() {
+        return memoryBuffer.capacity();
     }
 
-    public int getSize() {
-        return memoryBuffer.getSize();
+    public int size() {
+        return memoryBuffer.size();
     }
 
     public Object getKey() {
@@ -47,6 +45,10 @@ public class ValueHolder {
         this.key = key;
     }
 
+    /**
+     * read value in bytes
+     * @return not null
+     */
     public byte[] readValue() {
         // this guard is not thread-safe
         return memoryBuffer.toBytes();
@@ -56,24 +58,24 @@ public class ValueHolder {
         this.memoryBuffer.dispose();
     }
 
-    public boolean isExpired() {
+    public boolean expired() {
         long cur = System.currentTimeMillis();
         return expiry > 0 && cur - lastUpdate > expiry;
     }
 
-    public void setLastUpdate(long lastUpdate) {
+    public void lastUpdate(long lastUpdate) {
         this.lastUpdate = lastUpdate;
     }
 
-    public long getLastUpdate() {
+    public long lastUpdate() {
         return this.lastUpdate;
     }
 
-    public int getExpiry() {
+    public int expiry() {
         return this.expiry;
     }
 
-    public void setExpiry(int expiry) {
+    public void expiry(int expiry) {
         this.expiry = expiry;
     }
 

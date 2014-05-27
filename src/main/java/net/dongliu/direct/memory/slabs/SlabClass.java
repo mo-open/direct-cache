@@ -21,8 +21,8 @@ class SlabClass {
     public SlabClass(SlabsAllocator allocator, int chunkSize) {
         this.allocator = allocator;
         this.chunkSize = chunkSize;
-        this.slabList = new ArrayList<Slab>();
-        this.freeChunkQueue = new ConcurrentLinkedQueue<Chunk>();
+        this.slabList = new ArrayList<>();
+        this.freeChunkQueue = new ConcurrentLinkedQueue<>();
     }
 
     /**
@@ -80,11 +80,11 @@ class SlabClass {
      * Note: curSlab & slabList was modified as a side-effect.
      */
     private void newSlab() {
-        if (this.allocator.used.addAndGet(SlabsAllocator.CHUNK_SIZE) < this.allocator.capacity) {
-            this.curSlab = Slab.newInstance(this, SlabsAllocator.SLAB_SIZE, this.chunkSize);
+        if (this.allocator.used.addAndGet(this.allocator.chunkSize) < this.allocator.capacity) {
+            this.curSlab = Slab.newInstance(this, this.allocator.slabSize, this.chunkSize);
             this.slabList.add(this.curSlab);
         } else {
-            this.allocator.used.addAndGet(-SlabsAllocator.CHUNK_SIZE);
+            this.allocator.used.addAndGet(-this.allocator.chunkSize);
         }
     }
 

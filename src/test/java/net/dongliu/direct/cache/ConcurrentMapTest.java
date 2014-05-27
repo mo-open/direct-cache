@@ -21,7 +21,7 @@ public class ConcurrentMapTest {
 
     @BeforeClass
     public static void setup() throws AllocatorException {
-        allocator = SlabsAllocator.newInstance(Size.Mb(10));
+        allocator =new SlabsAllocator(Size.Mb(256), 1.25f, 48, Size.Mb(4));
         map = new ConcurrentMap(1000, 0.75f, 16, null);
     }
 

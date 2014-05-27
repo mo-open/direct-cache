@@ -2,7 +2,6 @@ package net.dongliu.direct.memory.slabs;
 
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
-import net.dongliu.direct.utils.CacheConfigure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,41 +20,21 @@ public class SlabsAllocator implements Allocator {
     /**
      * chunk size expand factor
      */
-    private static final float expandFactor;
+    private final float expandFactor;
 
     /**
-     * minum size of chunk
+     * minim size of chunk
      */
-    protected static final int CHUNK_SIZE;
+    protected final int chunkSize;
 
     /**
-     * default 8M. it is also the max Chunk Size
+     * it is also the max Chunk Size
      */
-    protected static final int SLAB_SIZE;
+    protected final int slabSize;
 
-    protected static final int[] CHUNK_SIZE_LIST;
+    protected final int[] CHUNK_SIZE_LIST;
 
     private static final int CHUNK_SIZE_MASK = ~3;
-
-    static {
-        CacheConfigure cc = CacheConfigure.getConfigure();
-        expandFactor = cc.getExpandFactor();
-        CHUNK_SIZE = cc.getMinEntySize();
-        SLAB_SIZE = cc.getMaxEntrySize();
-
-        double size = CHUNK_SIZE;
-        List<Integer> ilist = new ArrayList<Integer>();
-        while ((((int) size) & CHUNK_SIZE_MASK) <= SLAB_SIZE) {
-            ilist.add((((int) size) & CHUNK_SIZE_MASK));
-            size = size * expandFactor;
-        }
-
-        CHUNK_SIZE_LIST = new int[ilist.size()];
-        for (int i = 0; i < ilist.size(); i++) {
-            CHUNK_SIZE_LIST[i] = ilist.get(i);
-        }
-        CHUNK_SIZE_LIST[CHUNK_SIZE_LIST.length - 1] = SLAB_SIZE;
-    }
 
     private final SlabClass[] slabClasses;
 
@@ -69,7 +48,23 @@ public class SlabsAllocator implements Allocator {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private SlabsAllocator(long capacity) {
+    public SlabsAllocator(long capacity, float expandFactor, int chunkSize, int slabSize) {
+        this.expandFactor = expandFactor;
+        this.chunkSize = chunkSize;
+        this.slabSize = slabSize;
+
+        double size = this.chunkSize;
+        List<Integer> ilist = new ArrayList<>();
+        while ((((int) size) & CHUNK_SIZE_MASK) <= this.slabSize) {
+            ilist.add((((int) size) & CHUNK_SIZE_MASK));
+            size = size * expandFactor;
+        }
+
+        CHUNK_SIZE_LIST = new int[ilist.size()];
+        for (int i = 0; i < ilist.size(); i++) {
+            CHUNK_SIZE_LIST[i] = ilist.get(i);
+        }
+        CHUNK_SIZE_LIST[CHUNK_SIZE_LIST.length - 1] = this.slabSize;
         this.capacity = capacity;
         slabClasses = new SlabClass[CHUNK_SIZE_LIST.length];
         for (int i = 0; i < CHUNK_SIZE_LIST.length; i++) {
@@ -78,14 +73,10 @@ public class SlabsAllocator implements Allocator {
         }
         if (logger.isDebugEnabled()) {
             logger.debug("new slab allocator, capacity:" + this.capacity);
-            logger.debug("chunk size:" + CHUNK_SIZE);
-            logger.debug("slab size:" + SLAB_SIZE);
+            logger.debug("chunk size:" + this.chunkSize);
+            logger.debug("slab size:" + this.slabSize);
         }
 
-    }
-
-    public static SlabsAllocator newInstance(long size) {
-        return new SlabsAllocator(size);
     }
 
     @Override
@@ -95,7 +86,7 @@ public class SlabsAllocator implements Allocator {
         }
 
         MemoryBuffer buffer;
-        if (size > SLAB_SIZE) {
+        if (size > slabSize) {
             if (this.used.addAndGet(size) < this.capacity) {
                 this.actualUsed.addAndGet(size);
                 buffer = UnPooledBuffer.allocate(this, size);
@@ -109,7 +100,7 @@ public class SlabsAllocator implements Allocator {
             if (chunk == null) {
                 return null;
             }
-            this.actualUsed.addAndGet(chunk.getCapacity());
+            this.actualUsed.addAndGet(chunk.capacity());
             buffer = chunk;
         }
         return buffer;

@@ -449,8 +449,8 @@ public class ConcurrentMap {
             setTable(new HashEntry[initialCapacity]);
         }
 
-        void postRemove(HashEntry e) {
-            e.value.dispose();
+        void postRemove(ValueHolder vh) {
+            vh.dispose();
         }
 
         void preInstall(Object key, ValueHolder value) {
@@ -490,7 +490,7 @@ public class ConcurrentMap {
                         HashEntry entry = tab[i];
                         tab[i] = null;
                         if (entry != null) {
-                            postRemove(entry);
+                            postRemove(entry.value);
                         }
                     }
                     ++modCount;
@@ -525,7 +525,7 @@ public class ConcurrentMap {
                             newFirst = relinkHashEntry(p, newFirst);
                         tab[index] = newFirst;
                         count = c; // write-volatile
-                        postRemove(e);
+                        postRemove(e.value);
                     }
                 }
                 return oldValue;
@@ -554,6 +554,7 @@ public class ConcurrentMap {
                         preInstall(key, value);
                         e.value = value;
                     }
+                    postRemove(oldValue);
                 } else {
                     oldValue = null;
                     preInstall(key, value);
@@ -570,7 +571,7 @@ public class ConcurrentMap {
 
         private void notifyEvictionOrExpiry(final ValueHolder ValueHolder) {
             if (ValueHolder != null && cacheEventListener != null) {
-                if (ValueHolder.isExpired()) {
+                if (ValueHolder.expired()) {
                     cacheEventListener.notifyExpired(ValueHolder);
                 } else {
                     cacheEventListener.notifyEvicted(ValueHolder);

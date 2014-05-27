@@ -8,7 +8,6 @@ import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
 import net.dongliu.direct.serialization.ValueSerializer;
 import net.dongliu.direct.struct.ValueHolder;
-import net.dongliu.direct.utils.CacheConfigure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,38 +27,52 @@ public class DirectCache {
 
     private final Allocator allocator;
 
+
+    public static DirectCacheBuilder newBuilder() {
+        return new DirectCacheBuilder();
+    }
+
     /**
      * Constructor
      *
      * @param maxSize the max off-heap size could use.
      */
-    public DirectCache(int maxSize) {
-        this(null, maxSize);
-    }
-
-    /**
-     * Constructor
-     */
-    public DirectCache(CacheEventListener cacheEventListener, int maxSize) {
-        this.allocator = SlabsAllocator.newInstance(maxSize);
-        CacheConfigure cc = CacheConfigure.getConfigure();
-        this.map = new ConcurrentMap(cc.getInitialSize(), cc.getLoadFactor(),
-                cc.getConcurrency(), cacheEventListener);
+    protected DirectCache(long maxSize, float expandFactor, int chunkSize, int slabSize,
+                          int initialSize, float loadFactor, int concurrency,
+                          CacheEventListener cacheEventListener) {
+        this.allocator = new SlabsAllocator(maxSize, expandFactor, chunkSize, slabSize);
+        this.map = new ConcurrentMap(initialSize, loadFactor, concurrency, cacheEventListener);
     }
 
     /**
      * retrieve node by key from cache.
      */
-    public <T> T get(Object key, ValueSerializer<T> deSerializer) {
-        ValueHolder holder = retrieve(key);
-        if (holder == null) {
-            return null;
+    public <T> T get(Object key, ValueSerializer<T> serializer) {
+        ReentrantReadWriteLock lock = lockFor(key);
+        lock.readLock().lock();
+        byte[] bytes = null;
+        try {
+            ValueHolder holder = map.get(key);
+            if (holder == null) {
+                return null;
+            }
+            if (!holder.expired()) {
+                bytes = holder.readValue();
+            }
+        } finally {
+            lock.readLock().unlock();
         }
 
-        try {
-            return readValue(holder, deSerializer);
-        } finally {
-            holder.dispose();
+        if (bytes != null) {
+            try {
+                return serializer.deserialize(bytes);
+            } catch (DeSerializeException e) {
+                throw new CacheException("deserialize value failed", e);
+            }
+        } else {
+            // expired
+            removeExpiredEntry(key);
+            return null;
         }
     }
 
@@ -74,7 +87,7 @@ public class DirectCache {
         lock.writeLock().lock();
         try {
             if (expiresIn > 0) {
-                holder.setExpiry(expiresIn);
+                holder.expiry(expiresIn);
             }
             map.put(key, holder);
 
@@ -98,26 +111,24 @@ public class DirectCache {
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
     public <T> boolean add(Object key, T value, ValueSerializer<T> serializer) {
-
-        ValueHolder oldValueHolder = retrieve(key);
-        if (oldValueHolder != null) {
+        ValueHolder oldValueHolder = map.get(key);
+        if (oldValueHolder != null && !oldValueHolder.expired()) {
             return false;
         }
         ValueHolder valueHolder = store(key, value, serializer);
-        boolean needRelease = true;
 
+        ReentrantReadWriteLock lock = lockFor(key);
+        lock.writeLock().lock();
         try {
-            oldValueHolder = map.putIfAbsent(key, valueHolder);
-            if (oldValueHolder == null) {
-                needRelease = false;
-                return true;
-            } else {
+            // check again
+            oldValueHolder = map.get(key);
+            if (oldValueHolder != null && !oldValueHolder.expired()) {
                 return false;
             }
+            oldValueHolder = map.putIfAbsent(key, valueHolder);
+            return oldValueHolder == null;
         } finally {
-            if (needRelease) {
-                valueHolder.dispose();
-            }
+            lock.writeLock().unlock();
         }
     }
 
@@ -127,40 +138,43 @@ public class DirectCache {
      * @return the previous value, if key is in cache(even if put op is failed), null otherwise.
      */
     public <T> T replace(Object key, T value, ValueSerializer<T> serializer) {
-        ValueHolder oldHolder = retrieve(key);
+        ValueHolder oldHolder = map.get(key);
         if (oldHolder == null) {
             return null;
         }
+        if (oldHolder.expired()) {
+            removeExpiredEntry(key);
+            return null;
+        }
+
         ValueHolder holder = store(key, value, serializer);
-        boolean needRelease = true;
+        byte[] bytes = null;
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
-            oldHolder = retrieve(key);
+            oldHolder = map.get(key);
             if (oldHolder == null) {
                 return null;
+            }
+            if (oldHolder.expired()) {
+                removeExpiredEntry(key);
+                return null;
+            }
+
+            bytes = oldHolder.readValue();
+            if (holder != null) {
+                map.put(key, holder);
             } else {
-                needRelease = false;
-                T oldValue;
-                // TODO: move deSerialization out of locks
-                try {
-                    oldValue = readValue(oldHolder, serializer);
-                } finally {
-                    oldHolder.dispose();
-                }
-                if (holder != null) {
-                    map.put(key, holder);
-                } else {
-                    //TODO: notify evict
-                    map.remove(key);
-                }
-                return oldValue;
+                //TODO: notify evict
+                map.remove(key);
             }
         } finally {
-            if (needRelease) {
-                holder.dispose();
-            }
             lock.writeLock().unlock();
+        }
+        try {
+            return serializer.deserialize(bytes);
+        } catch (DeSerializeException e) {
+            throw new CacheException(e);
         }
     }
 
@@ -180,41 +194,19 @@ public class DirectCache {
         return this.map.keySet();
     }
 
-    /**
-     * retrieve node by key from cache.
-     * NOTE: the value holder return need to be released!
-     */
-    private ValueHolder retrieve(Object key) {
+    private void removeExpiredEntry(Object key) {
         ReentrantReadWriteLock lock = lockFor(key);
-
-        lock.readLock().lock();
-        ValueHolder holder;
-        try {
-            holder = map.get(key);
-            if (holder == null) {
-                return null;
-            }
-            // make sure valueHolder is not disposed.
-        } finally {
-            lock.readLock().unlock();
-        }
-
-        if (!holder.isExpired()) {
-            return holder;
-        }
-
-        holder.dispose();
         lock.writeLock().lock();
         try {
             ValueHolder newHolder = map.get(key);
-            if (newHolder != null && newHolder.isExpired()) {
+            if (newHolder != null && newHolder.expired()) {
                 map.remove(key);
             }
         } finally {
             lock.writeLock().unlock();
         }
-        return null;
     }
+
 
     /**
      * destroy cache, dispose all resources.
@@ -245,7 +237,7 @@ public class DirectCache {
         try {
             bytes = serializer.serialize(value);
         } catch (SerializeException e) {
-            throw new CacheException(e);
+            throw new CacheException("serialize value failed", e);
         }
         MemoryBuffer buffer = this.allocator.allocate(bytes.length);
         if (buffer == null) {
@@ -266,15 +258,6 @@ public class DirectCache {
 
     private ReentrantReadWriteLock lockFor(Object key) {
         return map.lockFor(key);
-    }
-
-
-    private <T> T readValue(ValueHolder holder, ValueSerializer<T> serializer) {
-        try {
-            return serializer.deserialize(holder.getMemoryBuffer().toBytes());
-        } catch (DeSerializeException e) {
-            throw new CacheException(e);
-        }
     }
 
 }

@@ -29,7 +29,7 @@ public class UnPooledBuffer extends MemoryBuffer {
     }
 
     @Override
-    public int getCapacity() {
+    public int capacity() {
         return this.memory.getSize();
     }
 
