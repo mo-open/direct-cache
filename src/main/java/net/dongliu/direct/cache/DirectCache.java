@@ -92,11 +92,14 @@ public class DirectCache {
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
-            if (expiresIn > 0) {
-                holder.expiry(expiresIn);
+            if (holder != null) {
+                if (expiresIn > 0) {
+                    holder.expiry(expiresIn);
+                }
+                map.put(key, holder);
+            } else {
+                // direct evict
             }
-            map.put(key, holder);
-            checkCapacity(holder);
 
         } finally {
             lock.writeLock().unlock();
@@ -132,8 +135,9 @@ public class DirectCache {
             if (oldValueHolder != null && !oldValueHolder.expired()) {
                 return false;
             }
-            oldValueHolder = map.putIfAbsent(key, holder);
-            checkCapacity(holder);
+            if (holder != null) {
+                oldValueHolder = map.putIfAbsent(key, holder);
+            }
             return oldValueHolder == null;
         } finally {
             lock.writeLock().unlock();
@@ -172,7 +176,6 @@ public class DirectCache {
             bytes = oldHolder.readValue();
             if (holder != null) {
                 map.put(key, holder);
-                checkCapacity(holder);
             } else {
                 map.remove(key);
             }
@@ -249,8 +252,14 @@ public class DirectCache {
         }
         MemoryBuffer buffer = this.allocator.allocate(bytes.length);
         if (buffer == null) {
+            // cannot allocate memory, evict and try again
+            lruEvict(key);
+            buffer = this.allocator.allocate(bytes.length);
+        }
+        if (buffer == null) {
             return null;
         }
+
         buffer.write(bytes);
         ValueHolder holder = new ValueHolder(buffer);
         holder.setKey(key);
@@ -267,26 +276,22 @@ public class DirectCache {
 
     /**
      * If the store is over capacity, evict elements until capacity is reached
-     *
-     * @param justAdded the element added by the action calling this check
      */
-    private void checkCapacity(final ValueHolder justAdded) {
+    private void lruEvict(Object key) {
         int evict = MAX_EVICTION_RATIO;
         if (allocator.getCapacity() < allocator.used()) {
             for (int i = 0; i < evict; i++) {
-                removeElementChosenByEvictionPolicy(justAdded);
+                removeChosenElements(key);
             }
         }
     }
 
     /**
      * Removes the element chosen by the eviction policy
-     *
-     * @param justAdded it is possible for this to be null
      */
-    private void removeElementChosenByEvictionPolicy(final ValueHolder justAdded) {
+    private void removeChosenElements(Object key) {
 
-        ValueHolder holder = findEvictionCandidate(justAdded);
+        ValueHolder holder = findEvictionCandidate(key);
         if (holder == null) {
             logger.debug("Eviction selection miss. Selected element is null");
             return;
@@ -301,19 +306,14 @@ public class DirectCache {
         }
     }
 
-    private void evict(ValueHolder holder) {
-        map.remove(holder.getKey());
-    }
-
     /**
      * Find a "relatively" unused element.
      *
-     * @param justAdded the element added by the action calling this check
+     * @param key the element added by the action calling this check
      * @return the element chosen as candidate for eviction
      */
-    private ValueHolder findEvictionCandidate(final ValueHolder justAdded) {
-        Object objectKey = justAdded != null ? justAdded.getKey() : null;
-        ValueHolder[] holders = sampleElements(objectKey);
+    private ValueHolder findEvictionCandidate(final Object key) {
+        ValueHolder[] holders = sampleElements(key);
         if (holders.length == 0) {
             return null;
         }

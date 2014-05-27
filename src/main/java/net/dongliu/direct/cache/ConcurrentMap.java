@@ -24,9 +24,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * ConcurrentMap subclasses a repackaged version of ConcurrentHashMap
  * ito allow efficient random sampling of the map values.
- * <p/>
+ * <p>
  * The random sampling technique involves randomly selecting a map Segment, and then
  * selecting a number of random entry chains from that segment.
+ * </p>
  *
  * @author Chris Dennis
  */
@@ -112,7 +113,7 @@ public class ConcurrentMap {
     }
 
     public ValueHolder[] getRandomValues(final int size, Object keyHint) {
-        ArrayList<ValueHolder> sampled = new ArrayList<ValueHolder>(size * 2);
+        ArrayList<ValueHolder> sampled = new ArrayList<>(size * 2);
 
         // pick a random starting point in the map
         int randomHash = random.nextInt();
