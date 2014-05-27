@@ -37,4 +37,6 @@ public interface Allocator {
      * @return
      */
     long actualUsed();
+
+    long used();
 }

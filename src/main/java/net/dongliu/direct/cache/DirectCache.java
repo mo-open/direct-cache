@@ -11,7 +11,9 @@ import net.dongliu.direct.struct.ValueHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -26,6 +28,10 @@ public class DirectCache {
     private ConcurrentMap map;
 
     private final Allocator allocator;
+
+    private static final int MAX_EVICTION_RATIO = 10;
+
+    private static final int DEFAULT_SAMPLE_SIZE = 30;
 
 
     public static DirectCacheBuilder newBuilder() {
@@ -90,6 +96,7 @@ public class DirectCache {
                 holder.expiry(expiresIn);
             }
             map.put(key, holder);
+            checkCapacity(holder);
 
         } finally {
             lock.writeLock().unlock();
@@ -115,7 +122,7 @@ public class DirectCache {
         if (oldValueHolder != null && !oldValueHolder.expired()) {
             return false;
         }
-        ValueHolder valueHolder = store(key, value, serializer);
+        ValueHolder holder = store(key, value, serializer);
 
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
@@ -125,7 +132,8 @@ public class DirectCache {
             if (oldValueHolder != null && !oldValueHolder.expired()) {
                 return false;
             }
-            oldValueHolder = map.putIfAbsent(key, valueHolder);
+            oldValueHolder = map.putIfAbsent(key, holder);
+            checkCapacity(holder);
             return oldValueHolder == null;
         } finally {
             lock.writeLock().unlock();
@@ -164,8 +172,8 @@ public class DirectCache {
             bytes = oldHolder.readValue();
             if (holder != null) {
                 map.put(key, holder);
+                checkCapacity(holder);
             } else {
-                //TODO: notify evict
                 map.remove(key);
             }
         } finally {
@@ -254,6 +262,96 @@ public class DirectCache {
      */
     public long offHeapSize() {
         return this.allocator.actualUsed();
+    }
+
+
+    /**
+     * If the store is over capacity, evict elements until capacity is reached
+     *
+     * @param justAdded the element added by the action calling this check
+     */
+    private void checkCapacity(final ValueHolder justAdded) {
+        int evict = MAX_EVICTION_RATIO;
+        if (allocator.getCapacity() < allocator.used()) {
+            for (int i = 0; i < evict; i++) {
+                removeElementChosenByEvictionPolicy(justAdded);
+            }
+        }
+    }
+
+    /**
+     * Removes the element chosen by the eviction policy
+     *
+     * @param justAdded it is possible for this to be null
+     */
+    private void removeElementChosenByEvictionPolicy(final ValueHolder justAdded) {
+
+        ValueHolder holder = findEvictionCandidate(justAdded);
+        if (holder == null) {
+            logger.debug("Eviction selection miss. Selected element is null");
+            return;
+        }
+
+        // If the element is expired, remove
+        if (holder.expired()) {
+            remove(holder.getKey());
+            notifyExpiry(holder);
+        } else {
+            remove(holder);
+        }
+    }
+
+    private void evict(ValueHolder holder) {
+        map.remove(holder.getKey());
+    }
+
+    /**
+     * Find a "relatively" unused element.
+     *
+     * @param justAdded the element added by the action calling this check
+     * @return the element chosen as candidate for eviction
+     */
+    private ValueHolder findEvictionCandidate(final ValueHolder justAdded) {
+        Object objectKey = justAdded != null ? justAdded.getKey() : null;
+        ValueHolder[] holders = sampleElements(objectKey);
+        if (holders.length == 0) {
+            return null;
+        }
+        Arrays.sort(holders, new Comparator<ValueHolder>() {
+            @Override
+            public int compare(ValueHolder o1, ValueHolder o2) {
+                if (o1.expired()) {
+                    return -1;
+                }
+                if (o2.expired()) {
+                    return 1;
+                }
+                return (int) -(o1.lastUpdate() - o2.lastUpdate());
+            }
+        });
+        return holders[0];
+    }
+
+    /**
+     * Uses random numbers to sample the entire map.
+     * <p/>
+     * This implementation uses a key array.
+     *
+     * @param keyHint a key used as a hint indicating where the just added element is
+     * @return a random sample of elements
+     */
+    private ValueHolder[] sampleElements(Object keyHint) {
+        int size = Math.min(map.quickSize(), DEFAULT_SAMPLE_SIZE);
+        return map.getRandomValues(size, keyHint);
+    }
+
+    /**
+     * Before eviction elements are checked.
+     *
+     * @param holder the element to notify about its expiry
+     */
+    private void notifyExpiry(final ValueHolder holder) {
+        //to be implemented
     }
 
     private ReentrantReadWriteLock lockFor(Object key) {

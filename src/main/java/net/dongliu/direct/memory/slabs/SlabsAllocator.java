@@ -150,6 +150,7 @@ public class SlabsAllocator implements Allocator {
         return this.actualUsed.longValue();
     }
 
+    @Override
     public long used() {
         return this.used.longValue();
     }

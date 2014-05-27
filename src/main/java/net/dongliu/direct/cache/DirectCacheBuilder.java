@@ -71,11 +71,6 @@ public class DirectCacheBuilder {
         return this;
     }
 
-    public DirectCacheBuilder cacheEventListener(CacheEventListener cacheEventListener) {
-        this.cacheEventListener = cacheEventListener;
-        return this;
-    }
-
     public DirectCache build() {
         return new DirectCache(maxMemorySize, expandFactor, chunkSize, slabSize,
                 initialSize, loadFactor, concurrency,
