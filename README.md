@@ -2,7 +2,17 @@ The cache data is stored in jvm direct memory, which is off-heap and out of gc m
 
 To use this library, You need to run your routine on Oracle JDK(SUN JDK). The cache value should be large enough (> 1k, for example), so the direct cache will really heap
 
-Get a cache instance:
+When get a cache instance, should always specify the max off-heap memory that cache can use:
 ```
  DirectCache cache = DirectCache.newBuilder().maxMemorySize(Size.Gb(10)).build();
 ```
+
+For maven users, add:
+```
+<dependency>
+    <groupId>net.dongliu.cache</groupId>
+    <artifactId>direct-cache</artifactId>
+    <version>0.2.1</version>
+</dependency>
+```
+to your pom file.
