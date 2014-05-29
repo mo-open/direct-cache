@@ -18,6 +18,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * LRU, direct-memory cache. both key and value cannot be null.
+ * Both key & value cannot be null
  *
  * @author dongliu
  */
@@ -44,16 +45,36 @@ public class DirectCache {
      * @param maxSize the max off-heap size could use.
      */
     protected DirectCache(long maxSize, float expandFactor, int chunkSize, int slabSize,
-                          int initialSize, float loadFactor, int concurrency,
-                          CacheEventListener cacheEventListener) {
+                          int initialSize, float loadFactor, int concurrency) {
         this.allocator = new SlabsAllocator(maxSize, expandFactor, chunkSize, slabSize);
-        this.map = new ConcurrentMap(initialSize, loadFactor, concurrency, cacheEventListener);
+        this.map = new ConcurrentMap(initialSize, loadFactor, concurrency);
     }
 
     /**
      * retrieve node by key from cache.
+     *
+     * @return null if not exists
      */
     public <T> T get(Object key, ValueSerializer<T> serializer) {
+        byte[] bytes = get(key);
+
+        if (bytes == null) {
+            return null;
+        }
+
+        try {
+            return serializer.deserialize(bytes);
+        } catch (DeSerializeException e) {
+            throw new CacheException("deserialize value failed", e);
+        }
+    }
+
+    /**
+     * retrieve node by key from cache.
+     *
+     * @return null if not exists
+     */
+    public byte[] get(Object key) {
         ReentrantReadWriteLock lock = lockFor(key);
         lock.readLock().lock();
         byte[] bytes = null;
@@ -69,32 +90,62 @@ public class DirectCache {
             lock.readLock().unlock();
         }
 
-        if (bytes != null) {
-            try {
-                return serializer.deserialize(bytes);
-            } catch (DeSerializeException e) {
-                throw new CacheException("deserialize value failed", e);
-            }
-        } else {
-            // expired
+        if (bytes == null) {
+            //we cannot call remove expired item in read lock, so we remove it here
             removeExpiredEntry(key);
-            return null;
         }
+        return bytes;
     }
 
+
     /**
-     * set a value.
+     * set a value.if already exist, replace it
      *
      * @param value cannot be null
      */
-    public <T> void set(Object key, T value, ValueSerializer<T> serializer, int expiresIn) {
-        ValueHolder holder = store(key, value, serializer);
+    public <T> void set(Object key, T value, ValueSerializer<T> serializer) {
+        set(key, value, serializer, 0);
+    }
+
+    /**
+     * set a value. if already exist, replace it
+     *
+     * @param expiry The amount of time for the element to live, in seconds.
+     * @param value  cannot be null
+     */
+    public <T> void set(Object key, T value, ValueSerializer<T> serializer, int expiry) {
+        byte[] bytes;
+        try {
+            bytes = serializer.serialize(value);
+        } catch (SerializeException e) {
+            throw new CacheException("serialize value failed", e);
+        }
+        set(key, bytes, expiry);
+    }
+
+    /**
+     * set a value.if already exist, replace it
+     *
+     * @param value cannot be null
+     */
+    public void set(Object key, byte[] value) {
+        set(key, value, 0);
+    }
+
+    /**
+     * set a value. if already exist, replace it
+     *
+     * @param expiry The amount of time for the element to live, in seconds.
+     * @param value  cannot be null
+     */
+    public void set(Object key, byte[] value, int expiry) {
+        ValueHolder holder = store(key, value);
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
             if (holder != null) {
-                if (expiresIn > 0) {
-                    holder.expiry(expiresIn);
+                if (expiry > 0) {
+                    holder.expiry(expiry);
                 }
                 map.put(key, holder);
             } else {
@@ -107,12 +158,35 @@ public class DirectCache {
     }
 
     /**
-     * set a value.
+     * Put an element in the store only if no element is currently mapped to the elements key.
      *
-     * @param value cannot be null
+     * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public <T> void set(Object key, T value, ValueSerializer<T> serializer) {
-        set(key, value, serializer, 0);
+    public <T> boolean add(Object key, T value, ValueSerializer<T> serializer) {
+        return add(key, value, serializer, 0);
+    }
+
+    /**
+     * Put an element in the store only if no element is currently mapped to the elements key.
+     *
+     * @param expiry The amount of time for the element to live, in seconds.
+     * @return true if the key is not in cache(even if put op is failed), false otherwise.
+     */
+    public <T> boolean add(Object key, T value, ValueSerializer<T> serializer, int expiry) {
+        // we call map.get twice here, to avoid unnecessary serialize, not good
+        ValueHolder oldValueHolder = map.get(key);
+        if (oldValueHolder != null && !oldValueHolder.expired()) {
+            return false;
+        }
+
+        byte[] bytes;
+        try {
+            bytes = serializer.serialize(value);
+        } catch (SerializeException e) {
+            throw new CacheException("serialize value failed", e);
+        }
+
+        return add(key, bytes, expiry);
     }
 
     /**
@@ -120,12 +194,22 @@ public class DirectCache {
      *
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public <T> boolean add(Object key, T value, ValueSerializer<T> serializer) {
+    private boolean add(Object key, byte[] bytes) {
+        return add(key, bytes, 0);
+    }
+
+    /**
+     * Put an element in the store only if no element is currently mapped to the elements key.
+     *
+     * @param expiry The amount of time for the element to live, in seconds.
+     * @return true if the key is not in cache(even if put op is failed), false otherwise.
+     */
+    public boolean add(Object key, byte[] value, int expiry) {
         ValueHolder oldValueHolder = map.get(key);
         if (oldValueHolder != null && !oldValueHolder.expired()) {
             return false;
         }
-        ValueHolder holder = store(key, value, serializer);
+        ValueHolder holder = store(key, value);
 
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
@@ -136,6 +220,7 @@ public class DirectCache {
                 return false;
             }
             if (holder != null) {
+                holder.expiry(expiry);
                 oldValueHolder = map.putIfAbsent(key, holder);
             }
             return oldValueHolder == null;
@@ -144,50 +229,6 @@ public class DirectCache {
         }
     }
 
-    /**
-     * Put an element in the store only if the element is currently in cache.
-     *
-     * @return the previous value, if key is in cache(even if put op is failed), null otherwise.
-     */
-    public <T> T replace(Object key, T value, ValueSerializer<T> serializer) {
-        ValueHolder oldHolder = map.get(key);
-        if (oldHolder == null) {
-            return null;
-        }
-        if (oldHolder.expired()) {
-            removeExpiredEntry(key);
-            return null;
-        }
-
-        ValueHolder holder = store(key, value, serializer);
-        byte[] bytes = null;
-        ReentrantReadWriteLock lock = lockFor(key);
-        lock.writeLock().lock();
-        try {
-            oldHolder = map.get(key);
-            if (oldHolder == null) {
-                return null;
-            }
-            if (oldHolder.expired()) {
-                removeExpiredEntry(key);
-                return null;
-            }
-
-            bytes = oldHolder.readValue();
-            if (holder != null) {
-                map.put(key, holder);
-            } else {
-                map.remove(key);
-            }
-        } finally {
-            lock.writeLock().unlock();
-        }
-        try {
-            return serializer.deserialize(bytes);
-        } catch (DeSerializeException e) {
-            throw new CacheException(e);
-        }
-    }
 
     /**
      * to see weather the key exists or not.if the entry is expired still return true.
@@ -243,13 +284,7 @@ public class DirectCache {
     }
 
 
-    private <T> ValueHolder store(Object key, T value, ValueSerializer<T> serializer) {
-        byte[] bytes;
-        try {
-            bytes = serializer.serialize(value);
-        } catch (SerializeException e) {
-            throw new CacheException("serialize value failed", e);
-        }
+    private ValueHolder store(Object key, byte[] bytes) {
         MemoryBuffer buffer = this.allocator.allocate(bytes.length);
         if (buffer == null) {
             // cannot allocate memory, evict and try again
@@ -320,13 +355,15 @@ public class DirectCache {
         Arrays.sort(holders, new Comparator<ValueHolder>() {
             @Override
             public int compare(ValueHolder o1, ValueHolder o2) {
-                if (o1.expired()) {
+                if (o1.expired() && o2.expired()) {
+                    return 0;
+                } else if (o1.expired()) {
                     return -1;
-                }
-                if (o2.expired()) {
+                } else if (o2.expired()) {
                     return 1;
+                } else {
+                    return (int) (o1.lastUpdate() - o2.lastUpdate());
                 }
-                return (int) -(o1.lastUpdate() - o2.lastUpdate());
             }
         });
         return holders[0];

@@ -37,17 +37,6 @@ public class DirectCacheTest {
         Assert.assertFalse(f);
     }
 
-    @Test
-    public void testReplace() {
-        cache.set("test", "", serializer);
-        String value = (String) cache.replace("test", "value", serializer);
-        Assert.assertEquals("", value);
-        Assert.assertEquals("value", cache.get("test", serializer));
-        cache.remove("test");
-        value = (String) cache.replace("test", "value1", serializer);
-        Assert.assertNull(value);
-    }
-
     @AfterClass
     public static void destroy() {
         cache.destroy();

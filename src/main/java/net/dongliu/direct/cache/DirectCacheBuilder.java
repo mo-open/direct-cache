@@ -36,8 +36,6 @@ public class DirectCacheBuilder {
 
     private int slabSize = Size.Mb(4);
 
-    private CacheEventListener cacheEventListener;
-
     protected DirectCacheBuilder() {
     }
 
@@ -56,8 +54,13 @@ public class DirectCacheBuilder {
         return this;
     }
 
-    public DirectCacheBuilder minEntrySize(int chunkSize) {
+    public DirectCacheBuilder chunkSize(int chunkSize) {
         this.chunkSize = chunkSize;
+        return this;
+    }
+
+    public DirectCacheBuilder slabSize(int slabSize) {
+        this.slabSize = slabSize;
         return this;
     }
 
@@ -73,7 +76,6 @@ public class DirectCacheBuilder {
 
     public DirectCache build() {
         return new DirectCache(maxMemorySize, expandFactor, chunkSize, slabSize,
-                initialSize, loadFactor, concurrency,
-                cacheEventListener);
+                initialSize, loadFactor, concurrency);
     }
 }

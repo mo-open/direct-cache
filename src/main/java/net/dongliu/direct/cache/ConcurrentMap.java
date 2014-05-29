@@ -72,14 +72,12 @@ public class ConcurrentMap {
     private final Segment[] segments;
 
     private final Random random = new Random();
-    private final CacheEventListener cacheEventListener;
 
     private Set<Object> keySet;
     private Set<Map.Entry<Object, ValueHolder>> entrySet;
     private Collection<ValueHolder> values;
 
-    public ConcurrentMap(int initialCapacity, float loadFactor, int concurrency,
-                         final CacheEventListener cacheEventListener) {
+    public ConcurrentMap(int initialCapacity, float loadFactor, int concurrency) {
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrency <= 0)
             throw new IllegalArgumentException();
 
@@ -109,7 +107,6 @@ public class ConcurrentMap {
         for (int i = 0; i < this.segments.length; ++i)
             this.segments[i] = createSegment(cap, loadFactor);
 
-        this.cacheEventListener = cacheEventListener;
     }
 
     public ValueHolder[] getRandomValues(final int size, Object keyHint) {
@@ -570,15 +567,6 @@ public class ConcurrentMap {
             }
         }
 
-        private void notifyEvictionOrExpiry(final ValueHolder ValueHolder) {
-            if (ValueHolder != null && cacheEventListener != null) {
-                if (ValueHolder.expired()) {
-                    cacheEventListener.notifyExpired(ValueHolder);
-                } else {
-                    cacheEventListener.notifyEvicted(ValueHolder);
-                }
-            }
-        }
 
         ValueHolder get(final Object key, final int hash) {
             readLock().lock();
@@ -657,7 +645,6 @@ public class ConcurrentMap {
             } finally {
                 writeLock().unlock();
             }
-            notifyEvictionOrExpiry(remove);
             return remove != null;
         }
 
