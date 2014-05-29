@@ -18,7 +18,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * LRU, direct-memory cache. both key and value cannot be null.
- * Both key & value cannot be null
+ * Both key and value cannot be null
  *
  * @author dongliu
  */

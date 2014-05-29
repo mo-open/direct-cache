@@ -14,7 +14,6 @@ public interface Allocator {
      *
      * @param size
      * @return the buf allocated. null if cannot allocate memory due to not enough free memory.
-     * @throws AllocatorException if other exception happened.
      */
     MemoryBuffer allocate(final int size);
 
