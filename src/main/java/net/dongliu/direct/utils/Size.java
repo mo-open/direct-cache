@@ -18,10 +18,6 @@ public class Size {
         return (int) kilo * KILOBYTE_UNIT;
     }
 
-    public static int unlimited() {
-        return -1;
-    }
-
     public static String inKb(long bytes) {
         return format("%(,.1fKb", (double) bytes / KILOBYTE_UNIT);
     }
