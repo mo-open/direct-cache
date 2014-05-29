@@ -44,8 +44,8 @@ public class DirectCache {
      *
      * @param maxSize the max off-heap size could use.
      */
-    protected DirectCache(long maxSize, float expandFactor, int chunkSize, int slabSize,
-                          int initialSize, float loadFactor, int concurrency) {
+    DirectCache(long maxSize, float expandFactor, int chunkSize, int slabSize,
+                int initialSize, float loadFactor, int concurrency) {
         this.allocator = new SlabsAllocator(maxSize, expandFactor, chunkSize, slabSize);
         this.map = new ConcurrentMap(initialSize, loadFactor, concurrency);
     }

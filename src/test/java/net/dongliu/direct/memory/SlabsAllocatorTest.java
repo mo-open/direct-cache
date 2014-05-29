@@ -31,4 +31,12 @@ public class SlabsAllocatorTest {
         buffer.dispose();
         Assert.assertEquals(0, allocator.actualUsed());
     }
+
+    @Test
+    public void testAllocateLarge() throws Exception {
+        MemoryBuffer buffer = allocator.allocate(Size.Mb(5));
+        Assert.assertTrue(buffer.capacity() >= Size.Mb(5));
+        buffer.dispose();
+        Assert.assertEquals(0, allocator.actualUsed());
+    }
 }

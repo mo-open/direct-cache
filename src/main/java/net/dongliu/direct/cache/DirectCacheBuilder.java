@@ -36,7 +36,7 @@ public class DirectCacheBuilder {
 
     private int slabSize = Size.Mb(4);
 
-    protected DirectCacheBuilder() {
+    DirectCacheBuilder() {
     }
 
     public DirectCacheBuilder concurrency(int concurrency) {

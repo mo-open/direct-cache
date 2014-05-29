@@ -31,7 +31,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  *
  * @author Chris Dennis
  */
-public class ConcurrentMap {
+class ConcurrentMap {
 
     /**
      * The maximum capacity, used if a higher value is implicitly
