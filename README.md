@@ -10,9 +10,9 @@ When get a cache instance, should always specify the max off-heap memory that ca
 For maven users, add:
 ```
 <dependency>
-    <groupId>net.dongliu.cache</groupId>
+    <groupId>net.dongliu</groupId>
     <artifactId>direct-cache</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
 </dependency>
 ```
 to your pom file.
