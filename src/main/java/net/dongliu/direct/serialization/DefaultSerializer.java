@@ -21,6 +21,7 @@ public final class DefaultSerializer implements ValueSerializer<Object> {
             oos.flush();
             return baos.toByteArray();
         } catch (IOException e) {
+            //should not happen
             throw new SerializeException(e);
         }
     }

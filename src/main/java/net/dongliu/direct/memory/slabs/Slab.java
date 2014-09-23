@@ -5,7 +5,7 @@ import net.dongliu.direct.memory.UnsafeMemory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * @author dongliu
+ * @author  Dong Liu
  */
 class Slab {
     private final AtomicInteger idx = new AtomicInteger(0);

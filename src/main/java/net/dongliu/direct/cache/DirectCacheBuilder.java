@@ -3,7 +3,7 @@ package net.dongliu.direct.cache;
 import net.dongliu.direct.utils.Size;
 
 /**
- * @author dongliu
+ * @author  Dong Liu
  */
 public class DirectCacheBuilder {
 

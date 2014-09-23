@@ -1,7 +1,7 @@
 package net.dongliu.direct.exception;
 
 /**
- * @author dongliu
+ * @author  Dong Liu
  */
 public class CacheException extends RuntimeException {
     public CacheException() {

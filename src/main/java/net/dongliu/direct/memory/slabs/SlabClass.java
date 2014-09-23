@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * A collection of same chunk size slab.
  *
- * @author dongliu
+ * @author  Dong Liu
  */
 class SlabClass {
     protected final int chunkSize;

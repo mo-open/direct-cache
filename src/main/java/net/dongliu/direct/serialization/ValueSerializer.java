@@ -4,7 +4,7 @@ import net.dongliu.direct.exception.DeSerializeException;
 import net.dongliu.direct.exception.SerializeException;
 
 /**
- * @author dongliu
+ * @author  Dong Liu
  */
 public interface ValueSerializer<T> {
     byte[] serialize(T value) throws SerializeException;

@@ -5,7 +5,7 @@ import net.dongliu.direct.memory.MemoryBuffer;
 /**
  * interface of cache-value holder.
  *
- * @author dongliu
+ * @author  Dong Liu
  */
 public class ValueHolder {
 

@@ -5,7 +5,7 @@ import net.dongliu.direct.exception.AllocatorException;
 /**
  * Allocator
  *
- * @author dongliu
+ * @author  Dong Liu
  */
 public interface Allocator {
 

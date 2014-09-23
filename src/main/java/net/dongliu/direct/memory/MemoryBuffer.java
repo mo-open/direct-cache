@@ -6,7 +6,7 @@ import java.nio.BufferOverflowException;
  * a direct-memory area.
  * this is not thread-safe
  *
- * @author dongliu
+ * @author Dong Liu
  */
 public abstract class MemoryBuffer {
 

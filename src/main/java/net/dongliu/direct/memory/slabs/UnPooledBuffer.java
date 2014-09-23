@@ -6,7 +6,7 @@ import net.dongliu.direct.memory.UnsafeMemory;
 /**
  * direct-memory for large data
  *
- * @author dongliu
+ * @author  Dong Liu
  */
 public class UnPooledBuffer extends MemoryBuffer {
 

@@ -20,7 +20,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * LRU, direct-memory cache. both key and value cannot be null.
  * Both key and value cannot be null
  *
- * @author dongliu
+ * @author  Dong Liu
  */
 public class DirectCache {
 
@@ -371,8 +371,9 @@ public class DirectCache {
 
     /**
      * Uses random numbers to sample the entire map.
-     * <p/>
+     * <p>
      * This implementation uses a key array.
+     * </p>
      *
      * @param keyHint a key used as a hint indicating where the just added element is
      * @return a random sample of elements

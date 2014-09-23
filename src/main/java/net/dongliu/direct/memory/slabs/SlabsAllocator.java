@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Memory Allocator use slabList, as memcached.
  * TODO: slab rebalance.
  *
- * @author dongliu
+ * @author  Dong Liu
  */
 public class SlabsAllocator implements Allocator {
 

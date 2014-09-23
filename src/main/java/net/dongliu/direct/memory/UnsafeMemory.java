@@ -5,7 +5,7 @@ import net.dongliu.direct.utils.U;
 /**
  * Memory actualUsed unsafe ops.
  *
- * @author: dongliu
+ * @author  Dong Liu
  */
 public class UnsafeMemory {
 

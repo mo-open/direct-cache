@@ -1,7 +1,7 @@
 package net.dongliu.direct.exception;
 
 /**
- * @author dongliu
+ * @author  Dong Liu
  */
 public class DeSerializeException extends Exception {
     public DeSerializeException() {

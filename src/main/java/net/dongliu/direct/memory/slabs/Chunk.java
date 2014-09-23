@@ -4,7 +4,7 @@ import net.dongliu.direct.memory.MemoryBuffer;
 import net.dongliu.direct.memory.UnsafeMemory;
 
 /**
- * @author dongliu
+ * @author  Dong Liu
  */
 class Chunk extends MemoryBuffer {
     private final Slab slab;

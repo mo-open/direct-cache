@@ -1,37 +1,16 @@
 package net.dongliu.direct.utils;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
+import net.dongliu.commons.lang.Unsafes;
+import sun.misc.Unsafe;
 
 /**
  * Wrapper Unsafe Operations.
  *
- * @author dongliu
+ * @author  Dong Liu
  */
 public class U {
 
-    private static final sun.misc.Unsafe UNSAFE;
-
-    static {
-        Object result = null;
-        try {
-            Class<?> clazz = Class.forName("sun.misc.Unsafe");
-            for (Field field : clazz.getDeclaredFields()) {
-                if (field.getType() == clazz && (field.getModifiers() & (Modifier.FINAL | Modifier.STATIC))
-                        == (Modifier.FINAL | Modifier.STATIC)) {
-                    field.setAccessible(true);
-                    result = field.get(null);
-                    break;
-                }
-            }
-        } catch (Throwable ignore) {
-        }
-        UNSAFE = (sun.misc.Unsafe) result;
-        if (UNSAFE == null) {
-            // logger
-            throw new RuntimeException("Unsafe not supported.");
-        }
-    }
+    private static final Unsafe UNSAFE = Unsafes.getUnsafe();
 
     /**
      * Allocates a new block of native memory, of the given size in bytes.
