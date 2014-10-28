@@ -1,12 +1,11 @@
 package net.dongliu.direct.cache;
 
+import net.dongliu.direct.allocator.AbstractBuffer;
+import net.dongliu.direct.allocator.NettyAllocator;
+import net.dongliu.direct.allocator.NullMemoryBuffer;
 import net.dongliu.direct.exception.CacheException;
 import net.dongliu.direct.exception.DeSerializeException;
 import net.dongliu.direct.exception.SerializeException;
-import net.dongliu.direct.memory.Allocator;
-import net.dongliu.direct.memory.MemoryBuffer;
-import net.dongliu.direct.memory.NullMemoryBuffer;
-import net.dongliu.direct.memory.slabs.SlabsAllocator;
 import net.dongliu.direct.serialization.Serializer;
 import net.dongliu.direct.struct.BytesValue;
 import net.dongliu.direct.struct.DirectValue;
@@ -31,7 +30,7 @@ public class DirectCache<K, V> {
 
     private ConcurrentMap map;
 
-    private final Allocator allocator;
+    private final NettyAllocator allocator;
 
     private static final int MAX_EVICTION_RATIO = 10;
 
@@ -48,9 +47,9 @@ public class DirectCache<K, V> {
      *
      * @param maxSize the max off-heap size could use.
      */
-    DirectCache(long maxSize, float expandFactor, int chunkSize, int slabSize,
-                int initialSize, float loadFactor, int concurrency, Serializer<V> serializer) {
-        this.allocator = new SlabsAllocator(maxSize, expandFactor, chunkSize, slabSize);
+    DirectCache(long maxSize, int initialSize, float loadFactor, int concurrency,
+                Serializer<V> serializer) {
+        this.allocator = new NettyAllocator(maxSize);
         this.map = new ConcurrentMap(initialSize, loadFactor, concurrency);
         this.serializer = serializer;
     }
@@ -264,16 +263,6 @@ public class DirectCache<K, V> {
         }
     }
 
-
-    /**
-     * destroy cache, dispose all resources.
-     */
-    public void destroy() {
-        map.clear();
-        this.allocator.destroy();
-        logger.debug("Cache closed");
-    }
-
     /**
      * the num of cache entries.
      */
@@ -289,7 +278,7 @@ public class DirectCache<K, V> {
     }
 
     private DirectValue<K, V> store(K key, byte[] bytes, Class<V> clazz) {
-        MemoryBuffer buffer;
+        AbstractBuffer buffer;
         if (bytes == null) {
             buffer = NullMemoryBuffer.getInstance();
         } else {
@@ -312,7 +301,7 @@ public class DirectCache<K, V> {
      * return the actualUsed off-heap memory in bytes.
      */
     public long offHeapSize() {
-        return this.allocator.actualUsed();
+        return this.allocator.used();
     }
 
 
@@ -403,4 +392,7 @@ public class DirectCache<K, V> {
         return map.lockFor(key);
     }
 
+    public void destroy() {
+        map.clear();
+    }
 }

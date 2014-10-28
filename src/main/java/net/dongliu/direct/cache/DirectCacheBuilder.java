@@ -24,19 +24,7 @@ public class DirectCacheBuilder<K, V> {
      */
     private float loadFactor = 0.75f;
 
-    /**
-     * min chunk size for slab allocator
-     */
-    private int chunkSize = 48;
-
-    /**
-     * chunk expand factor.
-     */
-    private float expandFactor = 1.25f;
-
     private long maxMemorySize = Size.Gb(1);
-
-    private int slabSize = Size.Mb(4);
 
     private Serializer<V> serializer = new DefaultSerializer<>();
 
@@ -58,21 +46,6 @@ public class DirectCacheBuilder<K, V> {
         return this;
     }
 
-    public DirectCacheBuilder<K, V> chunkSize(int chunkSize) {
-        this.chunkSize = chunkSize;
-        return this;
-    }
-
-    public DirectCacheBuilder<K, V> slabSize(int slabSize) {
-        this.slabSize = slabSize;
-        return this;
-    }
-
-    public DirectCacheBuilder<K, V> expandFactor(float expandFactor) {
-        this.expandFactor = expandFactor;
-        return this;
-    }
-
     public DirectCacheBuilder<K, V> maxMemorySize(long maxMemorySize) {
         this.maxMemorySize = maxMemorySize;
         return this;
@@ -84,7 +57,6 @@ public class DirectCacheBuilder<K, V> {
     }
 
     public DirectCache<K, V> build() {
-        return new DirectCache<>(maxMemorySize, expandFactor, chunkSize, slabSize,
-                initialSize, loadFactor, concurrency, serializer);
+        return new DirectCache<>(maxMemorySize, initialSize, loadFactor, concurrency, serializer);
     }
 }

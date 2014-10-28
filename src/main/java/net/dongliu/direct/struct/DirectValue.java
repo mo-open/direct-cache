@@ -1,6 +1,7 @@
 package net.dongliu.direct.struct;
 
-import net.dongliu.direct.memory.MemoryBuffer;
+import net.dongliu.direct.allocator.AbstractBuffer;
+import net.dongliu.direct.allocator.Buffer;
 
 /**
  * interface of cache-value holder.
@@ -14,7 +15,7 @@ public class DirectValue<K, V> {
     /**
      * the direct buffer to store value. null if value if null.
      */
-    public final MemoryBuffer memoryBuffer;
+    public final AbstractBuffer buffer;
 
     /**
      * the class of value
@@ -32,19 +33,19 @@ public class DirectValue<K, V> {
      */
     private volatile long lastUpdate;
 
-    public DirectValue(MemoryBuffer memoryBuffer, K key, Class<V> clazz) {
-        this.memoryBuffer = memoryBuffer;
+    public DirectValue(AbstractBuffer buffer, K key, Class<V> clazz) {
+        this.buffer = buffer;
         this.lastUpdate = System.currentTimeMillis();
         this.key = key;
         this.clazz = clazz;
     }
 
     public int capacity() {
-        return memoryBuffer.capacity();
+        return buffer.capacity();
     }
 
     public int size() {
-        return memoryBuffer.size();
+        return buffer.size();
     }
 
     public K getKey() {
@@ -58,11 +59,11 @@ public class DirectValue<K, V> {
      */
     public byte[] readValue() {
         // this guard is not thread-safe
-        return memoryBuffer.toBytes();
+        return buffer.toBytes();
     }
 
-    public void dispose() {
-        this.memoryBuffer.dispose();
+    public void release() {
+        this.buffer.release();
     }
 
     public boolean expired() {
@@ -84,10 +85,6 @@ public class DirectValue<K, V> {
 
     public void expiry(int expiry) {
         this.expiry = expiry;
-    }
-
-    public MemoryBuffer getMemoryBuffer() {
-        return this.memoryBuffer;
     }
 
     public Class<V> getClazz() {

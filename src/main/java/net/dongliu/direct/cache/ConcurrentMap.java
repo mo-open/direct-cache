@@ -332,14 +332,17 @@ class ConcurrentMap {
         return false;
     }
 
-    public DirectValue put(Object key, DirectValue DirectValue) {
+    public DirectValue put(Object key, DirectValue value) {
         int hash = hash(key.hashCode());
-        return segmentFor(hash).put(key, hash, DirectValue, false);
+        return segmentFor(hash).put(key, hash, value, false);
     }
 
-    public DirectValue putIfAbsent(Object key, DirectValue DirectValue) {
+    /**
+     * if not absent, release directValue
+     */
+    public DirectValue putIfAbsent(Object key, DirectValue value) {
         int hash = hash(key.hashCode());
-        return segmentFor(hash).put(key, hash, DirectValue, true);
+        return segmentFor(hash).put(key, hash, value, true);
     }
 
     public DirectValue remove(Object key) {
@@ -448,7 +451,7 @@ class ConcurrentMap {
         }
 
         void postRemove(DirectValue vh) {
-            vh.dispose();
+            vh.release();
         }
 
         void preInstall(Object key, DirectValue value) {
@@ -551,8 +554,10 @@ class ConcurrentMap {
                     if (!onlyIfAbsent) {
                         preInstall(key, value);
                         e.value = value;
+                        postRemove(oldValue);
+                    } else {
+                        postRemove(value);
                     }
-                    postRemove(oldValue);
                 } else {
                     oldValue = null;
                     preInstall(key, value);
