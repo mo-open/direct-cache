@@ -31,7 +31,7 @@ class Chunk extends MemoryBuffer {
     }
 
     @Override
-    public UnsafeMemory getMemory() {
+    protected UnsafeMemory getMemory() {
         return this.slab.getMemory();
     }
 

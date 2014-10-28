@@ -5,7 +5,7 @@ import net.dongliu.direct.exception.AllocatorException;
 /**
  * Allocator
  *
- * @author  Dong Liu
+ * @author Dong Liu
  */
 public interface Allocator {
 
@@ -25,15 +25,11 @@ public interface Allocator {
 
     /**
      * the capacity
-     *
-     * @return
      */
     long getCapacity();
 
     /**
      * the memory size actualUsed.
-     *
-     * @return
      */
     long actualUsed();
 

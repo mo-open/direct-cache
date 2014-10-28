@@ -1,8 +1,7 @@
-target/
+.idea/
 *.iml
-.idea
-.classpath
-.project
-.settings
-.DS_Store
-out
+.gradle/
+target/
+build/
+*.class
+TestMain.java

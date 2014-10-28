@@ -5,13 +5,21 @@ import net.dongliu.direct.memory.MemoryBuffer;
 /**
  * interface of cache-value holder.
  *
- * @author  Dong Liu
+ * @author Dong Liu
  */
-public class ValueHolder {
+public class DirectValue<K, V> {
 
-    private Object key;
+    private final K key;
 
+    /**
+     * the direct buffer to store value. null if value if null.
+     */
     public final MemoryBuffer memoryBuffer;
+
+    /**
+     * the class of value
+     */
+    private final Class<V> clazz;
 
     /**
      * The amount of time for the element to live, in seconds. 0 indicates unlimited.
@@ -24,9 +32,11 @@ public class ValueHolder {
      */
     private volatile long lastUpdate;
 
-    public ValueHolder(MemoryBuffer memoryBuffer) {
+    public DirectValue(MemoryBuffer memoryBuffer, K key, Class<V> clazz) {
         this.memoryBuffer = memoryBuffer;
         this.lastUpdate = System.currentTimeMillis();
+        this.key = key;
+        this.clazz = clazz;
     }
 
     public int capacity() {
@@ -37,16 +47,13 @@ public class ValueHolder {
         return memoryBuffer.size();
     }
 
-    public Object getKey() {
+    public K getKey() {
         return key;
-    }
-
-    public void setKey(Object key) {
-        this.key = key;
     }
 
     /**
      * read value in bytes
+     *
      * @return not null
      */
     public byte[] readValue() {
@@ -81,5 +88,9 @@ public class ValueHolder {
 
     public MemoryBuffer getMemoryBuffer() {
         return this.memoryBuffer;
+    }
+
+    public Class<V> getClazz() {
+        return clazz;
     }
 }

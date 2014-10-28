@@ -5,9 +5,12 @@ import net.dongliu.direct.exception.DeSerializeException;
 import net.dongliu.direct.exception.SerializeException;
 import net.dongliu.direct.memory.Allocator;
 import net.dongliu.direct.memory.MemoryBuffer;
+import net.dongliu.direct.memory.NullMemoryBuffer;
 import net.dongliu.direct.memory.slabs.SlabsAllocator;
-import net.dongliu.direct.serialization.ValueSerializer;
-import net.dongliu.direct.struct.ValueHolder;
+import net.dongliu.direct.serialization.Serializer;
+import net.dongliu.direct.struct.BytesValue;
+import net.dongliu.direct.struct.DirectValue;
+import net.dongliu.direct.struct.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,9 +23,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * LRU, direct-memory cache. both key and value cannot be null.
  * Both key and value cannot be null
  *
- * @author  Dong Liu
+ * @author Dong Liu
  */
-public class DirectCache {
+public class DirectCache<K, V> {
 
     private static final Logger logger = LoggerFactory.getLogger(DirectCache.class);
 
@@ -34,9 +37,10 @@ public class DirectCache {
 
     private static final int DEFAULT_SAMPLE_SIZE = 30;
 
+    private Serializer<V> serializer;
 
-    public static DirectCacheBuilder newBuilder() {
-        return new DirectCacheBuilder();
+    public static <S, T> DirectCacheBuilder<S, T> newBuilder() {
+        return new DirectCacheBuilder<>();
     }
 
     /**
@@ -45,27 +49,33 @@ public class DirectCache {
      * @param maxSize the max off-heap size could use.
      */
     DirectCache(long maxSize, float expandFactor, int chunkSize, int slabSize,
-                int initialSize, float loadFactor, int concurrency) {
+                int initialSize, float loadFactor, int concurrency, Serializer<V> serializer) {
         this.allocator = new SlabsAllocator(maxSize, expandFactor, chunkSize, slabSize);
         this.map = new ConcurrentMap(initialSize, loadFactor, concurrency);
+        this.serializer = serializer;
     }
 
     /**
      * retrieve node by key from cache.
      *
-     * @return null if not exists
+     * @return null if not exists.
      */
-    public <T> T get(Object key, ValueSerializer<T> serializer) {
-        byte[] bytes = get(key);
+    public Value<V> get(K key) {
+        BytesValue<V> value = _get(key);
 
-        if (bytes == null) {
+        if (value == null) {
             return null;
         }
 
+        if (value.getBytes() == null) {
+            return new Value<>(null);
+        }
+
         try {
-            return serializer.deserialize(bytes);
+            V v = serializer.deSerialize(value.getBytes(), value.getClazz());
+            return new Value<>(v);
         } catch (DeSerializeException e) {
-            throw new CacheException("deserialize value failed", e);
+            throw new CacheException("deSerialize value failed", e);
         }
     }
 
@@ -74,27 +84,28 @@ public class DirectCache {
      *
      * @return null if not exists
      */
-    public byte[] get(Object key) {
+    private BytesValue<V> _get(K key) {
         ReentrantReadWriteLock lock = lockFor(key);
         lock.readLock().lock();
-        byte[] bytes = null;
+        BytesValue<V> value = null;
         try {
-            ValueHolder holder = map.get(key);
+            DirectValue<K, V> holder = map.get(key);
             if (holder == null) {
                 return null;
             }
             if (!holder.expired()) {
-                bytes = holder.readValue();
+                byte[] bytes = holder.readValue();
+                value = new BytesValue<>(bytes, holder.getClazz());
             }
         } finally {
             lock.readLock().unlock();
         }
 
-        if (bytes == null) {
-            //we cannot call remove expired item in read lock, so we remove it here
+        if (value == null) {
+            //we cannot call removeExpiredEntry in read lock(write lock-guarded), so we remove it here
             removeExpiredEntry(key);
         }
-        return bytes;
+        return value;
     }
 
 
@@ -103,32 +114,7 @@ public class DirectCache {
      *
      * @param value cannot be null
      */
-    public <T> void set(Object key, T value, ValueSerializer<T> serializer) {
-        set(key, value, serializer, 0);
-    }
-
-    /**
-     * set a value. if already exist, replace it
-     *
-     * @param expiry The amount of time for the element to live, in seconds.
-     * @param value  cannot be null
-     */
-    public <T> void set(Object key, T value, ValueSerializer<T> serializer, int expiry) {
-        byte[] bytes;
-        try {
-            bytes = serializer.serialize(value);
-        } catch (SerializeException e) {
-            throw new CacheException("serialize value failed", e);
-        }
-        set(key, bytes, expiry);
-    }
-
-    /**
-     * set a value.if already exist, replace it
-     *
-     * @param value cannot be null
-     */
-    public void set(Object key, byte[] value) {
+    public void set(K key, V value) {
         set(key, value, 0);
     }
 
@@ -138,23 +124,42 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @param value  cannot be null
      */
-    public void set(Object key, byte[] value, int expiry) {
-        ValueHolder holder = store(key, value);
-        ReentrantReadWriteLock lock = lockFor(key);
-        lock.writeLock().lock();
-        try {
-            if (holder != null) {
-                if (expiry > 0) {
-                    holder.expiry(expiry);
-                }
-                map.put(key, holder);
-            } else {
-                // direct evict
+    @SuppressWarnings("unchecked")
+    public void set(K key, V value, int expiry) {
+        byte[] bytes;
+        Class<V> clazz;
+        if (value == null) {
+            bytes = null;
+            clazz = null;
+        } else {
+            try {
+                clazz = (Class<V>) value.getClass();
+                bytes = serializer.serialize(value);
+            } catch (SerializeException e) {
+                throw new CacheException("serialize value failed", e);
             }
-
-        } finally {
-            lock.writeLock().unlock();
         }
+        _set(key, bytes, clazz, expiry);
+    }
+
+    /**
+     * set a value. if already exist, replace it
+     *
+     * @param expiry The amount of time for the element to live, in seconds.
+     * @param value  the value
+     * @param clazz  the class of value
+     */
+    private void _set(K key, byte[] value, Class<V> clazz, int expiry) {
+        DirectValue holder = store(key, value, clazz);
+        if (holder == null) {
+            // direct evict
+            return;
+        }
+        if (expiry > 0) {
+            holder.expiry(expiry);
+        }
+
+        map.put(key, holder);
     }
 
     /**
@@ -162,8 +167,8 @@ public class DirectCache {
      *
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public <T> boolean add(Object key, T value, ValueSerializer<T> serializer) {
-        return add(key, value, serializer, 0);
+    public boolean add(K key, V value) {
+        return add(key, value, 0);
     }
 
     /**
@@ -172,31 +177,31 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public <T> boolean add(Object key, T value, ValueSerializer<T> serializer, int expiry) {
+    @SuppressWarnings("unchecked")
+    public boolean add(K key, V value, int expiry) {
         // we call map.get twice here, to avoid unnecessary serialize, not good
-        ValueHolder oldValueHolder = map.get(key);
-        if (oldValueHolder != null && !oldValueHolder.expired()) {
+        DirectValue oldDirectValue = map.get(key);
+        if (oldDirectValue != null && !oldDirectValue.expired()) {
             return false;
         }
 
         byte[] bytes;
-        try {
-            bytes = serializer.serialize(value);
-        } catch (SerializeException e) {
-            throw new CacheException("serialize value failed", e);
+        Class<V> clazz;
+        if (value == null) {
+            bytes = null;
+            clazz = null;
+        } else {
+            try {
+                clazz = (Class<V>) value.getClass();
+                bytes = serializer.serialize(value);
+            } catch (SerializeException e) {
+                throw new CacheException("serialize value failed", e);
+            }
         }
 
-        return add(key, bytes, expiry);
+        return _add(key, bytes, clazz, expiry);
     }
 
-    /**
-     * Put an element in the store only if no element is currently mapped to the elements key.
-     *
-     * @return true if the key is not in cache(even if put op is failed), false otherwise.
-     */
-    private boolean add(Object key, byte[] bytes) {
-        return add(key, bytes, 0);
-    }
 
     /**
      * Put an element in the store only if no element is currently mapped to the elements key.
@@ -204,26 +209,26 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public boolean add(Object key, byte[] value, int expiry) {
-        ValueHolder oldValueHolder = map.get(key);
-        if (oldValueHolder != null && !oldValueHolder.expired()) {
+    private boolean _add(K key, byte[] value, Class<V> clazz, int expiry) {
+        DirectValue oldDirectValue = map.get(key);
+        if (oldDirectValue != null && !oldDirectValue.expired()) {
             return false;
         }
-        ValueHolder holder = store(key, value);
+        DirectValue holder = store(key, value, clazz);
 
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
             // check again
-            oldValueHolder = map.get(key);
-            if (oldValueHolder != null && !oldValueHolder.expired()) {
+            oldDirectValue = map.get(key);
+            if (oldDirectValue != null && !oldDirectValue.expired()) {
                 return false;
             }
             if (holder != null) {
                 holder.expiry(expiry);
-                oldValueHolder = map.putIfAbsent(key, holder);
+                oldDirectValue = map.putIfAbsent(key, holder);
             }
-            return oldValueHolder == null;
+            return oldDirectValue == null;
         } finally {
             lock.writeLock().unlock();
         }
@@ -235,22 +240,22 @@ public class DirectCache {
      *
      * @return true if key exists.
      */
-    public boolean exists(Object key) {
+    public boolean exists(K key) {
         return this.map.containsKey(key);
     }
 
     /**
      * return all keys cached.
      */
-    public Collection<Object> keys() {
-        return this.map.keySet();
+    public Collection<K> keys() {
+        return (Collection<K>) this.map.keySet();
     }
 
-    private void removeExpiredEntry(Object key) {
+    private void removeExpiredEntry(K key) {
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
-            ValueHolder newHolder = map.get(key);
+            DirectValue newHolder = map.get(key);
             if (newHolder != null && newHolder.expired()) {
                 map.remove(key);
             }
@@ -279,26 +284,28 @@ public class DirectCache {
     /**
      * remove key from cache
      */
-    public void remove(Object key) {
+    public void remove(K key) {
         this.map.remove(key);
     }
 
-
-    private ValueHolder store(Object key, byte[] bytes) {
-        MemoryBuffer buffer = this.allocator.allocate(bytes.length);
-        if (buffer == null) {
-            // cannot allocate memory, evict and try again
-            lruEvict(key);
+    private DirectValue<K, V> store(K key, byte[] bytes, Class<V> clazz) {
+        MemoryBuffer buffer;
+        if (bytes == null) {
+            buffer = NullMemoryBuffer.getInstance();
+        } else {
             buffer = this.allocator.allocate(bytes.length);
-        }
-        if (buffer == null) {
-            return null;
-        }
+            if (buffer == null) {
+                // cannot allocate memory, evict and try again
+                lruEvict(key);
+                buffer = this.allocator.allocate(bytes.length);
+            }
+            if (buffer == null) {
+                return null;
+            }
 
-        buffer.write(bytes);
-        ValueHolder holder = new ValueHolder(buffer);
-        holder.setKey(key);
-        return holder;
+            buffer.write(bytes);
+        }
+        return new DirectValue<>(buffer, key, clazz);
     }
 
     /**
@@ -312,7 +319,7 @@ public class DirectCache {
     /**
      * If the store is over capacity, evict elements until capacity is reached
      */
-    private void lruEvict(Object key) {
+    private void lruEvict(K key) {
         int evict = MAX_EVICTION_RATIO;
         if (allocator.getCapacity() < allocator.used()) {
             for (int i = 0; i < evict; i++) {
@@ -324,9 +331,9 @@ public class DirectCache {
     /**
      * Removes the element chosen by the eviction policy
      */
-    private void removeChosenElements(Object key) {
+    private void removeChosenElements(K key) {
 
-        ValueHolder holder = findEvictionCandidate(key);
+        DirectValue<K, V> holder = findEvictionCandidate(key);
         if (holder == null) {
             logger.debug("Eviction selection miss. Selected element is null");
             return;
@@ -337,7 +344,7 @@ public class DirectCache {
             remove(holder.getKey());
             notifyExpiry(holder);
         } else {
-            remove(holder);
+            remove(holder.getKey());
         }
     }
 
@@ -347,14 +354,14 @@ public class DirectCache {
      * @param key the element added by the action calling this check
      * @return the element chosen as candidate for eviction
      */
-    private ValueHolder findEvictionCandidate(final Object key) {
-        ValueHolder[] holders = sampleElements(key);
+    private DirectValue findEvictionCandidate(final Object key) {
+        DirectValue[] holders = sampleElements(key);
         if (holders.length == 0) {
             return null;
         }
-        Arrays.sort(holders, new Comparator<ValueHolder>() {
+        Arrays.sort(holders, new Comparator<DirectValue>() {
             @Override
-            public int compare(ValueHolder o1, ValueHolder o2) {
+            public int compare(DirectValue o1, DirectValue o2) {
                 if (o1.expired() && o2.expired()) {
                     return 0;
                 } else if (o1.expired()) {
@@ -378,7 +385,7 @@ public class DirectCache {
      * @param keyHint a key used as a hint indicating where the just added element is
      * @return a random sample of elements
      */
-    private ValueHolder[] sampleElements(Object keyHint) {
+    private DirectValue[] sampleElements(Object keyHint) {
         int size = Math.min(map.quickSize(), DEFAULT_SAMPLE_SIZE);
         return map.getRandomValues(size, keyHint);
     }
@@ -388,7 +395,7 @@ public class DirectCache {
      *
      * @param holder the element to notify about its expiry
      */
-    private void notifyExpiry(final ValueHolder holder) {
+    private void notifyExpiry(final DirectValue holder) {
         //to be implemented
     }
 

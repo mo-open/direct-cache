@@ -46,7 +46,7 @@ public abstract class MemoryBuffer {
 
     public abstract int getOffset();
 
-    public abstract UnsafeMemory getMemory();
+    protected abstract UnsafeMemory getMemory();
 
     /**
      * mark this buffer as destroyed.

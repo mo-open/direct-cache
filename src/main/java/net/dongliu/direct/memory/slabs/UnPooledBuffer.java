@@ -39,7 +39,7 @@ public class UnPooledBuffer extends MemoryBuffer {
     }
 
     @Override
-    public UnsafeMemory getMemory() {
+    protected UnsafeMemory getMemory() {
         return this.memory;
     }
 

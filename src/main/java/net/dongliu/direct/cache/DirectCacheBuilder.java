@@ -1,11 +1,13 @@
 package net.dongliu.direct.cache;
 
+import net.dongliu.direct.serialization.DefaultSerializer;
+import net.dongliu.direct.serialization.Serializer;
 import net.dongliu.direct.utils.Size;
 
 /**
- * @author  Dong Liu
+ * @author Dong Liu
  */
-public class DirectCacheBuilder {
+public class DirectCacheBuilder<K, V> {
 
     /**
      * Cache concurrent map concurrent level
@@ -36,46 +38,53 @@ public class DirectCacheBuilder {
 
     private int slabSize = Size.Mb(4);
 
+    private Serializer<V> serializer = new DefaultSerializer<>();
+
     DirectCacheBuilder() {
     }
 
-    public DirectCacheBuilder concurrency(int concurrency) {
+    public DirectCacheBuilder<K, V> concurrency(int concurrency) {
         this.concurrency = concurrency;
         return this;
     }
 
-    public DirectCacheBuilder initialSize(int initialSize) {
+    public DirectCacheBuilder<K, V> initialSize(int initialSize) {
         this.initialSize = initialSize;
         return this;
     }
 
-    public DirectCacheBuilder loadFactor(float loadFactor) {
+    public DirectCacheBuilder<K, V> loadFactor(float loadFactor) {
         this.loadFactor = loadFactor;
         return this;
     }
 
-    public DirectCacheBuilder chunkSize(int chunkSize) {
+    public DirectCacheBuilder<K, V> chunkSize(int chunkSize) {
         this.chunkSize = chunkSize;
         return this;
     }
 
-    public DirectCacheBuilder slabSize(int slabSize) {
+    public DirectCacheBuilder<K, V> slabSize(int slabSize) {
         this.slabSize = slabSize;
         return this;
     }
 
-    public DirectCacheBuilder expandFactor(float expandFactor) {
+    public DirectCacheBuilder<K, V> expandFactor(float expandFactor) {
         this.expandFactor = expandFactor;
         return this;
     }
 
-    public DirectCacheBuilder maxMemorySize(long maxMemorySize) {
+    public DirectCacheBuilder<K, V> maxMemorySize(long maxMemorySize) {
         this.maxMemorySize = maxMemorySize;
         return this;
     }
 
-    public DirectCache build() {
-        return new DirectCache(maxMemorySize, expandFactor, chunkSize, slabSize,
-                initialSize, loadFactor, concurrency);
+    private DirectCacheBuilder<K, V> serializer(Serializer<V> serializer) {
+        this.serializer = serializer;
+        return this;
+    }
+
+    public DirectCache<K, V> build() {
+        return new DirectCache<>(maxMemorySize, expandFactor, chunkSize, slabSize,
+                initialSize, loadFactor, concurrency, serializer);
     }
 }

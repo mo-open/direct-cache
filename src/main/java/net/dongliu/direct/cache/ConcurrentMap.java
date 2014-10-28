@@ -15,7 +15,7 @@
  */
 package net.dongliu.direct.cache;
 
-import net.dongliu.direct.struct.ValueHolder;
+import net.dongliu.direct.struct.DirectValue;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -74,8 +74,8 @@ class ConcurrentMap {
     private final Random random = new Random();
 
     private Set<Object> keySet;
-    private Set<Map.Entry<Object, ValueHolder>> entrySet;
-    private Collection<ValueHolder> values;
+    private Set<Map.Entry<Object, DirectValue>> entrySet;
+    private Collection<DirectValue> values;
 
     public ConcurrentMap(int initialCapacity, float loadFactor, int concurrency) {
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrency <= 0)
@@ -109,8 +109,8 @@ class ConcurrentMap {
 
     }
 
-    public ValueHolder[] getRandomValues(final int size, Object keyHint) {
-        ArrayList<ValueHolder> sampled = new ArrayList<>(size * 2);
+    public DirectValue[] getRandomValues(final int size, Object keyHint) {
+        ArrayList<DirectValue> sampled = new ArrayList<>(size * 2);
 
         // pick a random starting point in the map
         int randomHash = random.nextInt();
@@ -129,14 +129,14 @@ class ConcurrentMap {
             int tableIndex = tableStart;
             do {
                 for (HashEntry e = table[tableIndex]; e != null; e = e.next) {
-                    ValueHolder value = e.value;
+                    DirectValue value = e.value;
                     if (value != null) {
                         sampled.add(value);
                     }
                 }
 
                 if (sampled.size() >= size) {
-                    return sampled.toArray(new ValueHolder[sampled.size()]);
+                    return sampled.toArray(new DirectValue[sampled.size()]);
                 }
 
                 //move to next table slot
@@ -147,7 +147,7 @@ class ConcurrentMap {
             segmentIndex = (segmentIndex + 1) & segmentMask;
         } while (segmentIndex != segmentStart);
 
-        return sampled.toArray(new ValueHolder[sampled.size()]);
+        return sampled.toArray(new DirectValue[sampled.size()]);
     }
 
     /**
@@ -157,7 +157,7 @@ class ConcurrentMap {
      * @param e the ValueHolder
      * @return an object looking-alike the stored one
      */
-    public Object storedObject(ValueHolder e) {
+    public Object storedObject(DirectValue e) {
         return new HashEntry(null, 0, null, e);
     }
 
@@ -275,7 +275,7 @@ class ConcurrentMap {
         return segments;
     }
 
-    public ValueHolder get(Object key) {
+    public DirectValue get(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).get(key, hash);
     }
@@ -332,17 +332,17 @@ class ConcurrentMap {
         return false;
     }
 
-    public ValueHolder put(Object key, ValueHolder ValueHolder) {
+    public DirectValue put(Object key, DirectValue DirectValue) {
         int hash = hash(key.hashCode());
-        return segmentFor(hash).put(key, hash, ValueHolder, false);
+        return segmentFor(hash).put(key, hash, DirectValue, false);
     }
 
-    public ValueHolder putIfAbsent(Object key, ValueHolder ValueHolder) {
+    public DirectValue putIfAbsent(Object key, DirectValue DirectValue) {
         int hash = hash(key.hashCode());
-        return segmentFor(hash).put(key, hash, ValueHolder, true);
+        return segmentFor(hash).put(key, hash, DirectValue, true);
     }
 
-    public ValueHolder remove(Object key) {
+    public DirectValue remove(Object key) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).remove(key, hash, null);
     }
@@ -363,13 +363,13 @@ class ConcurrentMap {
         return (ks != null) ? ks : (keySet = new KeySet());
     }
 
-    public Collection<ValueHolder> values() {
-        Collection<ValueHolder> vs = values;
+    public Collection<DirectValue> values() {
+        Collection<DirectValue> vs = values;
         return (vs != null) ? vs : (values = new Values());
     }
 
-    public Set<Entry<Object, ValueHolder>> entrySet() {
-        Set<Entry<Object, ValueHolder>> es = entrySet;
+    public Set<Entry<Object, DirectValue>> entrySet() {
+        Set<Entry<Object, DirectValue>> es = entrySet;
         return (es != null) ? es : (entrySet = new EntrySet());
     }
 
@@ -447,11 +447,11 @@ class ConcurrentMap {
             setTable(new HashEntry[initialCapacity]);
         }
 
-        void postRemove(ValueHolder vh) {
+        void postRemove(DirectValue vh) {
             vh.dispose();
         }
 
-        void preInstall(Object key, ValueHolder value) {
+        void preInstall(Object key, DirectValue value) {
         }
 
         /**
@@ -471,7 +471,7 @@ class ConcurrentMap {
             return tab[hash & (tab.length - 1)];
         }
 
-        protected HashEntry createHashEntry(Object key, int hash, HashEntry next, ValueHolder value) {
+        protected HashEntry createHashEntry(Object key, int hash, HashEntry next, DirectValue value) {
             return new HashEntry(key, hash, next, value);
         }
 
@@ -499,7 +499,7 @@ class ConcurrentMap {
             }
         }
 
-        ValueHolder remove(Object key, int hash, Object value) {
+        DirectValue remove(Object key, int hash, Object value) {
             writeLock().lock();
             try {
                 int c = count - 1;
@@ -510,9 +510,9 @@ class ConcurrentMap {
                 while (e != null && (e.hash != hash || !key.equals(e.key)))
                     e = e.next;
 
-                ValueHolder oldValue = null;
+                DirectValue oldValue = null;
                 if (e != null) {
-                    ValueHolder v = e.value;
+                    DirectValue v = e.value;
                     if (value == null || value.equals(v)) {
                         oldValue = v;
                         ++modCount;
@@ -532,7 +532,7 @@ class ConcurrentMap {
             }
         }
 
-        protected ValueHolder put(Object key, int hash, ValueHolder value, boolean onlyIfAbsent) {
+        protected DirectValue put(Object key, int hash, DirectValue value, boolean onlyIfAbsent) {
             writeLock().lock();
             try {
                 int c = count;
@@ -545,7 +545,7 @@ class ConcurrentMap {
                 while (e != null && (e.hash != hash || !key.equals(e.key)))
                     e = e.next;
 
-                ValueHolder oldValue;
+                DirectValue oldValue;
                 if (e != null) {
                     oldValue = e.value;
                     if (!onlyIfAbsent) {
@@ -568,7 +568,7 @@ class ConcurrentMap {
         }
 
 
-        ValueHolder get(final Object key, final int hash) {
+        DirectValue get(final Object key, final int hash) {
             readLock().lock();
             try {
                 if (count != 0) { // read-volatile
@@ -610,7 +610,7 @@ class ConcurrentMap {
                     HashEntry[] tab = table;
                     for (HashEntry aTab : tab) {
                         for (HashEntry e = aTab; e != null; e = e.next) {
-                            ValueHolder v = e.value;
+                            DirectValue v = e.value;
                             if (value.equals(v))
                                 return true;
                         }
@@ -622,7 +622,7 @@ class ConcurrentMap {
             }
         }
 
-        private ValueHolder nextExpiredOrToEvict(final ValueHolder justAdded) {
+        private DirectValue nextExpiredOrToEvict(final DirectValue justAdded) {
             if (!evictionIterator.hasNext()) {
                 evictionIterator = iterator();
             }
@@ -635,10 +635,10 @@ class ConcurrentMap {
         }
 
         private boolean evict() {
-            ValueHolder remove = null;
+            DirectValue remove = null;
             writeLock().lock();
             try {
-                ValueHolder evict = nextExpiredOrToEvict(null);
+                DirectValue evict = nextExpiredOrToEvict(null);
                 if (evict != null) {
                     remove = remove(evict.getKey(), hash(evict.getKey().hashCode()), null);
                 }
@@ -698,9 +698,9 @@ class ConcurrentMap {
         public final int hash;
         public final HashEntry next;
 
-        public volatile ValueHolder value;
+        public volatile DirectValue value;
 
-        protected HashEntry(Object key, int hash, HashEntry next, ValueHolder value) {
+        protected HashEntry(Object key, int hash, HashEntry next, DirectValue value) {
             this.key = key;
             this.hash = hash;
             this.next = next;
@@ -806,10 +806,10 @@ class ConcurrentMap {
         }
     }
 
-    final class Values extends AbstractCollection<ValueHolder> {
+    final class Values extends AbstractCollection<DirectValue> {
 
         @Override
-        public Iterator<ValueHolder> iterator() {
+        public Iterator<DirectValue> iterator() {
             return new ValueIterator();
         }
 
@@ -850,10 +850,10 @@ class ConcurrentMap {
         }
     }
 
-    final class EntrySet extends AbstractSet<Entry<Object, ValueHolder>> {
+    final class EntrySet extends AbstractSet<Entry<Object, DirectValue>> {
 
         @Override
-        public Iterator<Entry<Object, ValueHolder>> iterator() {
+        public Iterator<Entry<Object, DirectValue>> iterator() {
             return new EntryIterator();
         }
 
@@ -872,7 +872,7 @@ class ConcurrentMap {
             if (!(o instanceof Entry))
                 return false;
             Entry<?, ?> e = (Entry<?, ?>) o;
-            ValueHolder v = ConcurrentMap.this.get(e.getKey());
+            DirectValue v = ConcurrentMap.this.get(e.getKey());
             return v != null && v.equals(e.getValue());
         }
 
@@ -914,32 +914,32 @@ class ConcurrentMap {
         }
     }
 
-    final class ValueIterator extends HashEntryIterator implements Iterator<ValueHolder> {
+    final class ValueIterator extends HashEntryIterator implements Iterator<DirectValue> {
 
         @Override
-        public ValueHolder next() {
+        public DirectValue next() {
             return nextEntry().value;
         }
     }
 
-    final class EntryIterator extends HashEntryIterator implements Iterator<Entry<Object, ValueHolder>> {
+    final class EntryIterator extends HashEntryIterator implements Iterator<Entry<Object, DirectValue>> {
 
         @Override
-        public Entry<Object, ValueHolder> next() {
+        public Entry<Object, DirectValue> next() {
             HashEntry entry = nextEntry();
             final Object key = entry.key;
-            final ValueHolder value = entry.value;
-            return new Entry<Object, ValueHolder>() {
+            final DirectValue value = entry.value;
+            return new Entry<Object, DirectValue>() {
 
                 public Object getKey() {
                     return key;
                 }
 
-                public ValueHolder getValue() {
+                public DirectValue getValue() {
                     return value;
                 }
 
-                public ValueHolder setValue(ValueHolder value) {
+                public DirectValue setValue(DirectValue value) {
                     throw new UnsupportedOperationException();
                 }
             };
