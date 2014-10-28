@@ -4,15 +4,15 @@ To use this library, You need to run your routine on Oracle JDK(SUN JDK). The ca
 
 When get a cache instance, should always specify the max off-heap memory that cache can use:
 ```
- DirectCache cache = DirectCache.newBuilder().maxMemorySize(Size.Gb(10)).build();
+ DirectCache<String, String> cache = DirectCache.<String, String>newBuilder().maxMemorySize(Size.Gb(10)).build();
 ```
 
 For maven users, add:
-```
+```xml
 <dependency>
     <groupId>net.dongliu</groupId>
     <artifactId>direct-cache</artifactId>
-    <version>0.2.2</version>
+    <version>0.2.5</version>
 </dependency>
 ```
 to your pom file.
