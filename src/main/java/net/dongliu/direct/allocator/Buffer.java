@@ -1,6 +1,7 @@
 package net.dongliu.direct.allocator;
 
-import io.netty.buffer.ByteBuf;
+
+import net.dongliu.direct.buffer.ByteBuf;
 
 /**
  * @author Dong Liu

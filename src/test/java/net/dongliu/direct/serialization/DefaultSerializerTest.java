@@ -35,5 +35,6 @@ public class DefaultSerializerTest {
         byte[] bytes = serializer.serialize(person);
         Person person2 = serializer.deSerialize(bytes, Person.class);
         assertEquals(person.getAge(), person2.getAge());
+        assertEquals(person.getSalary(), person2.getSalary());
     }
 }

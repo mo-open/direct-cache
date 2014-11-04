@@ -1,6 +1,8 @@
 package net.dongliu.direct.Mock;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Date;
 
 /**
@@ -11,6 +13,7 @@ public class Person implements Serializable {
     private int age;
     private String name;
     private Date birth;
+    private BigDecimal salary = new BigDecimal(100000);
 
     public int getAge() {
         return age;
@@ -34,5 +37,13 @@ public class Person implements Serializable {
 
     public void setBirth(Date birth) {
         this.birth = birth;
+    }
+
+    public BigDecimal getSalary() {
+        return salary;
+    }
+
+    public void setSalary(BigDecimal salary) {
+        this.salary = salary;
     }
 }

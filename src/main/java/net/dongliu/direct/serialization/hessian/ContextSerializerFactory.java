@@ -48,11 +48,15 @@
 
 package net.dongliu.direct.serialization.hessian;
 
-import java.io.InputStream;
+import net.dongliu.commons.lang.collection.Maps;
+import net.dongliu.commons.lang.collection.Pair;
+
+import javax.management.ObjectName;
+import java.io.File;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
+import java.math.BigDecimal;
 import java.net.InetAddress;
-import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -262,13 +266,16 @@ public class ContextSerializerFactory {
             _deserializerClassNameMap.putAll(_staticClassNameMap);
         }
 
-        HashMap<Class, Class> classMap;
+        Map<Class, Class> classMap;
 
-        classMap = new HashMap<Class, Class>();
-        initSerializerFiles("META-INF/hessian/serializers",
-                _serializerFiles,
-                classMap,
-                Serializer.class);
+        classMap = new HashMap<>();
+        classMap = Maps.of(
+                Pair.<Class, Class>of(HessianRemoteObject.class, RemoteSerializer.class),
+                Pair.<Class, Class>of(File.class, StringValueSerializer.class),
+                Pair.<Class, Class>of(BigDecimal.class, StringValueSerializer.class),
+                Pair.<Class, Class>of(Locale.class, LocaleSerializer.class),
+                Pair.<Class, Class>of(ObjectName.class, StringValueSerializer.class)
+        );
 
         for (Map.Entry<Class, Class> entry : classMap.entrySet()) {
             try {
@@ -283,11 +290,11 @@ public class ContextSerializerFactory {
             }
         }
 
-        classMap = new HashMap<Class, Class>();
-        initSerializerFiles("META-INF/hessian/deserializers",
-                _deserializerFiles,
-                classMap,
-                Deserializer.class);
+        classMap = Maps.of(
+                Pair.<Class, Class>of(File.class, FileDeserializer.class),
+                Pair.<Class, Class>of(BigDecimal.class, BigDecimalDeserializer.class),
+                Pair.<Class, Class>of(ObjectName.class, ObjectNameDeserializer.class)
+        );
 
         for (Map.Entry<Class, Class> entry : classMap.entrySet()) {
             try {
@@ -301,74 +308,6 @@ public class ContextSerializerFactory {
             } catch (Exception e) {
                 throw new HessianException(e);
             }
-        }
-    }
-
-    private void initSerializerFiles(String fileName,
-                                     HashSet<String> fileList,
-                                     HashMap<Class, Class> classMap,
-                                     Class type) {
-        try {
-            ClassLoader classLoader = getClassLoader();
-
-            // on systems with the security manager enabled, the system classloader
-            // is null
-            if (classLoader == null)
-                return;
-
-            Enumeration iter;
-
-            iter = classLoader.getResources(fileName);
-            while (iter.hasMoreElements()) {
-                URL url = (URL) iter.nextElement();
-
-                if (fileList.contains(url.toString()))
-                    continue;
-
-                fileList.add(url.toString());
-
-                InputStream is = null;
-                try {
-                    is = url.openStream();
-
-                    Properties props = new Properties();
-                    props.load(is);
-
-                    for (Map.Entry entry : props.entrySet()) {
-                        String apiName = (String) entry.getKey();
-                        String serializerName = (String) entry.getValue();
-
-                        Class apiClass = null;
-                        Class serializerClass = null;
-
-                        try {
-                            apiClass = Class.forName(apiName, false, classLoader);
-                        } catch (ClassNotFoundException e) {
-                            log.fine(url + ": " + apiName + " is not available in this context: " + getClassLoader());
-                            continue;
-                        }
-
-                        try {
-                            serializerClass = Class.forName(serializerName, false, classLoader);
-                        } catch (ClassNotFoundException e) {
-                            log.fine(url + ": " + serializerName + " is not available in this context: " + getClassLoader());
-                            continue;
-                        }
-
-                        if (!type.isAssignableFrom(serializerClass))
-                            throw new HessianException(url + ": " + serializerClass.getName() + " is invalid because it does not implement " + type.getName());
-
-                        classMap.put(apiClass, serializerClass);
-                    }
-                } finally {
-                    if (is != null)
-                        is.close();
-                }
-            }
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new HessianException(e);
         }
     }
 
