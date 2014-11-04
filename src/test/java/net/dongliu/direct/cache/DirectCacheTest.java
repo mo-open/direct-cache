@@ -3,11 +3,10 @@ package net.dongliu.direct.cache;
 import net.dongliu.direct.struct.Value;
 import net.dongliu.direct.utils.Size;
 import org.junit.AfterClass;
-
-import static org.junit.Assert.*;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 /**
  * @author Dong Liu

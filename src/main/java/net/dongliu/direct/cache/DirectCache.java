@@ -36,7 +36,7 @@ public class DirectCache<K, V> {
 
     private static final int DEFAULT_SAMPLE_SIZE = 30;
 
-    private Serializer<V> serializer;
+    private Serializer serializer;
 
     public static <S, T> DirectCacheBuilder<S, T> newBuilder() {
         return new DirectCacheBuilder<>();
@@ -48,7 +48,7 @@ public class DirectCache<K, V> {
      * @param maxSize the max off-heap size could use.
      */
     DirectCache(long maxSize, int initialSize, float loadFactor, int concurrency,
-                Serializer<V> serializer) {
+                Serializer serializer) {
         this.allocator = new NettyAllocator(maxSize);
         this.map = new ConcurrentMap(initialSize, loadFactor, concurrency);
         this.serializer = serializer;

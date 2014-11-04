@@ -1,7 +1,6 @@
 package net.dongliu.direct.struct;
 
 import net.dongliu.direct.allocator.AbstractBuffer;
-import net.dongliu.direct.allocator.Buffer;
 
 /**
  * interface of cache-value holder.

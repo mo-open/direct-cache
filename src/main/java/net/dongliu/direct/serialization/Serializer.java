@@ -8,7 +8,7 @@ import net.dongliu.direct.exception.SerializeException;
  *
  * @author Dong Liu
  */
-public interface Serializer<T> {
+public interface Serializer {
 
     /**
      * serialize value to bytes
@@ -17,7 +17,7 @@ public interface Serializer<T> {
      * @return the bytes
      * @throws SerializeException
      */
-    byte[] serialize(T value) throws SerializeException;
+    <T> byte[] serialize(T value) throws SerializeException;
 
     /**
      * deSerialize bytes to value
@@ -27,5 +27,5 @@ public interface Serializer<T> {
      * @return the value
      * @throws DeSerializeException
      */
-    T deSerialize(byte[] bytes, Class<T> clazz) throws DeSerializeException;
+    <T> T deSerialize(byte[] bytes, Class<T> clazz) throws DeSerializeException;
 }

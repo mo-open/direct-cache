@@ -26,7 +26,7 @@ public class DirectCacheBuilder<K, V> {
 
     private long maxMemorySize = Size.Gb(1);
 
-    private Serializer<V> serializer = new DefaultSerializer<>();
+    private Serializer serializer = new DefaultSerializer();
 
     DirectCacheBuilder() {
     }
@@ -51,7 +51,7 @@ public class DirectCacheBuilder<K, V> {
         return this;
     }
 
-    private DirectCacheBuilder<K, V> serializer(Serializer<V> serializer) {
+    private DirectCacheBuilder<K, V> serializer(Serializer serializer) {
         this.serializer = serializer;
         return this;
     }
