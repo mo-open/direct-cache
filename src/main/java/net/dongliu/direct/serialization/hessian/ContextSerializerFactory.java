@@ -48,9 +48,6 @@
 
 package net.dongliu.direct.serialization.hessian;
 
-import net.dongliu.commons.lang.collection.Maps;
-import net.dongliu.commons.lang.collection.Pair;
-
 import javax.management.ObjectName;
 import java.io.File;
 import java.lang.ref.SoftReference;
@@ -269,13 +266,11 @@ public class ContextSerializerFactory {
         Map<Class, Class> classMap;
 
         classMap = new HashMap<>();
-        classMap = Maps.of(
-                Pair.<Class, Class>of(HessianRemoteObject.class, RemoteSerializer.class),
-                Pair.<Class, Class>of(File.class, StringValueSerializer.class),
-                Pair.<Class, Class>of(BigDecimal.class, StringValueSerializer.class),
-                Pair.<Class, Class>of(Locale.class, LocaleSerializer.class),
-                Pair.<Class, Class>of(ObjectName.class, StringValueSerializer.class)
-        );
+        classMap.put(HessianRemoteObject.class, RemoteSerializer.class);
+        classMap.put(File.class, StringValueSerializer.class);
+        classMap.put(BigDecimal.class, StringValueSerializer.class);
+        classMap.put(Locale.class, LocaleSerializer.class);
+        classMap.put(ObjectName.class, StringValueSerializer.class);
 
         for (Map.Entry<Class, Class> entry : classMap.entrySet()) {
             try {
@@ -290,11 +285,10 @@ public class ContextSerializerFactory {
             }
         }
 
-        classMap = Maps.of(
-                Pair.<Class, Class>of(File.class, FileDeserializer.class),
-                Pair.<Class, Class>of(BigDecimal.class, BigDecimalDeserializer.class),
-                Pair.<Class, Class>of(ObjectName.class, ObjectNameDeserializer.class)
-        );
+        classMap = new HashMap<>();
+        classMap.put(File.class, FileDeserializer.class);
+        classMap.put(BigDecimal.class, BigDecimalDeserializer.class);
+        classMap.put(ObjectName.class, ObjectNameDeserializer.class);
 
         for (Map.Entry<Class, Class> entry : classMap.entrySet()) {
             try {
