@@ -1,8 +1,8 @@
 package net.dongliu.direct.allocator;
 
 
-import net.dongliu.direct.buffer.ByteBuf;
-import net.dongliu.direct.buffer.PooledByteBufAllocator;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 
 import java.util.concurrent.atomic.AtomicLong;
 
