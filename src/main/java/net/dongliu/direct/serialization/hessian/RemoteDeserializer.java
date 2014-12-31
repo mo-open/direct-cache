@@ -48,8 +48,6 @@
 
 package net.dongliu.direct.serialization.hessian;
 
-import java.util.logging.Logger;
-
 /**
  * Serializing an object for known object types.
  */

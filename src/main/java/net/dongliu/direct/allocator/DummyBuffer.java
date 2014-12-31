@@ -1,14 +1,19 @@
 package net.dongliu.direct.allocator;
 
 /**
+ * dummy buffer for null values
+ *
  * @author Dong Liu
  */
-public class NullMemoryBuffer extends AbstractBuffer {
+public class DummyBuffer extends AbstractBuffer {
 
-    private static NullMemoryBuffer instance = new NullMemoryBuffer();
+    private static DummyBuffer instance = new DummyBuffer();
 
-    public static NullMemoryBuffer getInstance() {
+    public static DummyBuffer getInstance() {
         return instance;
+    }
+
+    private DummyBuffer() {
     }
 
     @Override

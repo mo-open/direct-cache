@@ -19,7 +19,7 @@ public class ConcurrentMapTest {
 
     @BeforeClass
     public static void setup() {
-        allocator = new NettyAllocator(Size.Mb(256));
+        allocator = new NettyAllocator(Size.Mb(256), 4);
         map = new ConcurrentMap(1000, 0.75f, 16);
     }
 

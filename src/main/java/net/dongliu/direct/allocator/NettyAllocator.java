@@ -1,30 +1,33 @@
 package net.dongliu.direct.allocator;
 
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
+import net.dongliu.direct.buffer.ByteBuf;
+import net.dongliu.direct.buffer.PooledByteBufAllocator;
+import net.dongliu.direct.utils.Size;
 
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * buffer allocator use netty buffer
+ *
  * @author Dong Liu
  */
 public class NettyAllocator {
 
-    private PooledByteBufAllocator allocator = PooledByteBufAllocator.DEFAULT;
+    private final PooledByteBufAllocator allocator;
 
     private final long capacity;
 
     private final AtomicLong used = new AtomicLong(0);
 
-    public NettyAllocator(long capacity) {
+    public NettyAllocator(long capacity, int arenaNum) {
         this.capacity = capacity;
+        this.allocator = new PooledByteBufAllocator(arenaNum, Size.Kb(8), 11);
     }
 
     /**
      * allocate new buffer
      *
-     * @param size
      * @return null if not enough memory
      */
     public Buffer allocate(int size) {

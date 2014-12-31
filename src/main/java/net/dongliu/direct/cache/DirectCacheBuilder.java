@@ -5,6 +5,8 @@ import net.dongliu.direct.serialization.Serializer;
 import net.dongliu.direct.utils.Size;
 
 /**
+ * direct cache builder
+ *
  * @author Dong Liu
  */
 public class DirectCacheBuilder<K, V> {
@@ -14,17 +16,8 @@ public class DirectCacheBuilder<K, V> {
      */
     private int concurrency = 256;
 
-    /**
-     * Cache concurrent map initial size of one segment.
-     */
-    private int initialSize = 1024;
 
-    /**
-     * cache map load factor
-     */
-    private float loadFactor = 0.75f;
-
-    private long maxMemorySize = Size.Gb(1);
+    private long maxMemory = Size.Gb(1);
 
     private Serializer serializer = new DefaultSerializer();
 
@@ -36,18 +29,8 @@ public class DirectCacheBuilder<K, V> {
         return this;
     }
 
-    public DirectCacheBuilder<K, V> initialSize(int initialSize) {
-        this.initialSize = initialSize;
-        return this;
-    }
-
-    public DirectCacheBuilder<K, V> loadFactor(float loadFactor) {
-        this.loadFactor = loadFactor;
-        return this;
-    }
-
     public DirectCacheBuilder<K, V> maxMemorySize(long maxMemorySize) {
-        this.maxMemorySize = maxMemorySize;
+        this.maxMemory = maxMemorySize;
         return this;
     }
 
@@ -57,6 +40,6 @@ public class DirectCacheBuilder<K, V> {
     }
 
     public DirectCache<K, V> build() {
-        return new DirectCache<>(maxMemorySize, initialSize, loadFactor, concurrency, serializer);
+        return new DirectCache<>(maxMemory, concurrency, serializer);
     }
 }

@@ -1,8 +1,8 @@
 package net.dongliu.direct.cache;
 
 import net.dongliu.direct.allocator.AbstractBuffer;
+import net.dongliu.direct.allocator.DummyBuffer;
 import net.dongliu.direct.allocator.NettyAllocator;
-import net.dongliu.direct.allocator.NullMemoryBuffer;
 import net.dongliu.direct.exception.CacheException;
 import net.dongliu.direct.exception.DeSerializeException;
 import net.dongliu.direct.exception.SerializeException;
@@ -29,14 +29,12 @@ public class DirectCache<K, V> {
     private static final Logger logger = LoggerFactory.getLogger(DirectCache.class);
 
     private ConcurrentMap map;
-
     private final NettyAllocator allocator;
 
+    private final Serializer serializer;
+
     private static final int MAX_EVICTION_RATIO = 10;
-
     private static final int DEFAULT_SAMPLE_SIZE = 30;
-
-    private Serializer serializer;
 
     public static <S, T> DirectCacheBuilder<S, T> newBuilder() {
         return new DirectCacheBuilder<>();
@@ -45,12 +43,12 @@ public class DirectCache<K, V> {
     /**
      * Constructor
      *
-     * @param maxSize the max off-heap size could use.
+     * @param maxMemory the max off-heap size could use.
      */
-    DirectCache(long maxSize, int initialSize, float loadFactor, int concurrency,
-                Serializer serializer) {
-        this.allocator = new NettyAllocator(maxSize);
-        this.map = new ConcurrentMap(initialSize, loadFactor, concurrency);
+    DirectCache(long maxMemory, int concurrency, Serializer serializer) {
+        this.allocator = new NettyAllocator(maxMemory,
+                Runtime.getRuntime().availableProcessors() * 2);
+        this.map = new ConcurrentMap(1024, 0.75f, concurrency);
         this.serializer = serializer;
     }
 
@@ -280,7 +278,7 @@ public class DirectCache<K, V> {
     private DirectValue<K, V> store(K key, byte[] bytes, Class<V> clazz) {
         AbstractBuffer buffer;
         if (bytes == null) {
-            buffer = NullMemoryBuffer.getInstance();
+            buffer = DummyBuffer.getInstance();
         } else {
             buffer = this.allocator.allocate(bytes.length);
             if (buffer == null) {
