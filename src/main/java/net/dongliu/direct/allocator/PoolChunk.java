@@ -106,7 +106,7 @@ import java.nio.ByteBuffer;
 final class PoolChunk {
 
     final PoolArena arena;
-    final ByteBuffer memory;
+    final Memory memory;
     final boolean unpooled;
 
     private final byte[] memoryMap;
@@ -136,7 +136,7 @@ final class PoolChunk {
     // TODO: Test if adding padding helps under contention
     //private long pad0, pad1, pad2, pad3, pad4, pad5, pad6, pad7;
 
-    PoolChunk(PoolArena arena, ByteBuffer memory, int pageSize, int maxOrder, int pageShifts,
+    PoolChunk(PoolArena arena, Memory memory, int pageSize, int maxOrder, int pageShifts,
               int chunkSize) {
         unpooled = false;
         this.arena = arena;
@@ -173,7 +173,7 @@ final class PoolChunk {
     /**
      * Creates a special chunk that is not pooled.
      */
-    PoolChunk(PoolArena arena, ByteBuffer memory, int size) {
+    PoolChunk(PoolArena arena, Memory memory, int size) {
         unpooled = true;
         this.arena = arena;
         this.memory = memory;

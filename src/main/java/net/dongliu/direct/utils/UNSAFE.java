@@ -1,9 +1,11 @@
 package net.dongliu.direct.utils;
 
+import net.dongliu.direct.allocator.Memory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.Cleaner;
 import sun.misc.Unsafe;
+import sun.misc.VM;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -29,6 +31,9 @@ public class UNSAFE {
     private static final boolean BIG_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN;
 
     private static final long ARRAY_BASE_OFFSET;
+    private static final int PAGE_SIZE;
+
+    private static final boolean PA = VM.isDirectMemoryPageAligned();
 
 
     /**
@@ -101,11 +106,12 @@ public class UNSAFE {
             Method unalignedMethod = bitsClass.getDeclaredMethod("unaligned");
             unalignedMethod.setAccessible(true);
             unaligned = Boolean.TRUE.equals(unalignedMethod.invoke(null));
+
+            Method psMethod = bitsClass.getDeclaredMethod("pageSize");
+            psMethod.setAccessible(true);
+            PAGE_SIZE = (Integer) psMethod.invoke(null);
         } catch (Throwable t) {
-            // We at least know x86 and x64 support unaligned access.
-            String arch = getSystemProperty("os.arch", "");
-            //noinspection DynamicRegexReplaceableByCompiledPattern
-            unaligned = arch.matches("^(i[3-6]86|x86(_64)?|x64|amd64)$");
+            throw new RuntimeException(t);
         }
 
         UNALIGNED = unaligned;
@@ -238,12 +244,12 @@ public class UNSAFE {
         } else if (BIG_ENDIAN) {
             return getByte(address) << 24 |
                     (getByte(address + 1) & 0xff) << 16 |
-                    (getByte(address + 2) & 0xff) <<  8 |
+                    (getByte(address + 2) & 0xff) << 8 |
                     getByte(address + 3) & 0xff;
         } else {
             return getByte(address + 3) << 24 |
                     (getByte(address + 2) & 0xff) << 16 |
-                    (getByte(address + 1) & 0xff) <<  8 |
+                    (getByte(address + 1) & 0xff) << 8 |
                     getByte(address) & 0xff;
         }
     }
@@ -258,7 +264,7 @@ public class UNSAFE {
                     ((long) getByte(address + 3) & 0xff) << 32 |
                     ((long) getByte(address + 4) & 0xff) << 24 |
                     ((long) getByte(address + 5) & 0xff) << 16 |
-                    ((long) getByte(address + 6) & 0xff) <<  8 |
+                    ((long) getByte(address + 6) & 0xff) << 8 |
                     (long) getByte(address + 7) & 0xff;
         } else {
             return (long) getByte(address + 7) << 56 |
@@ -267,7 +273,7 @@ public class UNSAFE {
                     ((long) getByte(address + 4) & 0xff) << 32 |
                     ((long) getByte(address + 3) & 0xff) << 24 |
                     ((long) getByte(address + 2) & 0xff) << 16 |
-                    ((long) getByte(address + 1) & 0xff) <<  8 |
+                    ((long) getByte(address + 1) & 0xff) << 8 |
                     (long) getByte(address) & 0xff;
         }
     }
@@ -439,5 +445,23 @@ public class UNSAFE {
 
     public static void copyMemory(byte[] src, int srcIndex, long dstAddr, long length) {
         copyMemory(src, ARRAY_BASE_OFFSET + srcIndex, null, dstAddr, length);
+    }
+
+    public static Memory allocateMemory(int cap) {
+        long size = Math.max(1L, (long) cap + (PA ? PAGE_SIZE : 0));
+
+        long base = allocateMemory(size);
+        long address;
+        if (PA && (base % PAGE_SIZE != 0)) {
+            // Round up to page boundary
+            address = base + PAGE_SIZE - (base & (PAGE_SIZE - 1));
+        } else {
+            address = base;
+        }
+        return new Memory(address, cap);
+    }
+
+    public static void freeMemory(Memory memory) {
+        freeMemory(memory.getAddress());
     }
 }

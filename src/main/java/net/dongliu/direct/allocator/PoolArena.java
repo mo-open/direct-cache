@@ -268,7 +268,7 @@ abstract class PoolArena {
 
         PoolChunk oldChunk = buf.chunk;
         long oldHandle = buf.handle;
-        ByteBuffer oldMemory = buf.memory;
+        Memory oldMemory = buf.memory;
         int oldOffset = buf.offset;
         int oldMaxLength = buf.maxLength;
         int readerIndex = buf.readerIndex();
@@ -302,7 +302,7 @@ abstract class PoolArena {
 
     protected abstract PooledByteBuf newByteBuf(int maxCapacity);
 
-    protected abstract void memoryCopy(ByteBuffer src, int srcOffset, ByteBuffer dst,
+    protected abstract void memoryCopy(Memory src, int srcOffset, Memory dst,
                                        int dstOffset, int length);
 
     protected abstract void destroyChunk(PoolChunk chunk);
@@ -385,18 +385,18 @@ abstract class PoolArena {
 
         @Override
         protected PoolChunk newChunk(int pageSize, int maxOrder, int pageShifts, int chunkSize) {
-            return new PoolChunk(
-                    this, ByteBuffer.allocateDirect(chunkSize), pageSize, maxOrder, pageShifts, chunkSize);
+            return new PoolChunk(this, UNSAFE.allocateMemory(chunkSize), pageSize, maxOrder,
+                    pageShifts, chunkSize);
         }
 
         @Override
         protected PoolChunk newUnpooledChunk(int capacity) {
-            return new PoolChunk(this, ByteBuffer.allocateDirect(capacity), capacity);
+            return new PoolChunk(this, UNSAFE.allocateMemory(capacity), capacity);
         }
 
         @Override
         protected void destroyChunk(PoolChunk chunk) {
-            UNSAFE.freeDirectBuffer(chunk.memory);
+            UNSAFE.freeMemory(chunk.memory);
         }
 
         @Override
@@ -405,13 +405,12 @@ abstract class PoolArena {
         }
 
         @Override
-        protected void memoryCopy(ByteBuffer src, int srcOffset, ByteBuffer dst, int dstOffset, int length) {
+        protected void memoryCopy(Memory src, int srcOffset, Memory dst, int dstOffset, int length) {
             if (length == 0) {
                 return;
             }
 
-            UNSAFE.copyMemory(UNSAFE.directBufferAddress(src) + srcOffset,
-                    UNSAFE.directBufferAddress(dst) + dstOffset, length);
+            UNSAFE.copyMemory(src.getAddress() + srcOffset, dst.getAddress() + dstOffset, length);
         }
     }
 }

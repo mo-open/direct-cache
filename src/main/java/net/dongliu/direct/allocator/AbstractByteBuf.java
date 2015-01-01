@@ -20,9 +20,6 @@ import net.dongliu.direct.exception.IllegalReferenceCountException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.GatheringByteChannel;
-import java.nio.channels.ScatteringByteChannel;
 
 
 /**
@@ -286,24 +283,6 @@ public abstract class AbstractByteBuf extends ByteBuf {
     }
 
     @Override
-    public ByteBuf readBytes(ByteBuffer dst) {
-        int length = dst.remaining();
-        checkReadableBytes(length);
-        getBytes(readerIndex, dst);
-        readerIndex += length;
-        return this;
-    }
-
-    @Override
-    public int readBytes(GatheringByteChannel out, int length)
-            throws IOException {
-        checkReadableBytes(length);
-        int readBytes = getBytes(readerIndex, out, length);
-        readerIndex += readBytes;
-        return readBytes;
-    }
-
-    @Override
     public ByteBuf readBytes(OutputStream out, int length) throws IOException {
         checkReadableBytes(length);
         getBytes(readerIndex, out, length);
@@ -355,29 +334,8 @@ public abstract class AbstractByteBuf extends ByteBuf {
     }
 
     @Override
-    public ByteBuf writeBytes(ByteBuffer src) {
-        ensureAccessible();
-        int length = src.remaining();
-        ensureWritable(length);
-        setBytes(writerIndex, src);
-        writerIndex += length;
-        return this;
-    }
-
-    @Override
     public int writeBytes(InputStream in, int length)
             throws IOException {
-        ensureAccessible();
-        ensureWritable(length);
-        int writtenBytes = setBytes(writerIndex, in, length);
-        if (writtenBytes > 0) {
-            writerIndex += writtenBytes;
-        }
-        return writtenBytes;
-    }
-
-    @Override
-    public int writeBytes(ScatteringByteChannel in, int length) throws IOException {
         ensureAccessible();
         ensureWritable(length);
         int writtenBytes = setBytes(writerIndex, in, length);

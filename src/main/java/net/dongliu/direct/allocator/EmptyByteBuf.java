@@ -20,22 +20,15 @@ import net.dongliu.direct.utils.UNSAFE;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
-import java.nio.channels.GatheringByteChannel;
-import java.nio.channels.ScatteringByteChannel;
 
 /**
  * An empty {@link ByteBuf} whose capacity and maximum capacity are all {@code 0}.
  */
 public final class EmptyByteBuf extends ByteBuf {
 
-    private static final ByteBuffer EMPTY_BYTE_BUFFER = ByteBuffer.allocateDirect(0);
-    private static final long EMPTY_BYTE_BUFFER_ADDRESS;
-
-    static {
-        EMPTY_BYTE_BUFFER_ADDRESS = UNSAFE.directBufferAddress(EMPTY_BYTE_BUFFER);
-    }
+    private static final Memory EMPTY_BYTE_BUFFER = UNSAFE.allocateMemory(0);
+    private static final long EMPTY_BYTE_BUFFER_ADDRESS = EMPTY_BYTE_BUFFER.getAddress();
 
     private final ByteBufAllocator alloc;
     private final String str;
@@ -166,19 +159,8 @@ public final class EmptyByteBuf extends ByteBuf {
     }
 
     @Override
-    public ByteBuf getBytes(int index, ByteBuffer dst) {
-        return checkIndex(index, dst.remaining());
-    }
-
-    @Override
     public ByteBuf getBytes(int index, OutputStream out, int length) {
         return checkIndex(index, length);
-    }
-
-    @Override
-    public int getBytes(int index, GatheringByteChannel out, int length) {
-        checkIndex(index, length);
-        return 0;
     }
 
     @Override
@@ -202,18 +184,7 @@ public final class EmptyByteBuf extends ByteBuf {
     }
 
     @Override
-    public ByteBuf setBytes(int index, ByteBuffer src) {
-        return checkIndex(index, src.remaining());
-    }
-
-    @Override
     public int setBytes(int index, InputStream in, int length) {
-        checkIndex(index, length);
-        return 0;
-    }
-
-    @Override
-    public int setBytes(int index, ScatteringByteChannel in, int length) {
         checkIndex(index, length);
         return 0;
     }
@@ -244,19 +215,8 @@ public final class EmptyByteBuf extends ByteBuf {
     }
 
     @Override
-    public ByteBuf readBytes(ByteBuffer dst) {
-        return checkLength(dst.remaining());
-    }
-
-    @Override
     public ByteBuf readBytes(OutputStream out, int length) {
         return checkLength(length);
-    }
-
-    @Override
-    public int readBytes(GatheringByteChannel out, int length) {
-        checkLength(length);
-        return 0;
     }
 
     @Override
@@ -285,18 +245,7 @@ public final class EmptyByteBuf extends ByteBuf {
     }
 
     @Override
-    public ByteBuf writeBytes(ByteBuffer src) {
-        return checkLength(src.remaining());
-    }
-
-    @Override
     public int writeBytes(InputStream in, int length) {
-        checkLength(length);
-        return 0;
-    }
-
-    @Override
-    public int writeBytes(ScatteringByteChannel in, int length) {
         checkLength(length);
         return 0;
     }

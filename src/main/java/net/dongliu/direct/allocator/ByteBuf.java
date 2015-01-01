@@ -253,18 +253,6 @@ public abstract class ByteBuf implements ReferenceCounted {
      */
     public abstract ByteBuf getBytes(int index, byte[] dst, int dstIndex, int length);
 
-    /**
-     * Transfers this buffer's data to the specified destination starting at
-     * the specified absolute {@code index} until the destination's position
-     * reaches its limit.
-     * This method does not modify {@code readerIndex} or {@code writerIndex} of
-     * this buffer while the destination's {@code position} will be increased.
-     *
-     * @throws IndexOutOfBoundsException if the specified {@code index} is less than {@code 0} or
-     *                                   if {@code index + dst.remaining()} is greater than
-     *                                   {@code this.capacity}
-     */
-    public abstract ByteBuf getBytes(int index, ByteBuffer dst);
 
     /**
      * Transfers this buffer's data to the specified stream starting at the
@@ -279,21 +267,6 @@ public abstract class ByteBuf implements ReferenceCounted {
      * @throws IOException               if the specified stream threw an exception during I/O
      */
     public abstract ByteBuf getBytes(int index, OutputStream out, int length) throws IOException;
-
-    /**
-     * Transfers this buffer's data to the specified channel starting at the
-     * specified absolute {@code index}.
-     * This method does not modify {@code readerIndex} or {@code writerIndex} of
-     * this buffer.
-     *
-     * @param length the maximum number of bytes to transfer
-     * @return the actual number of bytes written out to the specified channel
-     * @throws IndexOutOfBoundsException if the specified {@code index} is less than {@code 0} or
-     *                                   if {@code index + length} is greater than
-     *                                   {@code this.capacity}
-     * @throws IOException               if the specified channel threw an exception during I/O
-     */
-    public abstract int getBytes(int index, GatheringByteChannel out, int length) throws IOException;
 
     /**
      * Transfers the specified source buffer's data to this buffer starting at
@@ -357,19 +330,6 @@ public abstract class ByteBuf implements ReferenceCounted {
     public abstract ByteBuf setBytes(int index, byte[] src, int srcIndex, int length);
 
     /**
-     * Transfers the specified source buffer's data to this buffer starting at
-     * the specified absolute {@code index} until the source buffer's position
-     * reaches its limit.
-     * This method does not modify {@code readerIndex} or {@code writerIndex} of
-     * this buffer.
-     *
-     * @throws IndexOutOfBoundsException if the specified {@code index} is less than {@code 0} or
-     *                                   if {@code index + src.remaining()} is greater than
-     *                                   {@code this.capacity}
-     */
-    public abstract ByteBuf setBytes(int index, ByteBuffer src);
-
-    /**
      * Transfers the content of the specified source stream to this buffer
      * starting at the specified absolute {@code index}.
      * This method does not modify {@code readerIndex} or {@code writerIndex} of
@@ -383,21 +343,6 @@ public abstract class ByteBuf implements ReferenceCounted {
      * @throws IOException               if the specified stream threw an exception during I/O
      */
     public abstract int setBytes(int index, InputStream in, int length) throws IOException;
-
-    /**
-     * Transfers the content of the specified source channel to this buffer
-     * starting at the specified absolute {@code index}.
-     * This method does not modify {@code readerIndex} or {@code writerIndex} of
-     * this buffer.
-     *
-     * @param length the maximum number of bytes to transfer
-     * @return the actual number of bytes read in from the specified channel.
-     * {@code -1} if the specified channel is closed.
-     * @throws IndexOutOfBoundsException if the specified {@code index} is less than {@code 0} or
-     *                                   if {@code index + length} is greater than {@code this.capacity}
-     * @throws IOException               if the specified channel threw an exception during I/O
-     */
-    public abstract int setBytes(int index, ScatteringByteChannel in, int length) throws IOException;
 
     /**
      * Transfers this buffer's data to the specified destination starting at
@@ -465,17 +410,6 @@ public abstract class ByteBuf implements ReferenceCounted {
     public abstract ByteBuf readBytes(byte[] dst, int dstIndex, int length);
 
     /**
-     * Transfers this buffer's data to the specified destination starting at
-     * the current {@code readerIndex} until the destination's position
-     * reaches its limit, and increases the {@code readerIndex} by the
-     * number of the transferred bytes.
-     *
-     * @throws IndexOutOfBoundsException if {@code dst.remaining()} is greater than
-     *                                   {@code this.readableBytes}
-     */
-    public abstract ByteBuf readBytes(ByteBuffer dst);
-
-    /**
      * Transfers this buffer's data to the specified stream starting at the
      * current {@code readerIndex}.
      *
@@ -485,16 +419,6 @@ public abstract class ByteBuf implements ReferenceCounted {
      */
     public abstract ByteBuf readBytes(OutputStream out, int length) throws IOException;
 
-    /**
-     * Transfers this buffer's data to the specified stream starting at the
-     * current {@code readerIndex}.
-     *
-     * @param length the maximum number of bytes to transfer
-     * @return the actual number of bytes written out to the specified channel
-     * @throws IndexOutOfBoundsException if {@code length} is greater than {@code this.readableBytes}
-     * @throws IOException               if the specified channel threw an exception during I/O
-     */
-    public abstract int readBytes(GatheringByteChannel out, int length) throws IOException;
 
     /**
      * Increases the current {@code readerIndex} by the specified
@@ -557,17 +481,6 @@ public abstract class ByteBuf implements ReferenceCounted {
     public abstract ByteBuf writeBytes(byte[] src, int srcIndex, int length);
 
     /**
-     * Transfers the specified source buffer's data to this buffer starting at
-     * the current {@code writerIndex} until the source buffer's position
-     * reaches its limit, and increases the {@code writerIndex} by the
-     * number of the transferred bytes.
-     *
-     * @throws IndexOutOfBoundsException if {@code src.remaining()} is greater than
-     *                                   {@code this.writableBytes}
-     */
-    public abstract ByteBuf writeBytes(ByteBuffer src);
-
-    /**
      * Transfers the content of the specified stream to this buffer
      * starting at the current {@code writerIndex} and increases the
      * {@code writerIndex} by the number of the transferred bytes.
@@ -578,18 +491,6 @@ public abstract class ByteBuf implements ReferenceCounted {
      * @throws IOException               if the specified stream threw an exception during I/O
      */
     public abstract int writeBytes(InputStream in, int length) throws IOException;
-
-    /**
-     * Transfers the content of the specified channel to this buffer
-     * starting at the current {@code writerIndex} and increases the
-     * {@code writerIndex} by the number of the transferred bytes.
-     *
-     * @param length the maximum number of bytes to transfer
-     * @return the actual number of bytes read in from the specified channel
-     * @throws IndexOutOfBoundsException if {@code length} is greater than {@code this.writableBytes}
-     * @throws IOException               if the specified channel threw an exception during I/O
-     */
-    public abstract int writeBytes(ScatteringByteChannel in, int length) throws IOException;
 
     /**
      * Returns a copy of this buffer's readable bytes.  Modifying the content
