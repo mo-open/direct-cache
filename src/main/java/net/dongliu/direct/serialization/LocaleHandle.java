@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2004 Caucho Technology, Inc.  All rights reserved.
+ * Copyright (c) 2001-2008 Caucho Technology, Inc.  All rights reserved.
  *
  * The Apache Software License, Version 1.1
  *
@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -48,12 +48,67 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
+import java.util.Locale;
 
 /**
- * Serializing an object.
+ * Handle for a locale object.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class LocaleHandle implements java.io.Serializable, HessianHandle {
+    private String value;
+
+    public LocaleHandle(String locale) {
+        this.value = locale;
+    }
+
+    private Object readResolve() {
+        String s = this.value;
+
+        if (s == null)
+            return null;
+
+        int len = s.length();
+        char ch = ' ';
+
+        int i = 0;
+        while (i < len && ('a' <= (ch = s.charAt(i)) && ch <= 'z'
+                || 'A' <= ch && ch <= 'Z'
+                || '0' <= ch && ch <= '9')) {
+            i++;
+        }
+
+        String language = s.substring(0, i);
+        String country = null;
+        String var = null;
+
+        if (ch == '-' || ch == '_') {
+            int head = ++i;
+
+            while (i < len && ('a' <= (ch = s.charAt(i)) && ch <= 'z'
+                    || 'A' <= ch && ch <= 'Z'
+                    || '0' <= ch && ch <= '9')) {
+                i++;
+            }
+
+            country = s.substring(head, i);
+        }
+
+        if (ch == '-' || ch == '_') {
+            int head = ++i;
+
+            while (i < len && ('a' <= (ch = s.charAt(i)) && ch <= 'z'
+                    || 'A' <= ch && ch <= 'Z'
+                    || '0' <= ch && ch <= '9')) {
+                i++;
+            }
+
+            var = s.substring(head, i);
+        }
+
+        if (var != null)
+            return new Locale(language, country, var);
+        else if (country != null)
+            return new Locale(language, country);
+        else
+            return new Locale(language);
+    }
 }

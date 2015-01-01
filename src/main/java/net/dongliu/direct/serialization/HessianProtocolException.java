@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2004 Caucho Technology, Inc.  All rights reserved.
+ * Copyright (c) 2001-2008 Caucho Technology, Inc.  All rights reserved.
  *
  * The Apache Software License, Version 1.1
  *
@@ -51,9 +51,54 @@ package net.dongliu.direct.serialization;
 import java.io.IOException;
 
 /**
- * Serializing an object.
+ * Exception for faults when the fault doesn't return a java exception.
+ * This exception is required for MicroHessianInput.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class HessianProtocolException extends IOException {
+    private Throwable rootCause;
+
+    /**
+     * Zero-arg constructor.
+     */
+    public HessianProtocolException() {
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianProtocolException(String message) {
+        super(message);
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianProtocolException(String message, Throwable rootCause) {
+        super(message);
+
+        this.rootCause = rootCause;
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianProtocolException(Throwable rootCause) {
+        super(String.valueOf(rootCause));
+
+        this.rootCause = rootCause;
+    }
+
+    /**
+     * Returns the underlying cause.
+     */
+    public Throwable getRootCause() {
+        return rootCause;
+    }
+
+    /**
+     * Returns the underlying cause.
+     */
+    public Throwable getCause() {
+        return getRootCause();
+    }
 }

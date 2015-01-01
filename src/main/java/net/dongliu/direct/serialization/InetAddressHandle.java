@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2004 Caucho Technology, Inc.  All rights reserved.
+ * Copyright (c) 2001-2008 Caucho Technology, Inc.  All rights reserved.
  *
  * The Apache Software License, Version 1.1
  *
@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -48,12 +48,31 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
+import java.net.InetAddress;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * Serializing an object.
+ * Handle for an InetAddress object.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class InetAddressHandle implements java.io.Serializable, HessianHandle {
+    private static final Logger log = Logger.getLogger(InetAddressHandle.class.getName());
+
+    private String hostName;
+    private byte[] address;
+
+    public InetAddressHandle(String hostName, byte[] address) {
+        this.hostName = hostName;
+        this.address = address;
+    }
+
+    private Object readResolve() {
+        try {
+            return InetAddress.getByAddress(this.hostName, this.address);
+        } catch (Exception e) {
+            log.log(Level.FINE, e.toString(), e);
+
+            return null;
+        }
+    }
 }

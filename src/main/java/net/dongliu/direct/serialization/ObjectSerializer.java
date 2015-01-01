@@ -48,12 +48,9 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
-
 /**
  * Serializing an object.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public interface ObjectSerializer {
+    public Serializer getObjectSerializer();
 }

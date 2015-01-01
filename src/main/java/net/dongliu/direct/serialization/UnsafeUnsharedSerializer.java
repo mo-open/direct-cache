@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2004 Caucho Technology, Inc.  All rights reserved.
+ * Copyright (c) 2001-2008 Caucho Technology, Inc.  All rights reserved.
  *
  * The Apache Software License, Version 1.1
  *
@@ -51,9 +51,23 @@ package net.dongliu.direct.serialization;
 import java.io.IOException;
 
 /**
- * Serializing an object.
+ * Serializing an object for known object types.
  */
-public interface Serializer {
+public class UnsafeUnsharedSerializer extends UnsafeSerializer {
+
+    public UnsafeUnsharedSerializer(Class<?> cl) {
+        super(cl);
+    }
+
+    @Override
     public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+            throws IOException {
+        boolean oldUnshared = out.setUnshared(true);
+
+        try {
+            super.writeObject(obj, out);
+        } finally {
+            out.setUnshared(oldUnshared);
+        }
+    }
 }

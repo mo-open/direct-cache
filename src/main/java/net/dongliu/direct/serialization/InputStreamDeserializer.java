@@ -51,9 +51,17 @@ package net.dongliu.direct.serialization;
 import java.io.IOException;
 
 /**
- * Serializing an object.
+ * Serializing a stream object.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class InputStreamDeserializer extends AbstractDeserializer {
+    public static final InputStreamDeserializer DESER
+            = new InputStreamDeserializer();
+
+    public InputStreamDeserializer() {
+    }
+
+    public Object readObject(AbstractHessianInput in)
+            throws IOException {
+        return in.readInputStream();
+    }
 }

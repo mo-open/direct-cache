@@ -51,9 +51,20 @@ package net.dongliu.direct.serialization;
 import java.io.IOException;
 
 /**
- * Serializing an object.
+ * Serializing an object for known object types.
  */
-public interface Serializer {
+public class ThrowableSerializer extends JavaSerializer {
+    public ThrowableSerializer(Class<?> cl, ClassLoader loader) {
+        super(cl);
+    }
+
+    @Override
     public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+            throws IOException {
+        Throwable e = (Throwable) obj;
+
+        e.getStackTrace();
+
+        super.writeObject(obj, out);
+    }
 }

@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -48,12 +48,19 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
+import java.math.BigDecimal;
 
 /**
- * Serializing an object.
+ * Deserializing a BigDecimal
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class BigDecimalDeserializer extends AbstractStringValueDeserializer {
+    @Override
+    public Class<?> getType() {
+        return BigDecimal.class;
+    }
+
+    @Override
+    protected Object create(String value) {
+        return new BigDecimal(value);
+    }
 }

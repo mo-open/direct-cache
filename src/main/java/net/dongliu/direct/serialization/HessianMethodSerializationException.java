@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2004 Caucho Technology, Inc.  All rights reserved.
+ * Copyright (c) 2001-2008 Caucho Technology, Inc.  All rights reserved.
  *
  * The Apache Software License, Version 1.1
  *
@@ -48,12 +48,35 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
-
 /**
- * Serializing an object.
+ * Exception for faults when the fault doesn't return a java exception.
+ * This exception is required for MicroHessianInput.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class HessianMethodSerializationException extends HessianException {
+    /**
+     * Zero-arg constructor.
+     */
+    public HessianMethodSerializationException() {
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianMethodSerializationException(String message) {
+        super(message);
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianMethodSerializationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianMethodSerializationException(Throwable cause) {
+        super(cause);
+    }
 }

@@ -51,9 +51,27 @@ package net.dongliu.direct.serialization;
 import java.io.IOException;
 
 /**
- * Serializing an object.
+ * Serializing an object for known object types.
  */
-public interface Serializer {
+public class ByteArraySerializer extends AbstractSerializer implements ObjectSerializer {
+    public static final ByteArraySerializer SER = new ByteArraySerializer();
+
+    private ByteArraySerializer() {
+    }
+
+    @Override
+    public Serializer getObjectSerializer() {
+        return this;
+    }
+
+    @Override
     public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+            throws IOException {
+        byte[] data = (byte[]) obj;
+
+        if (data != null)
+            out.writeBytes(data, 0, data.length);
+        else
+            out.writeNull();
+    }
 }

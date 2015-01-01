@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2004 Caucho Technology, Inc.  All rights reserved.
+ * Copyright (c) 2001-2008 Caucho Technology, Inc.  All rights reserved.
  *
  * The Apache Software License, Version 1.1
  *
@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -48,12 +48,34 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
-
 /**
- * Serializing an object.
+ * Base runtime exception for Hessian exceptions.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class HessianException extends RuntimeException {
+    /**
+     * Zero-arg constructor.
+     */
+    public HessianException() {
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianException(String message) {
+        super(message);
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianException(String message, Throwable rootCause) {
+        super(message, rootCause);
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianException(Throwable rootCause) {
+        super(rootCause);
+    }
 }

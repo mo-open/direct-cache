@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -49,11 +49,35 @@
 package net.dongliu.direct.serialization;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 /**
- * Serializing an object.
+ * Deserializing a JDK 1.2 Collection.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class IteratorDeserializer extends AbstractListDeserializer {
+    private static IteratorDeserializer _deserializer;
+
+    public static IteratorDeserializer create() {
+        if (_deserializer == null)
+            _deserializer = new IteratorDeserializer();
+
+        return _deserializer;
+    }
+
+    @Override
+    public Object readList(AbstractHessianInput in, int length)
+            throws IOException {
+        ArrayList list = new ArrayList();
+
+        in.addRef(list);
+
+        while (!in.isEnd())
+            list.add(in.readObject());
+
+        in.readEnd();
+
+        return list.iterator();
+    }
 }
+
+

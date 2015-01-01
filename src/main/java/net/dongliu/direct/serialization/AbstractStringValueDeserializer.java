@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -51,9 +51,54 @@ package net.dongliu.direct.serialization;
 import java.io.IOException;
 
 /**
- * Serializing an object.
+ * Deserializes a string-valued object like BigDecimal.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
+abstract public class AbstractStringValueDeserializer
+        extends AbstractDeserializer {
+    abstract protected Object create(String value)
             throws IOException;
+
+    @Override
+    public Object readMap(AbstractHessianInput in)
+            throws IOException {
+        String value = null;
+
+        while (!in.isEnd()) {
+            String key = in.readString();
+
+            if (key.equals("value"))
+                value = in.readString();
+            else
+                in.readObject();
+        }
+
+        in.readMapEnd();
+
+        Object object = create(value);
+
+        in.addRef(object);
+
+        return object;
+    }
+
+    @Override
+    public Object readObject(AbstractHessianInput in, Object[] fields)
+            throws IOException {
+        String[] fieldNames = (String[]) fields;
+
+        String value = null;
+
+        for (int i = 0; i < fieldNames.length; i++) {
+            if ("value".equals(fieldNames[i]))
+                value = in.readString();
+            else
+                in.readObject();
+        }
+
+        Object object = create(value);
+
+        in.addRef(object);
+
+        return object;
+    }
 }

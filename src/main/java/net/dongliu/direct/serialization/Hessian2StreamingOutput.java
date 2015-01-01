@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2004 Caucho Technology, Inc.  All rights reserved.
+ * Copyright (c) 2001-2008 Caucho Technology, Inc.  All rights reserved.
  *
  * The Apache Software License, Version 1.1
  *
@@ -49,11 +49,61 @@
 package net.dongliu.direct.serialization;
 
 import java.io.IOException;
+import java.io.OutputStream;
 
 /**
- * Serializing an object.
+ * Output stream for Hessian 2 streaming requests.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class Hessian2StreamingOutput {
+    private Hessian2Output _out;
+
+    /**
+     * Creates a new Hessian output stream, initialized with an
+     * underlying output stream.
+     *
+     * @param os the underlying output stream.
+     */
+    public Hessian2StreamingOutput(OutputStream os) {
+        _out = new Hessian2Output(os);
+    }
+
+    public Hessian2StreamingOutput(Hessian2Output out) {
+        _out = out;
+    }
+
+    public Hessian2Output getHessian2Output() {
+        return _out;
+    }
+
+    public void setCloseStreamOnClose(boolean isClose) {
+        _out.setCloseStreamOnClose(isClose);
+    }
+
+    public boolean isCloseStreamOnClose() {
+        return _out.isCloseStreamOnClose();
+    }
+
+    /**
+     * Writes any object to the output stream.
+     */
+    public void writeObject(Object object)
+            throws IOException {
+        _out.writeStreamingObject(object);
+    }
+
+    /**
+     * Flushes the output.
+     */
+    public void flush()
+            throws IOException {
+        _out.flush();
+    }
+
+    /**
+     * Close the output.
+     */
+    public void close()
+            throws IOException {
+        _out.close();
+    }
 }

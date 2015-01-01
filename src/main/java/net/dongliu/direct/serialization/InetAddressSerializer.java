@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -49,11 +49,27 @@
 package net.dongliu.direct.serialization;
 
 import java.io.IOException;
+import java.net.InetAddress;
 
 /**
- * Serializing an object.
+ * Serializing a locale.
  */
-public interface Serializer {
+public class InetAddressSerializer extends AbstractSerializer {
+    private static InetAddressSerializer SERIALIZER = new InetAddressSerializer();
+
+    public static InetAddressSerializer create() {
+        return SERIALIZER;
+    }
+
+    @Override
     public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+            throws IOException {
+        if (obj == null)
+            out.writeNull();
+        else {
+            InetAddress addr = (InetAddress) obj;
+            out.writeObject(new InetAddressHandle(addr.getHostName(),
+                    addr.getAddress()));
+        }
+    }
 }

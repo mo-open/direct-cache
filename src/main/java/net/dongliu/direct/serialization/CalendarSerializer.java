@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -48,12 +48,21 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
+import java.util.Calendar;
 
 /**
- * Serializing an object.
+ * Serializing a calendar.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class CalendarSerializer extends AbstractSerializer {
+    public static final Serializer SER = new CalendarSerializer();
+
+    /**
+     * java.util.Calendar serializes to com.caucho.hessian.io.CalendarHandle
+     */
+    @Override
+    public Object writeReplace(Object obj) {
+        Calendar cal = (Calendar) obj;
+
+        return new CalendarHandle(cal.getClass(), cal.getTimeInMillis());
+    }
 }

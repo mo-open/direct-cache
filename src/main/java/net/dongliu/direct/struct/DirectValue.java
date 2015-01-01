@@ -1,26 +1,23 @@
 package net.dongliu.direct.struct;
 
-import net.dongliu.direct.allocator.AbstractBuffer;
+import net.dongliu.direct.allocator.Allocator;
+import net.dongliu.direct.allocator.ByteBuf;
 
 /**
  * interface of cache-value holder.
  *
  * @author Dong Liu
  */
-public class DirectValue<K, V> {
+public class DirectValue {
 
-    private final K key;
+    private final Object key;
 
     /**
      * the direct buffer to store value. null if value if null.
      */
-    public final AbstractBuffer buffer;
+    public final ByteBuf buffer;
 
-    /**
-     * the class of value
-     */
-    private final Class<V> clazz;
-
+    private final Allocator allocator;
     /**
      * The amount of time for the element to live, in seconds. 0 indicates unlimited.
      */
@@ -32,11 +29,11 @@ public class DirectValue<K, V> {
      */
     private volatile long lastUpdate;
 
-    public DirectValue(AbstractBuffer buffer, K key, Class<V> clazz) {
+    public DirectValue(Allocator allocator, ByteBuf buffer, Object key) {
         this.buffer = buffer;
         this.lastUpdate = System.currentTimeMillis();
         this.key = key;
-        this.clazz = clazz;
+        this.allocator = allocator;
     }
 
     public int capacity() {
@@ -44,10 +41,10 @@ public class DirectValue<K, V> {
     }
 
     public int size() {
-        return buffer.size();
+        return buffer.writerIndex();
     }
 
-    public K getKey() {
+    public Object getKey() {
         return key;
     }
 
@@ -57,12 +54,17 @@ public class DirectValue<K, V> {
      * @return not null
      */
     public byte[] readValue() {
+        if (buffer == allocator.nullBuf) {
+            return null;
+        }
         // this guard is not thread-safe
-        return buffer.toBytes();
+        byte[] bytes = new byte[buffer.writerIndex()];
+        buffer.readBytes(bytes);
+        return bytes;
     }
 
     public void release() {
-        this.buffer.release();
+        this.allocator.release(buffer);
     }
 
     public boolean expired() {
@@ -84,9 +86,5 @@ public class DirectValue<K, V> {
 
     public void expiry(int expiry) {
         this.expiry = expiry;
-    }
-
-    public Class<V> getClazz() {
-        return clazz;
     }
 }

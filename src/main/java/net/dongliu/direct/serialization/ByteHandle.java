@@ -48,12 +48,30 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
+import java.io.Serializable;
 
 /**
- * Serializing an object.
+ * Handle for Java Byte objects.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class ByteHandle implements Serializable {
+    private byte _value;
+
+    private ByteHandle() {
+    }
+
+    public ByteHandle(byte value) {
+        _value = value;
+    }
+
+    public byte getValue() {
+        return _value;
+    }
+
+    public Object readResolve() {
+        return new Byte(_value);
+    }
+
+    public String toString() {
+        return getClass().getSimpleName() + "[" + _value + "]";
+    }
 }

@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -48,12 +48,75 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
-
 /**
- * Serializing an object.
+ * Encapsulates a remote address when no stub is available, e.g. for
+ * Java MicroEdition.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class HessianRemote implements java.io.Serializable {
+    private String type;
+    private String url;
+
+    /**
+     * Creates a new Hessian remote object.
+     *
+     * @param type the remote stub interface
+     * @param url  the remote url
+     */
+    public HessianRemote(String type, String url) {
+        this.type = type;
+        this.url = url;
+    }
+
+    /**
+     * Creates an uninitialized Hessian remote.
+     */
+    public HessianRemote() {
+    }
+
+    /**
+     * Returns the remote api class name.
+     */
+    public String getType() {
+        return type;
+    }
+
+    /**
+     * Returns the remote URL.
+     */
+    public String getURL() {
+        return url;
+    }
+
+    /**
+     * Sets the remote URL.
+     */
+    public void setURL(String url) {
+        this.url = url;
+    }
+
+    /**
+     * Defines the hashcode.
+     */
+    public int hashCode() {
+        return url.hashCode();
+    }
+
+    /**
+     * Defines equality
+     */
+    public boolean equals(Object obj) {
+        if (!(obj instanceof HessianRemote))
+            return false;
+
+        HessianRemote remote = (HessianRemote) obj;
+
+        return url.equals(remote.url);
+    }
+
+    /**
+     * Readable version of the remote.
+     */
+    public String toString() {
+        return "HessianRemote[" + url + "]";
+    }
 }

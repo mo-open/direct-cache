@@ -7,16 +7,10 @@ package net.dongliu.direct.struct;
  */
 public class BytesValue<T> {
 
-    private final Class<T> clazz;
     private final byte[] bytes;
 
-    public BytesValue(byte[] bytes, Class<T> clazz) {
-        this.clazz = clazz;
+    public BytesValue(byte[] bytes) {
         this.bytes = bytes;
-    }
-
-    public Class<T> getClazz() {
-        return clazz;
     }
 
     public byte[] getBytes() {

@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -48,12 +48,40 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
-
 /**
- * Serializing an object.
+ * Exception for faults when the fault doesn't return a java exception.
+ * This exception is required for MicroHessianInput.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class HessianServiceException extends Exception {
+    private String code;
+    private Object detail;
+
+    /**
+     * Zero-arg constructor.
+     */
+    public HessianServiceException() {
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianServiceException(String message, String code, Object detail) {
+        super(message);
+        this.code = code;
+        this.detail = detail;
+    }
+
+    /**
+     * Returns the code.
+     */
+    public String getCode() {
+        return code;
+    }
+
+    /**
+     * Returns the detail.
+     */
+    public Object getDetail() {
+        return detail;
+    }
 }

@@ -49,11 +49,24 @@
 package net.dongliu.direct.serialization;
 
 import java.io.IOException;
+import java.util.HashMap;
 
 /**
- * Serializing an object.
+ * Serializing an object for known object types.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class AbstractMapDeserializer extends AbstractDeserializer {
+
+    public Class getType() {
+        return HashMap.class;
+    }
+
+    public Object readObject(AbstractHessianInput in)
+            throws IOException {
+        Object obj = in.readObject();
+
+        if (obj != null)
+            throw error("expected map/object at " + obj.getClass().getName() + " (" + obj + ")");
+        else
+            throw error("expected map/object at null");
+    }
 }

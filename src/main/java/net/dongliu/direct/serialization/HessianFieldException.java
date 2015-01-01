@@ -48,12 +48,34 @@
 
 package net.dongliu.direct.serialization;
 
-import java.io.IOException;
-
 /**
- * Serializing an object.
+ * Exception during field reading.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class HessianFieldException extends HessianProtocolException {
+    /**
+     * Zero-arg constructor.
+     */
+    public HessianFieldException() {
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianFieldException(String message) {
+        super(message);
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianFieldException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    /**
+     * Create the exception.
+     */
+    public HessianFieldException(Throwable cause) {
+        super(cause);
+    }
 }

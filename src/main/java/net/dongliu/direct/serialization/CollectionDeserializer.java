@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -49,11 +49,80 @@
 package net.dongliu.direct.serialization;
 
 import java.io.IOException;
+import java.util.*;
 
 /**
- * Serializing an object.
+ * Deserializing a JDK 1.2 Collection.
  */
-public interface Serializer {
-    public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+public class CollectionDeserializer extends AbstractListDeserializer {
+    private Class _type;
+
+    public CollectionDeserializer(Class type) {
+        _type = type;
+    }
+
+    public Class getType() {
+        return _type;
+    }
+
+    public Object readList(AbstractHessianInput in, int length)
+            throws IOException {
+        Collection list = createList();
+
+        in.addRef(list);
+
+        while (!in.isEnd())
+            list.add(in.readObject());
+
+        in.readEnd();
+
+        return list;
+    }
+
+    public Object readLengthList(AbstractHessianInput in, int length)
+            throws IOException {
+        Collection list = createList();
+
+        in.addRef(list);
+
+        for (; length > 0; length--)
+            list.add(in.readObject());
+
+        return list;
+    }
+
+    private Collection createList()
+            throws IOException {
+        Collection list = null;
+
+        if (_type == null)
+            list = new ArrayList();
+        else if (!_type.isInterface()) {
+            try {
+                list = (Collection) _type.newInstance();
+            } catch (Exception e) {
+            }
+        }
+
+        if (list != null) {
+        } else if (SortedSet.class.isAssignableFrom(_type))
+            list = new TreeSet();
+        else if (Set.class.isAssignableFrom(_type))
+            list = new HashSet();
+        else if (List.class.isAssignableFrom(_type))
+            list = new ArrayList();
+        else if (Collection.class.isAssignableFrom(_type))
+            list = new ArrayList();
+        else {
+            try {
+                list = (Collection) _type.newInstance();
+            } catch (Exception e) {
+                throw new IOExceptionWrapper(e);
+            }
+        }
+
+        return list;
+    }
 }
+
+

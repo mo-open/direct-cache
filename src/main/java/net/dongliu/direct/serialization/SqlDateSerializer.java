@@ -22,7 +22,7 @@
  *    Alternately, this acknowlegement may appear in the software itself,
  *    if and wherever such third-party acknowlegements normally appear.
  *
- * 4. The names "Burlap", "Resin", and "Caucho" must not be used to
+ * 4. The names "Hessian", "Resin", and "Caucho" must not be used to
  *    endorse or promote products derived from this software without prior
  *    written permission. For written permission, please contact
  *    info@caucho.com.
@@ -49,11 +49,37 @@
 package net.dongliu.direct.serialization;
 
 import java.io.IOException;
+import java.util.Date;
 
 /**
- * Serializing an object.
+ * Serializing a sql date object.
  */
-public interface Serializer {
+public class SqlDateSerializer extends AbstractSerializer {
     public void writeObject(Object obj, AbstractHessianOutput out)
-            throws IOException;
+            throws IOException {
+        if (obj == null)
+            out.writeNull();
+        else {
+            Class cl = obj.getClass();
+
+            if (out.addRef(obj))
+                return;
+
+            int ref = out.writeObjectBegin(cl.getName());
+
+            if (ref < -1) {
+                out.writeString("value");
+                out.writeUTCDate(((Date) obj).getTime());
+                out.writeMapEnd();
+            } else {
+                if (ref == -1) {
+                    out.writeInt(1);
+                    out.writeString("value");
+                    out.writeObjectBegin(cl.getName());
+                }
+
+                out.writeUTCDate(((Date) obj).getTime());
+            }
+        }
+    }
 }
