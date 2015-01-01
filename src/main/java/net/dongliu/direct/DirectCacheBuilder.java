@@ -1,7 +1,7 @@
 package net.dongliu.direct;
 
 import net.dongliu.direct.serialization.HessianSerializer;
-import net.dongliu.direct.utils.Size;
+import sun.misc.VM;
 
 /**
  * direct cache builder
@@ -14,10 +14,7 @@ public class DirectCacheBuilder {
      * Cache concurrent map concurrent level
      */
     private int concurrency = 256;
-
-
-    private long maxMemory = Size.Gb(1);
-
+    private long maxMemory = -1;
     private Serializer serializer;
 
     DirectCacheBuilder() {
@@ -41,6 +38,9 @@ public class DirectCacheBuilder {
     public DirectCache build() {
         if (serializer == null) {
             serializer = new HessianSerializer();
+        }
+        if (maxMemory < 0) {
+            maxMemory = VM.maxDirectMemory() * 2 / 3;
         }
         return new DirectCache(maxMemory, concurrency, serializer);
     }

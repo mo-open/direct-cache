@@ -17,7 +17,7 @@ public class DirectCacheTest {
 
     @BeforeClass
     public static void init() {
-        cache = DirectCache.newBuilder().maxMemorySize(Size.Mb(100)).build();
+        cache = DirectCache.newBuilder().build();
     }
 
     @Test
