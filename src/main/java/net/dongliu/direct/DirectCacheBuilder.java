@@ -8,7 +8,7 @@ import net.dongliu.direct.utils.Size;
  *
  * @author Dong Liu
  */
-public class DirectCacheBuilder<K, V> {
+public class DirectCacheBuilder {
 
     /**
      * Cache concurrent map concurrent level
@@ -18,27 +18,30 @@ public class DirectCacheBuilder<K, V> {
 
     private long maxMemory = Size.Gb(1);
 
-    private Serializer serializer = new HessianSerializer();
+    private Serializer serializer;
 
     DirectCacheBuilder() {
     }
 
-    public DirectCacheBuilder<K, V> concurrency(int concurrency) {
+    public DirectCacheBuilder concurrency(int concurrency) {
         this.concurrency = concurrency;
         return this;
     }
 
-    public DirectCacheBuilder<K, V> maxMemorySize(long maxMemorySize) {
+    public DirectCacheBuilder maxMemorySize(long maxMemorySize) {
         this.maxMemory = maxMemorySize;
         return this;
     }
 
-    private DirectCacheBuilder<K, V> serializer(Serializer serializer) {
+    private DirectCacheBuilder serializer(Serializer serializer) {
         this.serializer = serializer;
         return this;
     }
 
-    public DirectCache<K, V> build() {
-        return new DirectCache<>(maxMemory, concurrency, serializer);
+    public DirectCache build() {
+        if (serializer == null) {
+            serializer = new HessianSerializer();
+        }
+        return new DirectCache(maxMemory, concurrency, serializer);
     }
 }

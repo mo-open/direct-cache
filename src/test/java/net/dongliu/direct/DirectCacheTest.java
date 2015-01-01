@@ -1,6 +1,5 @@
 package net.dongliu.direct;
 
-import net.dongliu.direct.DirectCache;
 import net.dongliu.direct.struct.Value;
 import net.dongliu.direct.utils.Size;
 import org.junit.AfterClass;
@@ -14,11 +13,11 @@ import static org.junit.Assert.*;
  */
 public class DirectCacheTest {
 
-    private static DirectCache<String, String> cache;
+    private static DirectCache cache;
 
     @BeforeClass
     public static void init() {
-        cache = DirectCache.<String, String>newBuilder().maxMemorySize(Size.Mb(100)).build();
+        cache = DirectCache.newBuilder().maxMemorySize(Size.Mb(100)).build();
     }
 
     @Test

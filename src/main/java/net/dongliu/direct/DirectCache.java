@@ -11,10 +11,7 @@ import net.dongliu.direct.struct.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -26,7 +23,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  *
  * @author Dong Liu
  */
-public class DirectCache<K, V> {
+public class DirectCache {
 
     private static final Logger logger = LoggerFactory.getLogger(DirectCache.class);
 
@@ -38,8 +35,8 @@ public class DirectCache<K, V> {
     private static final int MAX_EVICTION_RATIO = 10;
     private static final int DEFAULT_SAMPLE_SIZE = 30;
 
-    public static <S, T> DirectCacheBuilder<S, T> newBuilder() {
-        return new DirectCacheBuilder<>();
+    public static DirectCacheBuilder newBuilder() {
+        return new DirectCacheBuilder();
     }
 
     /**
@@ -59,7 +56,7 @@ public class DirectCache<K, V> {
      *
      * @return null if not exists.
      */
-    public Value<V> get(K key, Class<V> clazz) {
+    public <V extends Serializable> Value<V> get(Object key, Class<V> clazz) {
         BytesValue<V> value = _get(key);
 
         if (value == null) {
@@ -83,7 +80,7 @@ public class DirectCache<K, V> {
      *
      * @return null if not exists
      */
-    private BytesValue<V> _get(K key) {
+    private <V extends Serializable> BytesValue<V> _get(Object key) {
         ReentrantReadWriteLock lock = lockFor(key);
         lock.readLock().lock();
         BytesValue<V> value = null;
@@ -113,7 +110,7 @@ public class DirectCache<K, V> {
      *
      * @param value cannot be null
      */
-    public void set(K key, V value) {
+    public <V extends Serializable> void set(Object key, V value) {
         set(key, value, 0);
     }
 
@@ -124,7 +121,7 @@ public class DirectCache<K, V> {
      * @param value  cannot be null
      */
     @SuppressWarnings("unchecked")
-    public void set(K key, V value, int expiry) {
+    public <V extends Serializable> void set(Object key, V value, int expiry) {
         byte[] bytes;
         if (value == null) {
             bytes = null;
@@ -145,7 +142,7 @@ public class DirectCache<K, V> {
      * @param expiry The amount of time for the element to live, in seconds.
      * @param value  the value
      */
-    private void _set(K key, byte[] value, int expiry) {
+    private void _set(Object key, byte[] value, int expiry) {
         DirectValue holder = store(key, value);
         if (holder == null) {
             // direct evict
@@ -163,7 +160,7 @@ public class DirectCache<K, V> {
      *
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public boolean add(K key, V value) {
+    public <V extends Serializable> boolean add(Object key, V value) {
         return add(key, value, 0);
     }
 
@@ -174,7 +171,7 @@ public class DirectCache<K, V> {
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
     @SuppressWarnings("unchecked")
-    public boolean add(K key, V value, int expiry) {
+    public <V extends Serializable>  boolean add(Object key, V value, int expiry) {
         // we call map.get twice here, to avoid unnecessary serialize, not good
         DirectValue oldDirectValue = map.get(key);
         if (oldDirectValue != null && !oldDirectValue.expired()) {
@@ -203,7 +200,7 @@ public class DirectCache<K, V> {
      * @param expiry The amount of time for the element to live, in seconds.
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    private boolean _add(K key, byte[] value, int expiry) {
+    private boolean _add(Object key, byte[] value, int expiry) {
         DirectValue oldDirectValue = map.get(key);
         if (oldDirectValue != null && !oldDirectValue.expired()) {
             return false;
@@ -234,18 +231,18 @@ public class DirectCache<K, V> {
      *
      * @return true if key exists.
      */
-    public boolean exists(K key) {
+    public boolean exists(Object key) {
         return this.map.containsKey(key);
     }
 
     /**
      * return all keys cached.
      */
-    public Collection<K> keys() {
-        return (Collection<K>) this.map.keySet();
+    public Collection<?> keys() {
+        return this.map.keySet();
     }
 
-    private void removeExpiredEntry(K key) {
+    private void removeExpiredEntry(Object key) {
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
         try {
@@ -272,7 +269,7 @@ public class DirectCache<K, V> {
         this.map.remove(key);
     }
 
-    private DirectValue store(K key, byte[] bytes) {
+    private DirectValue store(Object key, byte[] bytes) {
         ByteBuf buffer;
         buffer = this.allocator.newBuffer(bytes);
         if (buffer == null) {
@@ -298,7 +295,7 @@ public class DirectCache<K, V> {
     /**
      * If the store is over capacity, evict elements until capacity is reached
      */
-    private void lruEvict(K key) {
+    private void lruEvict(Object key) {
         int evict = MAX_EVICTION_RATIO;
         if (allocator.getCapacity() < allocator.used()) {
             for (int i = 0; i < evict; i++) {
@@ -310,7 +307,7 @@ public class DirectCache<K, V> {
     /**
      * Removes the element chosen by the eviction policy
      */
-    private void removeChosenElements(K key) {
+    private void removeChosenElements(Object key) {
 
         DirectValue holder = findEvictionCandidate(key);
         if (holder == null) {
