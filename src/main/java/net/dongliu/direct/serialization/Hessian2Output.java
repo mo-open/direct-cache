@@ -55,13 +55,13 @@ import java.util.HashMap;
 
 /**
  * Output stream for Hessian 2 requests.
- * <p/>
+ *
  * <p>Since HessianOutput does not depend on any classes other than
  * in the JDK, it can be extracted independently into a smaller package.
- * <p/>
+ *
  * <p>HessianOutput is unbuffered, so any client needs to provide
  * its own buffering.
- * <p/>
+ *
  * <pre>
  * OutputStream os = ...; // from http connection
  * Hessian2Output out = new Hessian2Output(os);
@@ -178,12 +178,12 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
      * Starts the method call.  Clients would use <code>startCall</code>
      * instead of <code>call</code> if they wanted finer control over
      * writing the arguments, or needed to write headers.
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * C
      * string # method name
      * int    # arg count
-     * </pre></code>
+     * </code>
      *
      * @param method the method name to call.
      */
@@ -208,10 +208,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes the call tag.  This would be followed by the
      * method and the arguments
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * C
-     * </pre></code>
+     * </code>
      *
      */
     @Override
@@ -224,11 +224,11 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Starts an envelope.
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * E major minor
      * m b16 b8 method-name
-     * </pre></code>
+     * </code>
      *
      * @param method the method name to call.
      */
@@ -248,9 +248,9 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Completes an envelope.
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * Z
      * </pre>
@@ -264,10 +264,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Writes the method tag.
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * string
-     * </pre></code>
+     * </code>
      *
      * @param method the method name to call.
      */
@@ -278,10 +278,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Completes.
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * z
-     * </pre></code>
+     * </code>
      */
     @Override
     public void completeCall()
@@ -295,9 +295,9 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Starts the reply
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * R
      * </pre>
@@ -323,9 +323,9 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Completes reading the reply
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * z
      * </pre>
@@ -337,9 +337,9 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Starts a packet
-     * <p/>
+     *
      * <p>A message contains several objects encapsulated by a length</p>
-     * <p/>
+     *
      * <pre>
      * p x02 x00
      * </pre>
@@ -355,9 +355,9 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Completes reading the message
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * z
      * </pre>
@@ -372,25 +372,25 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes a fault.  The fault will be written
      * as a descriptive string followed by an object:
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * F map
-     * </pre></code>
-     * <p/>
-     * <code><pre>
+     * </code>
+     *
+     * <code>
      * F H
      * \x04code
      * \x10the fault code
-     * <p/>
+     *
      * \x07message
      * \x11the fault message
-     * <p/>
+     *
      * \x06detail
      * M\xnnjavax.ejb.FinderException
      *     ...
      * Z
      * Z
-     * </pre></code>
+     * </code>
      *
      * @param code the fault code, a three digit
      */
@@ -441,11 +441,11 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
      * Writes the list header to the stream.  List writers will call
      * <code>writeListBegin</code> followed by the list contents and then
      * call <code>writeListEnd</code>.
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * list ::= V type value* Z
      *      ::= v type int value*
-     * </pre></code>
+     * </code>
      *
      * @return true for variable lists, false for fixed lists
      */
@@ -498,11 +498,11 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
      * Writes the map header to the stream.  Map writers will call
      * <code>writeMapBegin</code> followed by the map contents and then
      * call <code>writeMapEnd</code>.
-     * <p/>
-     * <code><pre>
+     *
+     * {@code
      * map ::= M type (<value> <value>)* Z
      *     ::= H (<value> <value>)* Z
-     * </pre></code>
+     * }
      */
     public void writeMapBegin(String type)
             throws IOException {
@@ -530,10 +530,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Writes the object definition
-     * <p/>
-     * <code><pre>
-     * C &lt;string> &lt;int> &lt;string>*
-     * </pre></code>
+     *
+     * {@code
+     * C <string> <int> <string>*
+     * }
      */
     @Override
     public int writeObjectBegin(String type)
@@ -583,7 +583,7 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     }
 
     /**
-     * <code><pre>
+     * <code>
      * type ::= string
      *      ::= int
      * </code></pre>
@@ -616,11 +616,11 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes a boolean value to the stream.  The boolean will be written
      * with the following syntax:
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * T
      * F
-     * </pre></code>
+     * </code>
      *
      * @param value the boolean value to write.
      */
@@ -639,10 +639,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes an integer value to the stream.  The integer will be written
      * with the following syntax:
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * I b32 b24 b16 b8
-     * </pre></code>
+     * </code>
      *
      * @param value the integer value to write.
      */
@@ -680,10 +680,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes a long value to the stream.  The long will be written
      * with the following syntax:
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * L b64 b56 b48 b40 b32 b24 b16 b8
-     * </pre></code>
+     * </code>
      *
      * @param value the long value to write.
      */
@@ -734,10 +734,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes a double value to the stream.  The double will be written
      * with the following syntax:
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * D b64 b56 b48 b40 b32 b24 b16 b8
-     * </pre></code>
+     * </code>
      *
      * @param value the double value to write.
      */
@@ -815,11 +815,11 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Writes a date to the stream.
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * date ::= d   b7 b6 b5 b4 b3 b2 b1 b0
      *      ::= x65 b3 b2 b1 b0
-     * </pre></code>
+     * </code>
      *
      * @param time the date in milliseconds from the epoch in UTC
      */
@@ -864,10 +864,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes a null value to the stream.
      * The null will be written with the following syntax
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * N
-     * </pre></code>
+     * </code>
      *
      */
     public void writeNull()
@@ -888,16 +888,16 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes a string value to the stream using UTF-8 encoding.
      * The string will be written with the following syntax:
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * S b16 b8 string-value
-     * </pre></code>
-     * <p/>
+     * </code>
+     *
      * If the value is null, it will be written as
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * N
-     * </pre></code>
+     * </code>
      *
      * @param value the string value to write.
      */
@@ -974,16 +974,16 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes a string value to the stream using UTF-8 encoding.
      * The string will be written with the following syntax:
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * S b16 b8 string-value
-     * </pre></code>
-     * <p/>
+     * </code>
+     *
      * If the value is null, it will be written as
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * N
-     * </pre></code>
+     * </code>
      *
      */
     public void writeString(char[] buffer, int offset, int length)
@@ -1037,16 +1037,16 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes a byte array to the stream.
      * The array will be written with the following syntax:
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * B b16 b18 bytes
-     * </pre></code>
-     * <p/>
+     * </code>
+     *
      * If the value is null, it will be written as
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * N
-     * </pre></code>
+     * </code>
      *
      */
     public void writeBytes(byte[] buffer)
@@ -1063,16 +1063,16 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
     /**
      * Writes a byte array to the stream.
      * The array will be written with the following syntax:
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * B b16 b18 bytes
-     * </pre></code>
-     * <p/>
+     * </code>
+     *
      * If the value is null, it will be written as
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * N
-     * </pre></code>
+     * </code>
      *
      */
     public void writeBytes(byte[] buffer, int offset, int length)
@@ -1130,9 +1130,9 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Writes a byte buffer to the stream.
-     * <p/>
-     * <code><pre>
-     * </pre></code>
+     *
+     * <code>
+     * </code>
      */
     public void writeByteBufferStart()
             throws IOException {
@@ -1140,10 +1140,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Writes a byte buffer to the stream.
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * b b16 b18 bytes
-     * </pre></code>
+     * </code>
      */
     public void writeByteBufferPart(byte[] buffer, int offset, int length)
             throws IOException {
@@ -1169,10 +1169,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Writes a byte buffer to the stream.
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * b b16 b18 bytes
-     * </pre></code>
+     * </code>
      */
     public void writeByteBufferEnd(byte[] buffer, int offset, int length)
             throws IOException {
@@ -1218,10 +1218,10 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Writes a reference.
-     * <p/>
-     * <code><pre>
-     * x51 &lt;int>
-     * </pre></code>
+     *
+     * {@code
+     * x51 <int>
+     * }
      *
      * @param value the integer value to write.
      */
@@ -1318,9 +1318,9 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Starts the streaming message
-     * <p/>
+     *
      * <p>A streaming message starts with 'P'</p>
-     * <p/>
+     *
      * <pre>
      * P x02 x00
      * </pre>
@@ -1336,7 +1336,7 @@ public class Hessian2Output extends AbstractHessianOutput implements Hessian2Con
 
     /**
      * Starts a streaming packet
-     * <p/>
+     *
      * <p>A streaming contains a set of chunks, ending with a zero chunk.
      * Each chunk is a length followed by data where the length is
      * encoded by (b1xxxxxxxx)* b0xxxxxxxx</p>

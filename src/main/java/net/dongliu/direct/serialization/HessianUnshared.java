@@ -38,7 +38,7 @@ import java.lang.annotation.Target;
  * Marks the class and all children as unshared.
  * A reference item will be created, but will not be stored in a
  * mapped or checked for duplicated.
- * <p/>
+ *
  * Used for efficiency to avoid the cost of the map lookup.
  */
 @Target({ElementType.TYPE})

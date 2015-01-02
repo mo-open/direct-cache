@@ -58,10 +58,10 @@ import java.util.logging.Logger;
 
 /**
  * Input stream for Hessian requests.
- * <p/>
+ *
  * <p>HessianInput is unbuffered, so any client needs to provide
  * its own buffering.
- * <p/>
+ *
  * <pre>
  * InputStream is = ...; // from http connection
  * HessianInput in = new HessianInput(is);
@@ -201,7 +201,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Starts reading the call
-     * <p/>
+     *
      * <pre>
      * c major minor
      * </pre>
@@ -218,7 +218,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Starts reading the envelope
-     * <p/>
+     *
      * <pre>
      * E major minor
      * </pre>
@@ -245,9 +245,9 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Completes reading the envelope
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * Z
      * </pre>
@@ -262,9 +262,9 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Starts reading the call
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * string
      * </pre>
@@ -278,7 +278,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Returns the number of method arguments
-     * <p/>
+     *
      * <pre>
      * int
      * </pre>
@@ -291,9 +291,9 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Starts reading the call, including the headers.
-     * <p/>
+     *
      * <p>The call expects the following protocol data
-     * <p/>
+     *
      * <pre>
      * c major minor
      * m b16 b8 method
@@ -320,9 +320,9 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Completes reading the call
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * </pre>
      */
@@ -366,9 +366,9 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Starts reading the reply
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * r
      * </pre>
@@ -410,9 +410,9 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Completes reading the call
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * z
      * </pre>
@@ -423,9 +423,9 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Completes reading the call
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * z
      * </pre>
@@ -440,7 +440,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a header, returning null if there are no headers.
-     * <p/>
+     *
      * <pre>
      * H b16 b8 value
      * </pre>
@@ -452,7 +452,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Starts reading a packet
-     * <p/>
+     *
      * <pre>
      * p major minor
      * </pre>
@@ -474,9 +474,9 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Completes reading the message
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * z
      * </pre>
@@ -491,7 +491,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a null
-     * <p/>
+     *
      * <pre>
      * N
      * </pre>
@@ -511,7 +511,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a boolean
-     * <p/>
+     *
      * <pre>
      * T
      * F
@@ -746,7 +746,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a short
-     * <p/>
+     *
      * <pre>
      * I b32 b24 b16 b8
      * </pre>
@@ -758,7 +758,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads an integer
-     * <p/>
+     *
      * <pre>
      * I b32 b24 b16 b8
      * </pre>
@@ -977,7 +977,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a long
-     * <p/>
+     *
      * <pre>
      * L b64 b56 b48 b40 b32 b24 b16 b8
      * </pre>
@@ -1192,7 +1192,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a float
-     * <p/>
+     *
      * <pre>
      * D b64 b56 b48 b40 b32 b24 b16 b8
      * </pre>
@@ -1204,7 +1204,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a double
-     * <p/>
+     *
      * <pre>
      * D b64 b56 b48 b40 b32 b24 b16 b8
      * </pre>
@@ -1416,7 +1416,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a date.
-     * <p/>
+     *
      * <pre>
      * T b64 b56 b48 b40 b32 b24 b16 b8
      * </pre>
@@ -1635,7 +1635,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a string
-     * <p/>
+     *
      * <pre>
      * S b16 b8 string value
      * </pre>
@@ -1921,7 +1921,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads a byte array
-     * <p/>
+     *
      * <pre>
      * B b16 b8 data value
      * </pre>
@@ -2877,7 +2877,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Reads an object definition:
-     * <p/>
+     *
      * <pre>
      * O string <int> (string)* <value>*
      * </pre>
@@ -3087,7 +3087,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Parses a type from the stream.
-     * <p/>
+     *
      * <pre>
      * type ::= string
      * type ::= int
@@ -3162,7 +3162,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Parses the length for an array
-     * <p/>
+     *
      * <pre>
      * l b32 b24 b16 b8
      * </pre>
@@ -3174,7 +3174,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Parses a 32-bit integer value from the stream.
-     * <p/>
+     *
      * <pre>
      * b32 b24 b16 b8
      * </pre>
@@ -3206,7 +3206,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Parses a 64-bit long value from the stream.
-     * <p/>
+     *
      * <pre>
      * b64 b56 b48 b40 b32 b24 b16 b8
      * </pre>
@@ -3234,7 +3234,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
 
     /**
      * Parses a 64-bit double value from the stream.
-     * <p/>
+     *
      * <pre>
      * b64 b56 b48 b40 b32 b24 b16 b8
      * </pre>

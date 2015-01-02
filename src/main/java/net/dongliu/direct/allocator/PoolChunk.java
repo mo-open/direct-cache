@@ -20,27 +20,27 @@ import java.nio.ByteBuffer;
 
 /**
  * Description of algorithm for PageRun/PoolSubpage allocation from PoolChunk
- * <p/>
+ *
  * Notation: The following terms are important to understand the code
  * > page  - a page is the smallest unit of memory chunk that can be allocated
  * > chunk - a chunk is a collection of pages
  * > in this code chunkSize = 2^{maxOrder} * pageSize
- * <p/>
+ *
  * To begin we allocate a byte array of size = chunkSize
  * Whenever a ByteBuf of given size needs to be created we search for the first position
  * in the byte array that has enough empty space to accommodate the requested size and
  * return a (long) handle that encodes this offset information, (this memory segment is then
  * marked as reserved so it is always used by exactly one ByteBuf and no more)
- * <p/>
+ *
  * For simplicity all sizes are normalized according to PoolArena#normalizeCapacity method
  * This ensures that when we request for memory segments of size >= pageSize the normalizedCapacity
  * equals the next nearest power of 2
- * <p/>
+ *
  * To search for the first offset in chunk that has at least requested size available we construct a
  * complete balanced binary tree and store it in an array (just like heaps) - memoryMap
- * <p/>
+ *
  * The tree looks like this (the size of each node being mentioned in the parenthesis)
- * <p/>
+ *
  * depth=0        1 node (chunkSize)
  * depth=1        2 nodes (chunkSize/2)
  * ..
@@ -48,25 +48,25 @@ import java.nio.ByteBuffer;
  * depth=d        2^d nodes (chunkSize/2^d)
  * ..
  * depth=maxOrder 2^maxOrder nodes (chunkSize/2^{maxOrder} = pageSize)
- * <p/>
+ *
  * depth=maxOrder is the last level and the leafs consist of pages
- * <p/>
+ *
  * With this tree available searching in chunkArray translates like this:
  * To allocate a memory segment of size chunkSize/2^k we search for the first node (from left) at height k
  * which is unused
- * <p/>
+ *
  * Algorithm:
  * ----------
  * Encode the tree in memoryMap with the notation
  * memoryMap[id] = x => in the subtree rooted at id, the first node that is free to be allocated
  * is at depth x (counted from depth=0) i.e., at depths [depth_of_id, x), there is no node that is free
- * <p/>
+ *
  * As we allocate & free nodes, we update values stored in memoryMap so that the property is maintained
- * <p/>
+ *
  * Initialization -
  * In the beginning we construct the memoryMap array by storing the depth of a node at each node
  * i.e., memoryMap[id] = depth_of_id
- * <p/>
+ *
  * Observations:
  * -------------
  * 1) memoryMap[id] = depth_of_id  => it is free / unallocated
@@ -74,30 +74,30 @@ import java.nio.ByteBuffer;
  * some of its children can still be allocated based on their availability
  * 3) memoryMap[id] = maxOrder + 1 => the node is fully allocated & thus none of its children can be allocated, it
  * is thus marked as unusable
- * <p/>
+ *
  * Algorithm: [allocateNode(d) => we want to find the first node (from left) at height h that can be allocated]
  * ----------
  * 1) start at root (i.e., depth = 0 or id = 1)
  * 2) if memoryMap[1] > d => cannot be allocated from this chunk
  * 3) if left node value <= h; we can allocate from left subtree so move to left and repeat until found
  * 4) else try in right subtree
- * <p/>
+ *
  * Algorithm: [allocateRun(size)]
  * ----------
  * 1) Compute d = log_2(chunkSize/size)
  * 2) Return allocateNode(d)
- * <p/>
+ *
  * Algorithm: [allocateSubpage(size)]
  * ----------
  * 1) use allocateNode(maxOrder) to find an empty (i.e., unused) leaf (i.e., page)
  * 2) use this handle to construct the PoolSubpage object or if it already exists just call init(normCapacity)
  * note that this PoolSubpage object is added to subpagesPool in the PoolArena when we init() it
- * <p/>
+ *
  * Note:
  * -----
  * In the implementation for improving cache coherence,
  * we store 2 pieces of information (i.e, 2 byte vals) as a short value in memoryMap
- * <p/>
+ *
  * memoryMap[id]= (depth_of_id, x)
  * where as per convention defined above
  * the second value (i.e, x) indicates that the first node which is free to be allocated is at depth x (from root)

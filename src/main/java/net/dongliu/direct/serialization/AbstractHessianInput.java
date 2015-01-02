@@ -56,7 +56,7 @@ import java.io.Reader;
 /**
  * Abstract base class for Hessian requests.  Hessian users should only
  * need to use the methods in this class.
- * <p/>
+ *
  * <pre>
  * AbstractHessianInput in = ...; // get input
  * String value;
@@ -103,7 +103,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads the call
-     * <p/>
+     *
      * <pre>
      * c major minor
      * </pre>
@@ -120,7 +120,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads a header, returning null if there are no headers.
-     * <p/>
+     *
      * <pre>
      * H b16 b8 value
      * </pre>
@@ -130,9 +130,9 @@ abstract public class AbstractHessianInput {
 
     /**
      * Starts reading the call
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * m b16 b8 method
      * </pre>
@@ -152,9 +152,9 @@ abstract public class AbstractHessianInput {
 
     /**
      * Starts reading the call, including the headers.
-     * <p/>
+     *
      * <p>The call expects the following protocol data
-     * <p/>
+     *
      * <pre>
      * c major minor
      * m b16 b8 method
@@ -165,9 +165,9 @@ abstract public class AbstractHessianInput {
 
     /**
      * Completes reading the call
-     * <p/>
+     *
      * <p>The call expects the following protocol data
-     * <p/>
+     *
      * <pre>
      * Z
      * </pre>
@@ -184,9 +184,9 @@ abstract public class AbstractHessianInput {
 
     /**
      * Starts reading the reply
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * r
      * v
@@ -205,9 +205,9 @@ abstract public class AbstractHessianInput {
 
     /**
      * Completes reading the call
-     * <p/>
+     *
      * <p>A successful completion will have a single value:
-     * <p/>
+     *
      * <pre>
      * z
      * </pre>
@@ -217,7 +217,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads a boolean
-     * <p/>
+     *
      * <pre>
      * T
      * F
@@ -228,7 +228,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads a null
-     * <p/>
+     *
      * <pre>
      * N
      * </pre>
@@ -238,7 +238,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads an integer
-     * <p/>
+     *
      * <pre>
      * I b32 b24 b16 b8
      * </pre>
@@ -248,7 +248,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads a long
-     * <p/>
+     *
      * <pre>
      * L b64 b56 b48 b40 b32 b24 b16 b8
      * </pre>
@@ -258,7 +258,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads a double.
-     * <p/>
+     *
      * <pre>
      * D b64 b56 b48 b40 b32 b24 b16 b8
      * </pre>
@@ -268,7 +268,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads a date.
-     * <p/>
+     *
      * <pre>
      * T b64 b56 b48 b40 b32 b24 b16 b8
      * </pre>
@@ -278,7 +278,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads a string encoded in UTF-8
-     * <p/>
+     *
      * <pre>
      * s b16 b8 non-final string chunk
      * S b16 b8 final string chunk
@@ -289,7 +289,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads an XML node encoded in UTF-8
-     * <p/>
+     *
      * <pre>
      * x b16 b8 non-final xml chunk
      * X b16 b8 final xml chunk
@@ -304,7 +304,7 @@ abstract public class AbstractHessianInput {
      * Starts reading a string.  All the characters must be read before
      * calling the next method.  The actual characters will be read with
      * the reader's read() or read(char [], int, int).
-     * <p/>
+     *
      * <pre>
      * s b16 b8 non-final string chunk
      * S b16 b8 final string chunk
@@ -316,7 +316,7 @@ abstract public class AbstractHessianInput {
     /**
      * Starts reading a byte array using an input stream.  All the bytes
      * must be read before calling the following method.
-     * <p/>
+     *
      * <pre>
      * b b16 b8 non-final binary chunk
      * B b16 b8 final binary chunk
@@ -327,7 +327,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads data to an output stream.
-     * <p/>
+     *
      * <pre>
      * b b16 b8 non-final binary chunk
      * B b16 b8 final binary chunk
@@ -359,7 +359,7 @@ abstract public class AbstractHessianInput {
 
     /**
      * Reads a byte array.
-     * <p/>
+     *
      * <pre>
      * b b16 b8 non-final binary chunk
      * B b16 b8 final binary chunk
@@ -385,17 +385,17 @@ abstract public class AbstractHessianInput {
     /**
      * Reads a remote object reference to the stream.  The type is the
      * type of the remote interface.
-     * <p/>
-     * <code><pre>
+     *
+     * <code>
      * 'r' 't' b16 b8 type url
-     * </pre></code>
+     * </code>
      */
     abstract public Object readRemote()
             throws IOException;
 
     /**
      * Reads a reference
-     * <p/>
+     *
      * <pre>
      * R b32 b24 b16 b8
      * </pre>

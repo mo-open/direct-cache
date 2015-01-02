@@ -55,13 +55,13 @@ import java.util.logging.Logger;
 
 /**
  * Input stream for Hessian 2 streaming requests using WebSocket.
- * <p/>
+ *
  * For best performance, use HessianFactory:
- * <p/>
- * <code><pre>
+ *
+ * <code>
  * HessianFactory factory = new HessianFactory();
  * Hessian2StreamingInput hIn = factory.createHessian2StreamingInput(is);
- * </pre></code>
+ * </code>
  */
 public class Hessian2StreamingInput {
     private static final Logger log

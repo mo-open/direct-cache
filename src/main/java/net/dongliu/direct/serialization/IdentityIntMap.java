@@ -51,7 +51,7 @@ package net.dongliu.direct.serialization;
 /**
  * The IntMap provides a simple hashmap from keys to integers.  The API is
  * an abbreviation of the HashMap collection API.
- * <p/>
+ *
  * <p>The convenience of IntMap is avoiding all the silly wrapping of
  * integers.
  */

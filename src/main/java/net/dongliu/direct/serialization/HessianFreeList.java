@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 /**
  * FreeList provides a simple class to manage free objects.  This is useful
  * for large data structures that otherwise would gobble up huge GC time.
- * <p/>
+ *
  * <p>The free list is bounded.  Freeing an object when the list is full will
  * do nothing.
  */
