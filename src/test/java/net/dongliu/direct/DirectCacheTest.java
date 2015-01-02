@@ -1,7 +1,6 @@
 package net.dongliu.direct;
 
-import net.dongliu.direct.struct.Value;
-import net.dongliu.direct.utils.Size;
+import net.dongliu.direct.value.Value;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;

@@ -1,4 +1,4 @@
-package net.dongliu.direct.struct;
+package net.dongliu.direct.value;
 
 import net.dongliu.direct.allocator.Allocator;
 import net.dongliu.direct.allocator.ByteBuf;
@@ -24,14 +24,15 @@ public class DirectValue {
     private volatile int expiry = 0;
 
     /**
-     * If there is an Element in the Cache and it is replaced with a new Element for the same key,
-     * then lastUpdate should be updated to reflect that.
+     * The created time of this cache entry.
+     * If  an Element in the Cache is replaced with a new Element for the same key,
+     * then created should be updated to reflect that.
      */
-    private volatile long lastUpdate;
+    private volatile long created;
 
     public DirectValue(Allocator allocator, ByteBuf buffer, Object key) {
         this.buffer = buffer;
-        this.lastUpdate = System.currentTimeMillis();
+        this.created = System.currentTimeMillis();
         this.key = key;
         this.allocator = allocator;
     }
@@ -69,15 +70,15 @@ public class DirectValue {
 
     public boolean expired() {
         long cur = System.currentTimeMillis();
-        return expiry > 0 && cur - lastUpdate > expiry;
+        return expiry > 0 && cur - created > expiry;
     }
 
     public void lastUpdate(long lastUpdate) {
-        this.lastUpdate = lastUpdate;
+        this.created = lastUpdate;
     }
 
     public long lastUpdate() {
-        return this.lastUpdate;
+        return this.created;
     }
 
     public int expiry() {

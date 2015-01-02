@@ -5,16 +5,15 @@ import net.dongliu.direct.allocator.ByteBuf;
 import net.dongliu.direct.exception.CacheException;
 import net.dongliu.direct.exception.DeSerializeException;
 import net.dongliu.direct.exception.SerializeException;
-import net.dongliu.direct.struct.BytesValue;
-import net.dongliu.direct.struct.DirectValue;
-import net.dongliu.direct.struct.Value;
+import net.dongliu.direct.value.BytesValue;
+import net.dongliu.direct.value.DirectValue;
+import net.dongliu.direct.value.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -32,8 +31,7 @@ public class DirectCache {
 
     private final Serializer serializer;
 
-    private static final int MAX_EVICTION_RATIO = 10;
-    private static final int DEFAULT_SAMPLE_SIZE = 30;
+    private static final int MAX_EVICTION_NUM = 10;
 
     public static DirectCacheBuilder newBuilder() {
         return new DirectCacheBuilder();
@@ -120,7 +118,6 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @param value  cannot be null
      */
-    @SuppressWarnings("unchecked")
     public <V extends Serializable> void set(Object key, V value, int expiry) {
         byte[] bytes;
         if (value == null) {
@@ -170,8 +167,7 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    @SuppressWarnings("unchecked")
-    public <V extends Serializable>  boolean add(Object key, V value, int expiry) {
+    public <V extends Serializable> boolean add(Object key, V value, int expiry) {
         // we call map.get twice here, to avoid unnecessary serialize, not good
         DirectValue oldDirectValue = map.get(key);
         if (oldDirectValue != null && !oldDirectValue.expired()) {
@@ -274,7 +270,7 @@ public class DirectCache {
         buffer = this.allocator.newBuffer(bytes);
         if (buffer == null) {
             // cannot allocate memory, evict and try again
-            lruEvict(key);
+            evict(key);
             buffer = this.allocator.newBuffer(bytes);
         }
         if (buffer == null) {
@@ -295,84 +291,21 @@ public class DirectCache {
     /**
      * If the store is over capacity, evict elements until capacity is reached
      */
-    private void lruEvict(Object key) {
-        int evict = MAX_EVICTION_RATIO;
-        if (allocator.getCapacity() < allocator.used()) {
-            for (int i = 0; i < evict; i++) {
-                removeChosenElements(key);
-            }
+    private void evict(Object key) {
+        int evict = MAX_EVICTION_NUM;
+        List<Lru.Node> candidates = map.evictCandidates(key, evict);
+        for (Lru.Node node : candidates) {
+            removeChosenElements(node.value);
         }
     }
 
     /**
      * Removes the element chosen by the eviction policy
      */
-    private void removeChosenElements(Object key) {
-
-        DirectValue holder = findEvictionCandidate(key);
-        if (holder == null) {
-            logger.debug("Eviction selection miss. Selected element is null");
-            return;
-        }
+    private void removeChosenElements(DirectValue holder) {
 
         // If the element is expired, remove
-        if (holder.expired()) {
-            remove(holder.getKey());
-            notifyExpiry(holder);
-        } else {
-            remove(holder.getKey());
-        }
-    }
-
-    /**
-     * Find a "relatively" unused element.
-     *
-     * @param key the element added by the action calling this check
-     * @return the element chosen as candidate for eviction
-     */
-    private DirectValue findEvictionCandidate(final Object key) {
-        DirectValue[] holders = sampleElements(key);
-        if (holders.length == 0) {
-            return null;
-        }
-        Arrays.sort(holders, new Comparator<DirectValue>() {
-            @Override
-            public int compare(DirectValue o1, DirectValue o2) {
-                if (o1.expired() && o2.expired()) {
-                    return 0;
-                } else if (o1.expired()) {
-                    return -1;
-                } else if (o2.expired()) {
-                    return 1;
-                } else {
-                    return (int) (o1.lastUpdate() - o2.lastUpdate());
-                }
-            }
-        });
-        return holders[0];
-    }
-
-    /**
-     * Uses random numbers to sample the entire map.
-     * <p>
-     * This implementation uses a key array.
-     * </p>
-     *
-     * @param keyHint a key used as a hint indicating where the just added element is
-     * @return a random sample of elements
-     */
-    private DirectValue[] sampleElements(Object keyHint) {
-        int size = Math.min(map.quickSize(), DEFAULT_SAMPLE_SIZE);
-        return map.getRandomValues(size, keyHint);
-    }
-
-    /**
-     * Before eviction elements are checked.
-     *
-     * @param holder the element to notify about its expiry
-     */
-    private void notifyExpiry(final DirectValue holder) {
-        //to be implemented
+        remove(holder.getKey());
     }
 
     private ReentrantReadWriteLock lockFor(Object key) {

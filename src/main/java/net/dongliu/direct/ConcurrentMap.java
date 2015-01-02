@@ -15,10 +15,9 @@
  */
 package net.dongliu.direct;
 
-import net.dongliu.direct.struct.DirectValue;
+import net.dongliu.direct.value.DirectValue;
 
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -71,8 +70,6 @@ class ConcurrentMap {
      */
     private final Segment[] segments;
 
-    private final Random random = new Random();
-
     private Set<Object> keySet;
     private Set<Map.Entry<Object, DirectValue>> entrySet;
     private Collection<DirectValue> values;
@@ -107,58 +104,6 @@ class ConcurrentMap {
         for (int i = 0; i < this.segments.length; ++i)
             this.segments[i] = createSegment(cap, loadFactor);
 
-    }
-
-    public DirectValue[] getRandomValues(final int size, Object keyHint) {
-        ArrayList<DirectValue> sampled = new ArrayList<>(size * 2);
-
-        // pick a random starting point in the map
-        int randomHash = random.nextInt();
-
-        final int segmentStart;
-        if (keyHint == null) {
-            segmentStart = (randomHash >>> segmentShift) & segmentMask;
-        } else {
-            segmentStart = (hash(keyHint.hashCode()) >>> segmentShift) & segmentMask;
-        }
-
-        int segmentIndex = segmentStart;
-        do {
-            final HashEntry[] table = segments[segmentIndex].table;
-            final int tableStart = randomHash & (table.length - 1);
-            int tableIndex = tableStart;
-            do {
-                for (HashEntry e = table[tableIndex]; e != null; e = e.next) {
-                    DirectValue value = e.value;
-                    if (value != null) {
-                        sampled.add(value);
-                    }
-                }
-
-                if (sampled.size() >= size) {
-                    return sampled.toArray(new DirectValue[sampled.size()]);
-                }
-
-                //move to next table slot
-                tableIndex = (tableIndex + 1) & (table.length - 1);
-            } while (tableIndex != tableStart);
-
-            //move to next segment
-            segmentIndex = (segmentIndex + 1) & segmentMask;
-        } while (segmentIndex != segmentStart);
-
-        return sampled.toArray(new DirectValue[sampled.size()]);
-    }
-
-    /**
-     * Return an object of the kind which will be stored when
-     * the ValueHolder is going to be inserted
-     *
-     * @param e the ValueHolder
-     * @return an object looking-alike the stored one
-     */
-    public Object storedObject(DirectValue e) {
-        return new HashEntry(null, 0, null, e);
     }
 
     /**
@@ -366,27 +311,18 @@ class ConcurrentMap {
         return (ks != null) ? ks : (keySet = new KeySet());
     }
 
-    public Collection<DirectValue> values() {
-        Collection<DirectValue> vs = values;
-        return (vs != null) ? vs : (values = new Values());
-    }
-
-    public Set<Entry<Object, DirectValue>> entrySet() {
-        Set<Entry<Object, DirectValue>> es = entrySet;
-        return (es != null) ? es : (entrySet = new EntrySet());
-    }
-
     protected Segment createSegment(int initialCapacity, float lf) {
         return new Segment(initialCapacity, lf);
     }
 
-    public boolean evict() {
-        return getRandomSegment().evict();
-    }
-
-    private Segment getRandomSegment() {
-        int randomHash = random.nextInt();
-        return segments[((randomHash >>> segmentShift) & segmentMask)];
+    /**
+     * get evict candidate entries
+     */
+    public List<Lru.Node> evictCandidates(Object keyHint, int size) {
+        int hash = hash(keyHint.hashCode());
+        Segment segment = segmentFor(hash);
+        List<Lru.Node> candidates = segment.lru.tails(size);
+        return candidates;
     }
 
     /**
@@ -404,8 +340,6 @@ class ConcurrentMap {
     }
 
     public class Segment extends ReentrantReadWriteLock {
-
-        private static final int MAX_EVICTION = 5;
 
         /**
          * The number of elements in this segment's region.
@@ -443,15 +377,16 @@ class ConcurrentMap {
          */
         final float loadFactor;
 
-        private Iterator<HashEntry> evictionIterator = iterator();
+        private final Lru lru = new Lru();
 
         protected Segment(int initialCapacity, float lf) {
             loadFactor = lf;
             setTable(new HashEntry[initialCapacity]);
         }
 
-        void postRemove(DirectValue vh) {
-            vh.release();
+        void postRemove(Lru.Node node) {
+            lru.remove(node);
+            node.value.release();
         }
 
         void preInstall(Object key, DirectValue value) {
@@ -474,12 +409,21 @@ class ConcurrentMap {
             return tab[hash & (tab.length - 1)];
         }
 
-        protected HashEntry createHashEntry(Object key, int hash, HashEntry next, DirectValue value) {
-            return new HashEntry(key, hash, next, value);
+        /**
+         * create new Hash entry from new inserted value
+         */
+        protected HashEntry createHashEntry(Object key, int hash, HashEntry next,
+                                            DirectValue value) {
+            Lru.Node node = new Lru.Node(value);
+            lru.insert(node);
+            return new HashEntry(key, hash, next, node);
         }
 
+        /**
+         * used for rehash and remove copy
+         */
         protected HashEntry relinkHashEntry(HashEntry e, HashEntry next) {
-            return new HashEntry(e.key, e.hash, next, e.value);
+            return new HashEntry(e.key, e.hash, next, e.node);
         }
 
         protected void clear() {
@@ -491,7 +435,7 @@ class ConcurrentMap {
                         HashEntry entry = tab[i];
                         tab[i] = null;
                         if (entry != null) {
-                            postRemove(entry.value);
+                            postRemove(entry.node);
                         }
                     }
                     ++modCount;
@@ -515,7 +459,7 @@ class ConcurrentMap {
 
                 DirectValue oldValue = null;
                 if (e != null) {
-                    DirectValue v = e.value;
+                    DirectValue v = e.node.value;
                     if (value == null || value.equals(v)) {
                         oldValue = v;
                         ++modCount;
@@ -526,7 +470,7 @@ class ConcurrentMap {
                             newFirst = relinkHashEntry(p, newFirst);
                         tab[index] = newFirst;
                         count = c; // write-volatile
-                        postRemove(e.value);
+                        postRemove(e.node);
                     }
                 }
                 return oldValue;
@@ -550,13 +494,15 @@ class ConcurrentMap {
 
                 DirectValue oldValue;
                 if (e != null) {
-                    oldValue = e.value;
+                    Lru.Node oldNode = e.node;
+                    oldValue = oldNode.value;
                     if (!onlyIfAbsent) {
                         preInstall(key, value);
-                        e.value = value;
-                        postRemove(oldValue);
+                        oldNode.value = value;
+                        lru.promoted(oldNode);
+                        oldValue.release();
                     } else {
-                        postRemove(value);
+                        value.release();
                     }
                 } else {
                     oldValue = null;
@@ -580,7 +526,8 @@ class ConcurrentMap {
                     HashEntry e = getFirst(hash);
                     while (e != null) {
                         if (e.hash == hash && key.equals(e.key)) {
-                            return e.value;
+                            lru.promoted(e.node);
+                            return e.node.value;
                         }
                         e = e.next;
                     }
@@ -615,7 +562,7 @@ class ConcurrentMap {
                     HashEntry[] tab = table;
                     for (HashEntry aTab : tab) {
                         for (HashEntry e = aTab; e != null; e = e.next) {
-                            DirectValue v = e.value;
+                            DirectValue v = e.node.value;
                             if (value.equals(v))
                                 return true;
                         }
@@ -627,30 +574,8 @@ class ConcurrentMap {
             }
         }
 
-        private DirectValue nextExpiredOrToEvict(final DirectValue justAdded) {
-            if (!evictionIterator.hasNext()) {
-                evictionIterator = iterator();
-            }
-            final HashEntry next = evictionIterator.next();
-            return next.value;
-        }
-
         protected Iterator<HashEntry> iterator() {
             return new SegmentIterator(this);
-        }
-
-        private boolean evict() {
-            DirectValue remove = null;
-            writeLock().lock();
-            try {
-                DirectValue evict = nextExpiredOrToEvict(null);
-                if (evict != null) {
-                    remove = remove(evict.getKey(), hash(evict.getKey().hashCode()), null);
-                }
-            } finally {
-                writeLock().unlock();
-            }
-            return remove != null;
         }
 
         void rehash() {
@@ -703,13 +628,13 @@ class ConcurrentMap {
         public final int hash;
         public final HashEntry next;
 
-        public volatile DirectValue value;
+        public final Lru.Node node;
 
-        protected HashEntry(Object key, int hash, HashEntry next, DirectValue value) {
+        protected HashEntry(Object key, int hash, HashEntry next, Lru.Node node) {
             this.key = key;
             this.hash = hash;
             this.next = next;
-            this.value = value;
+            this.node = node;
         }
     }
 
@@ -811,143 +736,11 @@ class ConcurrentMap {
         }
     }
 
-    final class Values extends AbstractCollection<DirectValue> {
-
-        @Override
-        public Iterator<DirectValue> iterator() {
-            return new ValueIterator();
-        }
-
-        @Override
-        public int size() {
-            return ConcurrentMap.this.size();
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return ConcurrentMap.this.isEmpty();
-        }
-
-        @Override
-        public boolean contains(Object o) {
-            return ConcurrentMap.this.containsValue(o);
-        }
-
-        @Override
-        public void clear() {
-            ConcurrentMap.this.clear();
-        }
-
-        @Override
-        public Object[] toArray() {
-            Collection<Object> c = new ArrayList<>();
-            for (Object object : this)
-                c.add(object);
-            return c.toArray();
-        }
-
-        @Override
-        public <T> T[] toArray(T[] a) {
-            Collection<Object> c = new ArrayList<>();
-            for (Object object : this)
-                c.add(object);
-            return c.toArray(a);
-        }
-    }
-
-    final class EntrySet extends AbstractSet<Entry<Object, DirectValue>> {
-
-        @Override
-        public Iterator<Entry<Object, DirectValue>> iterator() {
-            return new EntryIterator();
-        }
-
-        @Override
-        public int size() {
-            return ConcurrentMap.this.size();
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return ConcurrentMap.this.isEmpty();
-        }
-
-        @Override
-        public boolean contains(Object o) {
-            if (!(o instanceof Entry))
-                return false;
-            Entry<?, ?> e = (Entry<?, ?>) o;
-            DirectValue v = ConcurrentMap.this.get(e.getKey());
-            return v != null && v.equals(e.getValue());
-        }
-
-        @Override
-        public boolean remove(Object o) {
-            if (!(o instanceof Entry))
-                return false;
-            Entry<?, ?> e = (Entry<?, ?>) o;
-            return ConcurrentMap.this.remove(e.getKey(), e.getValue());
-        }
-
-        @Override
-        public void clear() {
-            ConcurrentMap.this.clear();
-        }
-
-        @Override
-        public Object[] toArray() {
-            Collection<Object> c = new ArrayList<>();
-            for (Object object : this)
-                c.add(object);
-            return c.toArray();
-        }
-
-        @Override
-        public <T> T[] toArray(T[] a) {
-            Collection<Object> c = new ArrayList<>();
-            for (Object object : this)
-                c.add(object);
-            return c.toArray(a);
-        }
-    }
-
     class KeyIterator extends HashEntryIterator implements Iterator<Object> {
 
         @Override
         public Object next() {
             return nextEntry().key;
-        }
-    }
-
-    final class ValueIterator extends HashEntryIterator implements Iterator<DirectValue> {
-
-        @Override
-        public DirectValue next() {
-            return nextEntry().value;
-        }
-    }
-
-    final class EntryIterator extends HashEntryIterator implements Iterator<Entry<Object, DirectValue>> {
-
-        @Override
-        public Entry<Object, DirectValue> next() {
-            HashEntry entry = nextEntry();
-            final Object key = entry.key;
-            final DirectValue value = entry.value;
-            return new Entry<Object, DirectValue>() {
-
-                public Object getKey() {
-                    return key;
-                }
-
-                public DirectValue getValue() {
-                    return value;
-                }
-
-                public DirectValue setValue(DirectValue value) {
-                    throw new UnsupportedOperationException();
-                }
-            };
         }
     }
 

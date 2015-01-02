@@ -2,7 +2,7 @@ package net.dongliu.direct;
 
 import net.dongliu.direct.allocator.Allocator;
 import net.dongliu.direct.allocator.ByteBuf;
-import net.dongliu.direct.struct.DirectValue;
+import net.dongliu.direct.value.DirectValue;
 import net.dongliu.direct.utils.Size;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -20,7 +20,7 @@ public class ConcurrentMapTest {
     @BeforeClass
     public static void setup() {
         allocator = new Allocator(Size.Mb(256), 4);
-        map = new ConcurrentMap(1000, 0.75f, 16);
+        map = new ConcurrentMap(1000, 0.75f, 1);
     }
 
     @Test

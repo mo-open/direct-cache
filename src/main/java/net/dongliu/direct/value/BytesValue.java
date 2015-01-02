@@ -1,4 +1,4 @@
-package net.dongliu.direct.struct;
+package net.dongliu.direct.value;
 
 /**
  * the value in bytes

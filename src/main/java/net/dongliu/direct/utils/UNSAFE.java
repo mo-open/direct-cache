@@ -14,9 +14,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * @author Dong Liu dongliu@live.cn
@@ -357,33 +354,6 @@ public class UNSAFE {
             length -= size;
             srcOffset += size;
             dstOffset += size;
-        }
-    }
-
-    public static <U, W> AtomicReferenceFieldUpdater<U, W> newAtomicReferenceFieldUpdater(
-            Class<U> tclass, String fieldName) {
-        try {
-            return new UnsafeAtomicReferenceFieldUpdater<>(UNSAFE, tclass, fieldName);
-        } catch (NoSuchFieldException e) {
-            return null;
-        }
-    }
-
-    public static <T> AtomicIntegerFieldUpdater<T> newAtomicIntegerFieldUpdater(
-            Class<?> tclass, String fieldName) {
-        try {
-            return new UnsafeAtomicIntegerFieldUpdater<>(UNSAFE, tclass, fieldName);
-        } catch (NoSuchFieldException e) {
-            return null;
-        }
-    }
-
-    public static <T> AtomicLongFieldUpdater<T> newAtomicLongFieldUpdater(
-            Class<?> tclass, String fieldName) {
-        try {
-            return new UnsafeAtomicLongFieldUpdater<T>(UNSAFE, tclass, fieldName);
-        } catch (NoSuchFieldException e) {
-            return null;
         }
     }
 

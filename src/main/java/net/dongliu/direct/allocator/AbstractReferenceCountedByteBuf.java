@@ -26,16 +26,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  */
 public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
 
-    private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> refCntUpdater;
-
-    static {
-        AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> updater =
-                UNSAFE.newAtomicIntegerFieldUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
-        if (updater == null) {
-            updater = AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
-        }
-        refCntUpdater = updater;
-    }
+    private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> refCntUpdater
+            = AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
 
     private volatile int refCnt = 1;
 
