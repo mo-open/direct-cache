@@ -34,10 +34,10 @@ public final class EmptyByteBuf extends ByteBuf {
     private final String str;
 
     public EmptyByteBuf(ByteBufAllocator alloc) {
+        super(0);
         if (alloc == null) {
             throw new NullPointerException("alloc");
         }
-
         this.alloc = alloc;
         str = this.getClass().getSimpleName();
     }
@@ -69,7 +69,7 @@ public final class EmptyByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf readerIndex(int readerIndex) {
-        return checkIndex(readerIndex);
+        return _checkIndex(readerIndex);
     }
 
     @Override
@@ -79,7 +79,7 @@ public final class EmptyByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf writerIndex(int writerIndex) {
-        return checkIndex(writerIndex);
+        return _checkIndex(writerIndex);
     }
 
     @Override
@@ -145,42 +145,42 @@ public final class EmptyByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf getBytes(int index, ByteBuf dst, int length) {
-        return checkIndex(index, length);
+        return _checkIndex(index, length);
     }
 
     @Override
     public ByteBuf getBytes(int index, ByteBuf dst, int dstIndex, int length) {
-        return checkIndex(index, length);
+        return _checkIndex(index, length);
     }
 
     @Override
     public ByteBuf getBytes(int index, byte[] dst, int dstIndex, int length) {
-        return checkIndex(index, length);
+        return _checkIndex(index, length);
     }
 
     @Override
     public ByteBuf getBytes(int index, OutputStream out, int length) {
-        return checkIndex(index, length);
+        return _checkIndex(index, length);
     }
 
     @Override
     public ByteBuf setBytes(int index, ByteBuf src, int length) {
-        return checkIndex(index, length);
+        return _checkIndex(index, length);
     }
 
     @Override
     public ByteBuf setBytes(int index, ByteBuf src, int srcIndex, int length) {
-        return checkIndex(index, length);
+        return _checkIndex(index, length);
     }
 
     @Override
     public ByteBuf setBytes(int index, byte[] src) {
-        return checkIndex(index, src.length);
+        return _checkIndex(index, src.length);
     }
 
     @Override
     public ByteBuf setBytes(int index, byte[] src, int srcIndex, int length) {
-        return checkIndex(index, length);
+        return _checkIndex(index, length);
     }
 
     @Override
@@ -257,7 +257,7 @@ public final class EmptyByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf copy(int index, int length) {
-        return checkIndex(index, length);
+        return _checkIndex(index, length);
     }
 
     @Override
@@ -315,14 +315,14 @@ public final class EmptyByteBuf extends ByteBuf {
         return false;
     }
 
-    private ByteBuf checkIndex(int index) {
+    private ByteBuf _checkIndex(int index) {
         if (index != 0) {
             throw new IndexOutOfBoundsException();
         }
         return this;
     }
 
-    private ByteBuf checkIndex(int index, int length) {
+    private ByteBuf _checkIndex(int index, int length) {
         if (length < 0) {
             throw new IllegalArgumentException("length: " + length);
         }

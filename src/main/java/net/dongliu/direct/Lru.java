@@ -23,7 +23,17 @@ class Lru {
     /**
      * after promoteDelta ms do next promote
      */
-    private static final long promoteDelta = 2000;
+    private static final long DEFAULT_PROMOTE_DELTA = 10_000;
+
+    public final long promoteDelta;
+
+    Lru() {
+        this(DEFAULT_PROMOTE_DELTA);
+    }
+
+    Lru(long promoteDelta) {
+        this.promoteDelta = promoteDelta;
+    }
 
     /**
      * insert one node

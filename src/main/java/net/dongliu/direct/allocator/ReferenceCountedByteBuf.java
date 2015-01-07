@@ -17,21 +17,20 @@
 package net.dongliu.direct.allocator;
 
 import net.dongliu.direct.exception.IllegalReferenceCountException;
-import net.dongliu.direct.utils.UNSAFE;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * Abstract base class for {@link ByteBuf} implementations that count references.
  */
-public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
+public abstract class ReferenceCountedByteBuf extends ByteBuf {
 
-    private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> refCntUpdater
-            = AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
+    private static final AtomicIntegerFieldUpdater<ReferenceCountedByteBuf> refCntUpdater
+            = AtomicIntegerFieldUpdater.newUpdater(ReferenceCountedByteBuf.class, "refCnt");
 
     private volatile int refCnt = 1;
 
-    protected AbstractReferenceCountedByteBuf(int maxCapacity) {
+    protected ReferenceCountedByteBuf(int maxCapacity) {
         super(maxCapacity);
     }
 

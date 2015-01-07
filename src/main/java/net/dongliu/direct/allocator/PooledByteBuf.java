@@ -23,7 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
-class PooledByteBuf extends AbstractReferenceCountedByteBuf {
+class PooledByteBuf extends ReferenceCountedByteBuf {
 
     private final Recycler.Handle recyclerHandle;
 

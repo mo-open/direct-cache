@@ -9,6 +9,8 @@ import static org.junit.Assert.assertTrue;
 
 public class LruTest {
 
+    int promoteDelta = 1_000;
+
     @Test
     public void testInsert() throws Exception {
         Lru lru = mockLru(0);
@@ -44,7 +46,7 @@ public class LruTest {
         lru.insert(node2);
         lru.promoted(node);
         assertTrue(node != lru.getHead());
-        Thread.sleep(2500);
+        Thread.sleep(1_000);
         lru.promoted(node);
         assertTrue(node == lru.getHead());
 
@@ -59,7 +61,7 @@ public class LruTest {
     }
 
     private Lru mockLru(int size) {
-        Lru lru = new Lru();
+        Lru lru = new Lru(promoteDelta);
         for (int i = 0; i < size; i++) {
             lru.insert(new Lru.Node(null));
         }
