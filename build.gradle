@@ -1,0 +1,79 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+group = 'net.dongliu'
+version = '0.4.3'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.apache.httpcomponents:httpclient:4.3.6',
+            'org.apache.httpcomponents:httpmime:4.3.6',
+            'commons-io:commons-io:2.4',
+            'org.apache.commons:commons-lang3:3.3.2',
+            'org.slf4j:slf4j-api:1.7.7'
+    testCompile 'junit:junit:4.11'
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+signing {
+    sign configurations.archives
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: sonatypeUsername, password: sonatypePassword)
+            }
+
+            pom.project {
+                name 'direct-cache'
+                packaging 'jar'
+                description 'Java cache use direct memory'
+                url 'https://github.com/xiaxiaocao/direct-cache'
+
+                scm {
+                    url 'https://github.com/xiaxiaocao/direct-cache'
+                    connection 'scm:git:git@github.com:xiaxiaocao/direct-cache.git'
+                    developerConnection 'scm:git:git@github.com:xiaxiaocao/direct-cache.git'
+                }
+
+                licenses {
+                    license {
+                        name 'The Apache Software License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        distribution 'repo'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'xiaxiaocao'
+                        name 'Dong Liu'
+                    }
+                }
+            }
+        }
+    }
+}

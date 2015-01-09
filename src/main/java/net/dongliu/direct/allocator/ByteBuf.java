@@ -127,17 +127,14 @@ public abstract class ByteBuf {
      * methods.  For example, the following code will fail:
      * // readerIndex becomes 8.
      * buf.readLong();
-     * <p/>
      * // IndexOutOfBoundsException is thrown because the specified
      * // writerIndex (4) cannot be less than the current readerIndex (8).
      * buf.writerIndex(4);
      * buf.readerIndex(2);
-     * <p/>
      * By contrast, this method guarantees that it never
      * throws an {@link IndexOutOfBoundsException} as long as the specified
      * indexes meet basic constraints, regardless what the current index
      * values of the buffer are:
-     * <p/>
      * <pre>
      * // No matter what the current state of the buffer is, the following
      * // call always succeeds as long as the capacity of the buffer is not
@@ -222,7 +219,6 @@ public abstract class ByteBuf {
      * Sets the {@code readerIndex} and {@code writerIndex} of this buffer to
      * {@code 0}.
      * This method is identical to {@link #setIndex(int, int) setIndex(0, 0)}.
-     * <p/>
      * Please note that the behavior of this method is different
      * from that of NIO buffer, which sets the {@code limit} to
      * the {@code capacity} of the buffer.
