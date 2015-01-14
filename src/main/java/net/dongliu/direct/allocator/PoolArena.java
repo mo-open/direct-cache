@@ -253,46 +253,34 @@ abstract class PoolArena {
 
         return (reqCapacity & ~15) + 16;
     }
-//
-//    void reallocate(UnsafeByteBuf buf, int newCapacity, boolean freeOldMemory) {
-//        if (newCapacity < 0 || newCapacity > buf.maxCapacity()) {
-//            throw new IllegalArgumentException("newCapacity: " + newCapacity);
-//        }
-//
-//        int oldCapacity = buf.length;
-//        if (oldCapacity == newCapacity) {
-//            return;
-//        }
-//
-//        PoolChunk oldChunk = buf.chunk;
-//        long oldHandle = buf.handle;
-//        Memory oldMemory = buf.memory;
-//        int oldOffset = buf.offset;
-//        int oldMaxLength = buf.maxLength;
-//        int readerIndex = buf.readerIndex();
-//        int writerIndex = buf.writerIndex();
-//
-//        allocate(parent.threadCache.get(), buf, newCapacity);
-//        if (newCapacity > oldCapacity) {
-//            memoryCopy(oldMemory, oldOffset, buf.memory, buf.offset, oldCapacity);
-//        } else if (newCapacity < oldCapacity) {
-//            if (readerIndex < newCapacity) {
-//                if (writerIndex > newCapacity) {
-//                    writerIndex = newCapacity;
-//                }
-//                memoryCopy(oldMemory, oldOffset + readerIndex,
-//                        buf.memory, buf.offset + readerIndex, writerIndex - readerIndex);
-//            } else {
-//                readerIndex = writerIndex = newCapacity;
-//            }
-//        }
-//
-//        buf.setIndex(readerIndex, writerIndex);
-//
-//        if (freeOldMemory) {
-//            free(oldChunk, oldHandle, oldMaxLength, buf.initThread == Thread.currentThread());
-//        }
-//    }
+
+    void reallocate(UnsafeByteBuf buf, int newCapacity, boolean freeOldMemory) {
+        if (newCapacity < 0 || newCapacity > buf.maxCapacity()) {
+            throw new IllegalArgumentException("newCapacity: " + newCapacity);
+        }
+
+        int oldCapacity = buf.length;
+        if (oldCapacity == newCapacity) {
+            return;
+        }
+
+        PoolChunk oldChunk = buf.chunk;
+        long oldHandle = buf.handle;
+        Memory oldMemory = buf.memory;
+        int oldOffset = buf.offset;
+        int oldMaxLength = buf.maxLength;
+
+        allocate(parent.threadCache.get(), buf, newCapacity);
+        if (newCapacity > oldCapacity) {
+            memoryCopy(oldMemory, oldOffset, buf.memory, buf.offset, oldCapacity);
+        } else if (newCapacity < oldCapacity) {
+            memoryCopy(oldMemory, oldOffset, buf.memory, buf.offset, newCapacity);
+        }
+
+        if (freeOldMemory) {
+            free(oldChunk, oldHandle, oldMaxLength, buf.initThread == Thread.currentThread());
+        }
+    }
 
     protected abstract PoolChunk newChunk(int pageSize, int maxOrder, int pageShifts, int chunkSize);
 

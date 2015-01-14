@@ -124,6 +124,7 @@ class UnsafeByteBuf extends ReferenceCountedByteBuf {
         }
 
         // Reallocation required.
+        chunk.arena.reallocate(this, newCapacity, true);
         return this;
     }
 
