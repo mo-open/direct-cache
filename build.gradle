@@ -12,11 +12,7 @@ repositories {
 }
 
 dependencies {
-    compile 'org.apache.httpcomponents:httpclient:4.3.6',
-            'org.apache.httpcomponents:httpmime:4.3.6',
-            'commons-io:commons-io:2.4',
-            'org.apache.commons:commons-lang3:3.3.2',
-            'org.slf4j:slf4j-api:1.7.7'
+    compile 'org.slf4j:slf4j-api:1.7.7'
     testCompile 'junit:junit:4.11'
 }
 

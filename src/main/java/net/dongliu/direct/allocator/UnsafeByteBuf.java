@@ -18,12 +18,7 @@ package net.dongliu.direct.allocator;
 
 import net.dongliu.direct.utils.UNSAFE;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
-
-class PooledByteBuf extends ReferenceCountedByteBuf {
+class UnsafeByteBuf extends ReferenceCountedByteBuf {
 
     private final Recycler.Handle recyclerHandle;
 
@@ -34,24 +29,23 @@ class PooledByteBuf extends ReferenceCountedByteBuf {
     protected int length;
     int maxLength;
     Thread initThread;
-    private ByteBuffer tmpNioBuf;
     private long memoryAddress;
 
-    private static final Recycler<PooledByteBuf> RECYCLER = new Recycler<PooledByteBuf>() {
+    private static final Recycler<UnsafeByteBuf> RECYCLER = new Recycler<UnsafeByteBuf>() {
         @Override
-        protected PooledByteBuf newObject(Handle handle) {
-            return new PooledByteBuf(handle, 0);
+        protected UnsafeByteBuf newObject(Handle handle) {
+            return new UnsafeByteBuf(handle, 0);
         }
     };
 
-    static PooledByteBuf newInstance(int maxCapacity) {
-        PooledByteBuf buf = RECYCLER.get();
+    static UnsafeByteBuf newInstance(int maxCapacity) {
+        UnsafeByteBuf buf = RECYCLER.get();
         buf.setRefCnt(1);
         buf.maxCapacity(maxCapacity);
         return buf;
     }
 
-    protected PooledByteBuf(Recycler.Handle recyclerHandle, int maxCapacity) {
+    protected UnsafeByteBuf(Recycler.Handle recyclerHandle, int maxCapacity) {
         super(maxCapacity);
         this.recyclerHandle = recyclerHandle;
     }
@@ -66,8 +60,6 @@ class PooledByteBuf extends ReferenceCountedByteBuf {
         this.offset = offset;
         this.length = length;
         this.maxLength = maxLength;
-        setIndex(0, 0);
-        tmpNioBuf = null;
         initThread = Thread.currentThread();
         initMemoryAddress();
     }
@@ -80,8 +72,6 @@ class PooledByteBuf extends ReferenceCountedByteBuf {
         memory = chunk.memory;
         offset = 0;
         this.length = maxLength = length;
-        setIndex(0, 0);
-        tmpNioBuf = null;
         initThread = Thread.currentThread();
         initMemoryAddress();
     }
@@ -98,7 +88,13 @@ class PooledByteBuf extends ReferenceCountedByteBuf {
     @Override
     public final ByteBuf capacity(int newCapacity) {
         ensureAccessible();
+        alloc().getUsed().getAndAdd(-capacity());
+        ByteBuf buf = _capacity(newCapacity);
+        alloc().getUsed().getAndAdd(buf.capacity());
+        return this;
+    }
 
+    private ByteBuf _capacity(int newCapacity) {
         // If the request capacity does not require reallocation, just update the length of the memory.
         if (chunk.unpooled) {
             if (newCapacity == length) {
@@ -115,12 +111,10 @@ class PooledByteBuf extends ReferenceCountedByteBuf {
                     if (maxLength <= 512) {
                         if (newCapacity > maxLength - 16) {
                             length = newCapacity;
-                            setIndex(Math.min(readerIndex(), newCapacity), Math.min(writerIndex(), newCapacity));
                             return this;
                         }
                     } else { // > 512 (i.e. >= 1024)
                         length = newCapacity;
-                        setIndex(Math.min(readerIndex(), newCapacity), Math.min(writerIndex(), newCapacity));
                         return this;
                     }
                 }
@@ -130,18 +124,18 @@ class PooledByteBuf extends ReferenceCountedByteBuf {
         }
 
         // Reallocation required.
-        chunk.arena.reallocate(this, newCapacity, true);
         return this;
     }
 
     @Override
-    public final ByteBufAllocator alloc() {
+    public final Allocator alloc() {
         return chunk.arena.parent;
     }
 
     @Override
     protected final void deallocate() {
         if (handle >= 0) {
+            alloc().getUsed().getAndAdd(-capacity());
             final long handle = this.handle;
             this.handle = -1;
             memory = null;
@@ -160,22 +154,6 @@ class PooledByteBuf extends ReferenceCountedByteBuf {
     }
 
     @Override
-    public ByteBuf getBytes(int index, ByteBuf dst, int dstIndex, int length) {
-        checkIndex(index, length);
-        if (dst == null) {
-            throw new NullPointerException("dst");
-        }
-        if (dstIndex < 0 || dstIndex > dst.capacity() - length) {
-            throw new IndexOutOfBoundsException("dstIndex: " + dstIndex);
-        }
-
-        if (length != 0) {
-            UNSAFE.copyMemory(addr(index), dst.memoryAddress() + dstIndex, length);
-        }
-        return this;
-    }
-
-    @Override
     public ByteBuf getBytes(int index, byte[] dst, int dstIndex, int length) {
         checkIndex(index, length);
         if (dst == null) {
@@ -190,34 +168,6 @@ class PooledByteBuf extends ReferenceCountedByteBuf {
         return this;
     }
 
-
-    @Override
-    public ByteBuf getBytes(int index, OutputStream out, int length) throws IOException {
-        checkIndex(index, length);
-        if (length != 0) {
-            byte[] tmp = new byte[length];
-            UNSAFE.copyMemory(addr(index), tmp, 0, length);
-            out.write(tmp);
-        }
-        return this;
-    }
-
-    @Override
-    public ByteBuf setBytes(int index, ByteBuf src, int srcIndex, int length) {
-        checkIndex(index, length);
-        if (src == null) {
-            throw new NullPointerException("src");
-        }
-        if (srcIndex < 0 || srcIndex > src.capacity() - length) {
-            throw new IndexOutOfBoundsException("srcIndex: " + srcIndex);
-        }
-
-        if (length != 0) {
-            UNSAFE.copyMemory(src.memoryAddress() + srcIndex, addr(index), length);
-        }
-        return this;
-    }
-
     @Override
     public ByteBuf setBytes(int index, byte[] src, int srcIndex, int length) {
         checkIndex(index, length);
@@ -225,28 +175,6 @@ class PooledByteBuf extends ReferenceCountedByteBuf {
             UNSAFE.copyMemory(src, srcIndex, addr(index), length);
         }
         return this;
-    }
-
-    @Override
-    public int setBytes(int index, InputStream in, int length) throws IOException {
-        checkIndex(index, length);
-        byte[] tmp = new byte[length];
-        int readBytes = in.read(tmp);
-        if (readBytes > 0) {
-            UNSAFE.copyMemory(tmp, 0, addr(index), readBytes);
-        }
-        return readBytes;
-    }
-
-    @Override
-    public ByteBuf copy(int index, int length) {
-        checkIndex(index, length);
-        ByteBuf copy = alloc().directBuffer(length, maxCapacity());
-        if (length != 0) {
-            UNSAFE.copyMemory(addr(index), copy.memoryAddress(), length);
-            copy.setIndex(0, length);
-        }
-        return copy;
     }
 
     @Override

@@ -36,7 +36,7 @@ final class PoolChunkList {
         this.maxUsage = maxUsage;
     }
 
-    boolean allocate(PooledByteBuf buf, int reqCapacity, int normCapacity) {
+    boolean allocate(UnsafeByteBuf buf, int reqCapacity, int normCapacity) {
         if (head == null) {
             return false;
         }

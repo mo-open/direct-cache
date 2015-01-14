@@ -1,6 +1,5 @@
 package net.dongliu.direct.value;
 
-import net.dongliu.direct.allocator.Allocator;
 import net.dongliu.direct.allocator.ByteBuf;
 
 /**
@@ -17,7 +16,6 @@ public class DirectValue {
      */
     public final ByteBuf buffer;
 
-    private final Allocator allocator;
     /**
      * The amount of time for the element to live, in seconds. 0 indicates unlimited.
      */
@@ -30,11 +28,10 @@ public class DirectValue {
      */
     private volatile long created;
 
-    public DirectValue(Allocator allocator, ByteBuf buffer, Object key) {
+    public DirectValue(ByteBuf buffer, Object key) {
         this.buffer = buffer;
         this.created = System.currentTimeMillis();
         this.key = key;
-        this.allocator = allocator;
     }
 
     public int capacity() {
@@ -42,7 +39,8 @@ public class DirectValue {
     }
 
     public int size() {
-        return buffer.writerIndex();
+        //TODO: get size
+        return buffer.capacity();
     }
 
     public Object getKey() {
@@ -55,17 +53,19 @@ public class DirectValue {
      * @return not null
      */
     public byte[] readValue() {
-        if (buffer == allocator.nullBuf) {
+        if (buffer == null) {
             return null;
         }
         // this guard is not thread-safe
-        byte[] bytes = new byte[buffer.writerIndex()];
+        byte[] bytes = new byte[size()];
         buffer.readBytes(bytes);
         return bytes;
     }
 
     public void release() {
-        this.allocator.release(buffer);
+        if (buffer != null) {
+            buffer.release();
+        }
     }
 
     public boolean expired() {

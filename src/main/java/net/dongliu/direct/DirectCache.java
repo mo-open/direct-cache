@@ -1,10 +1,11 @@
 package net.dongliu.direct;
 
-import net.dongliu.direct.allocator.Allocator;
 import net.dongliu.direct.allocator.ByteBuf;
+import net.dongliu.direct.allocator.Allocator;
 import net.dongliu.direct.exception.CacheException;
 import net.dongliu.direct.exception.DeSerializeException;
 import net.dongliu.direct.exception.SerializeException;
+import net.dongliu.direct.utils.Size;
 import net.dongliu.direct.value.BytesValue;
 import net.dongliu.direct.value.DirectValue;
 import net.dongliu.direct.value.Value;
@@ -43,8 +44,8 @@ public class DirectCache {
      * @param maxMemory the max off-heap size could use.
      */
     DirectCache(long maxMemory, int concurrency, Serializer serializer) {
-        this.allocator = new Allocator(maxMemory,
-                Runtime.getRuntime().availableProcessors() * 2);
+        int arenaNum = Runtime.getRuntime().availableProcessors() * 2;
+        this.allocator = new Allocator(arenaNum, Size.Kb(8), 11, maxMemory);
         this.map = new ConcurrentMap(1024, 0.75f, concurrency);
         this.serializer = serializer;
     }
@@ -83,12 +84,12 @@ public class DirectCache {
         lock.readLock().lock();
         BytesValue<V> value = null;
         try {
-            DirectValue holder = map.get(key);
-            if (holder == null) {
+            DirectValue directValue = map.get(key);
+            if (directValue == null) {
                 return null;
             }
-            if (!holder.expired()) {
-                byte[] bytes = holder.readValue();
+            if (!directValue.expired()) {
+                byte[] bytes = directValue.readValue();
                 value = new BytesValue<>(bytes);
             }
         } finally {
@@ -266,25 +267,30 @@ public class DirectCache {
     }
 
     private DirectValue store(Object key, byte[] bytes) {
+        if (bytes == null) {
+            return new DirectValue(null, key);
+        }
+
         ByteBuf buffer;
-        buffer = this.allocator.newBuffer(bytes);
+        buffer = this.allocator.directBuffer(bytes.length);
         if (buffer == null) {
             // cannot allocate memory, evict and try again
             evict(key);
-            buffer = this.allocator.newBuffer(bytes);
+            buffer = this.allocator.directBuffer(bytes.length);
         }
         if (buffer == null) {
             return null;
         }
+        buffer.writeBytes(bytes);
 
-        return new DirectValue(allocator, buffer, key);
+        return new DirectValue(buffer, key);
     }
 
     /**
      * return the actualUsed off-heap memory in bytes.
      */
     public long offHeapSize() {
-        return this.allocator.used();
+        return this.allocator.getUsed().get();
     }
 
 
