@@ -12,7 +12,7 @@ For maven users, add:
 <dependency>
     <groupId>net.dongliu</groupId>
     <artifactId>direct-cache</artifactId>
-    <version>0.4.2</version>
+    <version>0.4.5</version>
 </dependency>
 ```
 to your pom file.

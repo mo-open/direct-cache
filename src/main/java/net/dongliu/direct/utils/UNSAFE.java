@@ -18,7 +18,7 @@ import java.security.PrivilegedAction;
 /**
  * @author Dong Liu dongliu@live.cn
  */
-@SuppressWarnings("restriction")
+@SuppressWarnings("all")
 public class UNSAFE {
 
     private static final Logger logger = LoggerFactory.getLogger(UNSAFE.class);

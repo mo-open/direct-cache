@@ -145,6 +145,7 @@ public class DirectCache {
         DirectValue holder = store(key, value, clazz);
         if (holder == null) {
             // direct evict
+            logger.debug("memory exceed capacity, direct evict occurred, key: {}", key);
             return;
         }
         if (expiry > 0) {
@@ -301,6 +302,7 @@ public class DirectCache {
     private void evict(Object key) {
         int evict = MAX_EVICTION_NUM;
         List<DirectValue> candidates = map.evictCandidates(key, evict);
+        logger.debug("evict keys via lru, count: {}", candidates.size());
         for (DirectValue value : candidates) {
             removeChosenElements(value);
         }
