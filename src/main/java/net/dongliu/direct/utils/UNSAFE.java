@@ -18,11 +18,12 @@ import java.security.PrivilegedAction;
 /**
  * @author Dong Liu dongliu@live.cn
  */
+@SuppressWarnings("restriction")
 public class UNSAFE {
 
     private static final Logger logger = LoggerFactory.getLogger(UNSAFE.class);
 
-    private static final Unsafe UNSAFE;
+    private static final Unsafe u;
     private static final long ADDRESS_FIELD_OFFSET;
     private static final long CLEANER_FIELD_OFFSET;
     private static final boolean BIG_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN;
@@ -38,7 +39,7 @@ public class UNSAFE {
      *
      * @see <a href="http://en.wikipedia.org/wiki/Segmentation_fault#Bus_error">Wikipedia on segfault</a>
      */
-    private static final boolean UNALIGNED;
+    private static final boolean UNALIGNED_ACCESS;
     private static final long UNSAFE_COPY_THRESHOLD = 1024L * 1024L;
 
     static {
@@ -93,16 +94,16 @@ public class UNSAFE {
             throw new RuntimeException("Unsafe not available");
         }
 
-        UNSAFE = unsafe;
+        u = unsafe;
 
 
         ADDRESS_FIELD_OFFSET = objectFieldOffset(addressField);
-        boolean unaligned;
+        boolean unalignedAccess;
         try {
             Class<?> bitsClass = Class.forName("java.nio.Bits", false, ClassLoader.getSystemClassLoader());
             Method unalignedMethod = bitsClass.getDeclaredMethod("unaligned");
             unalignedMethod.setAccessible(true);
-            unaligned = Boolean.TRUE.equals(unalignedMethod.invoke(null));
+            unalignedAccess = Boolean.TRUE.equals(unalignedMethod.invoke(null));
 
             Method psMethod = bitsClass.getDeclaredMethod("pageSize");
             psMethod.setAccessible(true);
@@ -111,11 +112,11 @@ public class UNSAFE {
             throw new RuntimeException(t);
         }
 
-        UNALIGNED = unaligned;
-        logger.debug("java.nio.Bits.unaligned: {}", UNALIGNED);
+        UNALIGNED_ACCESS = unalignedAccess;
+        logger.debug("java.nio.Bits.unaligned: {}", UNALIGNED_ACCESS);
 
         Field cleanerField;
-        long fieldOffset = -1;
+        long fieldOffset;
         try {
             cleanerField = direct.getClass().getDeclaredField("cleaner");
             cleanerField.setAccessible(true);
@@ -150,7 +151,7 @@ public class UNSAFE {
     }
 
     static void throwException(Throwable t) {
-        UNSAFE.throwException(t);
+        u.throwException(t);
     }
 
 
@@ -198,36 +199,36 @@ public class UNSAFE {
     }
 
     static long arrayBaseOffset() {
-        return UNSAFE.arrayBaseOffset(byte[].class);
+        return u.arrayBaseOffset(byte[].class);
     }
 
     static Object getObject(Object object, long fieldOffset) {
-        return UNSAFE.getObject(object, fieldOffset);
+        return u.getObject(object, fieldOffset);
     }
 
     static Object getObjectVolatile(Object object, long fieldOffset) {
-        return UNSAFE.getObjectVolatile(object, fieldOffset);
+        return u.getObjectVolatile(object, fieldOffset);
     }
 
     static int getInt(Object object, long fieldOffset) {
-        return UNSAFE.getInt(object, fieldOffset);
+        return u.getInt(object, fieldOffset);
     }
 
     private static long getLong(Object object, long fieldOffset) {
-        return UNSAFE.getLong(object, fieldOffset);
+        return u.getLong(object, fieldOffset);
     }
 
     static long objectFieldOffset(Field field) {
-        return UNSAFE.objectFieldOffset(field);
+        return u.objectFieldOffset(field);
     }
 
-    static byte getByte(long address) {
-        return UNSAFE.getByte(address);
+    public static byte getByte(long address) {
+        return u.getByte(address);
     }
 
     static short getShort(long address) {
-        if (UNALIGNED) {
-            return UNSAFE.getShort(address);
+        if (UNALIGNED_ACCESS) {
+            return u.getShort(address);
         } else if (BIG_ENDIAN) {
             return (short) (getByte(address) << 8 | getByte(address + 1) & 0xff);
         } else {
@@ -236,8 +237,8 @@ public class UNSAFE {
     }
 
     static int getInt(long address) {
-        if (UNALIGNED) {
-            return UNSAFE.getInt(address);
+        if (UNALIGNED_ACCESS) {
+            return u.getInt(address);
         } else if (BIG_ENDIAN) {
             return getByte(address) << 24 |
                     (getByte(address + 1) & 0xff) << 16 |
@@ -252,8 +253,8 @@ public class UNSAFE {
     }
 
     static long getLong(long address) {
-        if (UNALIGNED) {
-            return UNSAFE.getLong(address);
+        if (UNALIGNED_ACCESS) {
+            return u.getLong(address);
         } else if (BIG_ENDIAN) {
             return (long) getByte(address) << 56 |
                     ((long) getByte(address + 1) & 0xff) << 48 |
@@ -276,16 +277,16 @@ public class UNSAFE {
     }
 
     static void putOrderedObject(Object object, long address, Object value) {
-        UNSAFE.putOrderedObject(object, address, value);
+        u.putOrderedObject(object, address, value);
     }
 
     static void putByte(long address, byte value) {
-        UNSAFE.putByte(address, value);
+        u.putByte(address, value);
     }
 
     static void putShort(long address, short value) {
-        if (UNALIGNED) {
-            UNSAFE.putShort(address, value);
+        if (UNALIGNED_ACCESS) {
+            u.putShort(address, value);
         } else if (BIG_ENDIAN) {
             putByte(address, (byte) (value >>> 8));
             putByte(address + 1, (byte) value);
@@ -296,8 +297,8 @@ public class UNSAFE {
     }
 
     static void putInt(long address, int value) {
-        if (UNALIGNED) {
-            UNSAFE.putInt(address, value);
+        if (UNALIGNED_ACCESS) {
+            u.putInt(address, value);
         } else if (BIG_ENDIAN) {
             putByte(address, (byte) (value >>> 24));
             putByte(address + 1, (byte) (value >>> 16));
@@ -312,8 +313,8 @@ public class UNSAFE {
     }
 
     static void putLong(long address, long value) {
-        if (UNALIGNED) {
-            UNSAFE.putLong(address, value);
+        if (UNALIGNED_ACCESS) {
+            u.putLong(address, value);
         } else if (BIG_ENDIAN) {
             putByte(address, (byte) (value >>> 56));
             putByte(address + 1, (byte) (value >>> 48));
@@ -336,10 +337,10 @@ public class UNSAFE {
     }
 
     public static void copyMemory(long srcAddr, long dstAddr, long length) {
-        //UNSAFE.copyMemory(srcAddr, dstAddr, length);
+        //u.copyMemory(srcAddr, dstAddr, length);
         while (length > 0) {
             long size = Math.min(length, UNSAFE_COPY_THRESHOLD);
-            UNSAFE.copyMemory(srcAddr, dstAddr, size);
+            u.copyMemory(srcAddr, dstAddr, size);
             length -= size;
             srcAddr += size;
             dstAddr += size;
@@ -347,10 +348,10 @@ public class UNSAFE {
     }
 
     static void copyMemory(Object src, long srcOffset, Object dst, long dstOffset, long length) {
-        //UNSAFE.copyMemory(src, srcOffset, dst, dstOffset, length);
+        //u.copyMemory(src, srcOffset, dst, dstOffset, length);
         while (length > 0) {
             long size = Math.min(length, UNSAFE_COPY_THRESHOLD);
-            UNSAFE.copyMemory(src, srcOffset, dst, dstOffset, size);
+            u.copyMemory(src, srcOffset, dst, dstOffset, size);
             length -= size;
             srcOffset += size;
             dstOffset += size;
@@ -397,15 +398,15 @@ public class UNSAFE {
     }
 
     public static int addressSize() {
-        return UNSAFE.addressSize();
+        return u.addressSize();
     }
 
     public static long allocateMemory(long size) {
-        return UNSAFE.allocateMemory(size);
+        return u.allocateMemory(size);
     }
 
     public static void freeMemory(long address) {
-        UNSAFE.freeMemory(address);
+        u.freeMemory(address);
     }
 
     public static void copyMemory(long srcAddr, byte[] dst, int dstIndex, long length) {

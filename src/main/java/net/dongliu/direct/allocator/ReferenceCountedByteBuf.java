@@ -30,8 +30,7 @@ public abstract class ReferenceCountedByteBuf extends ByteBuf {
 
     private volatile int refCnt = 1;
 
-    protected ReferenceCountedByteBuf(int maxCapacity) {
-        super(maxCapacity);
+    protected ReferenceCountedByteBuf() {
     }
 
     @Override

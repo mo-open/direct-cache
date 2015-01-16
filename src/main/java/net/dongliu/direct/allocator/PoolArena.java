@@ -88,8 +88,8 @@ abstract class PoolArena {
         return new PoolSubpage[size];
     }
 
-    UnsafeByteBuf allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
-        UnsafeByteBuf buf = newByteBuf(maxCapacity);
+    UnsafeByteBuf allocate(PoolThreadCache cache, int reqCapacity) {
+        UnsafeByteBuf buf = newByteBuf();
         allocate(cache, buf, reqCapacity);
         return buf;
     }
@@ -108,7 +108,7 @@ abstract class PoolArena {
         return tableIdx;
     }
 
-    // capacity < pageSize
+    // size < pageSize
     boolean isTinyOrSmall(int normCapacity) {
         return (normCapacity & subpageOverflowMask) == 0;
     }
@@ -120,7 +120,7 @@ abstract class PoolArena {
 
     private void allocate(PoolThreadCache cache, UnsafeByteBuf buf, final int reqCapacity) {
         final int normCapacity = normalizeCapacity(reqCapacity);
-        if (isTinyOrSmall(normCapacity)) { // capacity < pageSize
+        if (isTinyOrSmall(normCapacity)) { // size < pageSize
             int tableIdx;
             PoolSubpage[] table;
             if (isTiny(normCapacity)) { // < 512
@@ -254,39 +254,11 @@ abstract class PoolArena {
         return (reqCapacity & ~15) + 16;
     }
 
-    void reallocate(UnsafeByteBuf buf, int newCapacity, boolean freeOldMemory) {
-        if (newCapacity < 0 || newCapacity > buf.maxCapacity()) {
-            throw new IllegalArgumentException("newCapacity: " + newCapacity);
-        }
-
-        int oldCapacity = buf.length;
-        if (oldCapacity == newCapacity) {
-            return;
-        }
-
-        PoolChunk oldChunk = buf.chunk;
-        long oldHandle = buf.handle;
-        Memory oldMemory = buf.memory;
-        int oldOffset = buf.offset;
-        int oldMaxLength = buf.maxLength;
-
-        allocate(parent.threadCache.get(), buf, newCapacity);
-        if (newCapacity > oldCapacity) {
-            memoryCopy(oldMemory, oldOffset, buf.memory, buf.offset, oldCapacity);
-        } else if (newCapacity < oldCapacity) {
-            memoryCopy(oldMemory, oldOffset, buf.memory, buf.offset, newCapacity);
-        }
-
-        if (freeOldMemory) {
-            free(oldChunk, oldHandle, oldMaxLength, buf.initThread == Thread.currentThread());
-        }
-    }
-
     protected abstract PoolChunk newChunk(int pageSize, int maxOrder, int pageShifts, int chunkSize);
 
     protected abstract PoolChunk newUnpooledChunk(int capacity);
 
-    protected abstract UnsafeByteBuf newByteBuf(int maxCapacity);
+    protected abstract UnsafeByteBuf newByteBuf();
 
     protected abstract void memoryCopy(Memory src, int srcOffset, Memory dst,
                                        int dstOffset, int length);
@@ -386,8 +358,8 @@ abstract class PoolArena {
         }
 
         @Override
-        protected UnsafeByteBuf newByteBuf(int maxCapacity) {
-            return UnsafeByteBuf.newInstance(maxCapacity);
+        protected UnsafeByteBuf newByteBuf() {
+            return UnsafeByteBuf.newInstance();
         }
 
         @Override

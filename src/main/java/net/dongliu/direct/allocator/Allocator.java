@@ -30,11 +30,7 @@ public class Allocator {
 
     private static final Logger logger = LoggerFactory.getLogger(Allocator.class);
 
-    private static final int DEFAULT_INITIAL_CAPACITY = 256;
-    private static final int DEFAULT_MAX_COMPONENTS = 16;
     private final ByteBuf emptyBuf;
-
-
     private static final int DEFAULT_NUM_DIRECT_ARENA;
     private static final int DEFAULT_PAGE_SIZE;
     private static final int DEFAULT_MAX_ORDER; // 8192 << 11 = 16 MiB per chunk
@@ -79,7 +75,7 @@ public class Allocator {
         DEFAULT_SMALL_CACHE_SIZE = 256;
         DEFAULT_NORMAL_CACHE_SIZE = 64;
 
-        // 32 kb is the default maximum capacity of the cached buffer. Similar to what is explained in
+        // 32 kb is the default maximum size of the cached buffer. Similar to what is explained in
         // 'Scalable memory allocation using jemalloc'
         DEFAULT_MAX_CACHED_BUFFER_CAPACITY = Size.Kb(32);
 
@@ -163,54 +159,24 @@ public class Allocator {
     /**
      * allocate buf
      *
-     * @return null if exceed max capacity
+     * @return null if exceed max size
      */
-    public ByteBuf directBuffer() {
-        return directBuffer(DEFAULT_INITIAL_CAPACITY, Integer.MAX_VALUE);
-    }
-
-    /**
-     * allocate buf
-     *
-     * @return null if exceed max capacity
-     */
-    public ByteBuf directBuffer(int initialCapacity) {
-        return directBuffer(initialCapacity, Integer.MAX_VALUE);
-    }
-
-    /**
-     * allocate buf
-     *
-     * @return null if exceed max capacity
-     */
-    public ByteBuf directBuffer(int initialCapacity, int maxCapacity) {
-        if (initialCapacity == 0 && maxCapacity == 0) {
+    public ByteBuf directBuffer(int capacity) {
+        if (capacity == 0) {
             return emptyBuf;
         }
-        validate(initialCapacity, maxCapacity);
-        return newDirectBuffer(initialCapacity, maxCapacity);
+        return newDirectBuffer(capacity);
     }
 
-    private ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
-        if (used.get() > capacity) {
+    private ByteBuf newDirectBuffer(int capacity) {
+        if (used.get() > this.capacity) {
             return null;
         }
         PoolThreadCache cache = threadCache.get();
         PoolArena directArena = cache.directArena;
-        UnsafeByteBuf buf = directArena.allocate(cache, initialCapacity, maxCapacity);
+        UnsafeByteBuf buf = directArena.allocate(cache, capacity);
         used.getAndAdd(buf.capacity());
         return buf;
-    }
-
-    private static void validate(int initialCapacity, int maxCapacity) {
-        if (initialCapacity < 0) {
-            throw new IllegalArgumentException("initialCapacity: " + initialCapacity + " (expectd: 0+)");
-        }
-        if (initialCapacity > maxCapacity) {
-            throw new IllegalArgumentException(String.format(
-                    "initialCapacity: %d (expected: not greater than maxCapacity(%d)",
-                    initialCapacity, maxCapacity));
-        }
     }
 
     /**

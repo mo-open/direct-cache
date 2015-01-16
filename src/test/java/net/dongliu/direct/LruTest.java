@@ -14,11 +14,11 @@ public class LruTest {
     @Test
     public void testInsert() throws Exception {
         Lru lru = mockLru(0);
-        Lru.Node node = new Lru.Node(null);
+        DirectValue node = new DirectValue(null, null, null);
         lru.insert(node);
         assertTrue(node == lru.getHead());
         assertTrue(node == lru.getTail());
-        Lru.Node node2 = new Lru.Node(null);
+        DirectValue node2 = new DirectValue(null, null, null);
         lru.insert(node2);
         assertTrue(node2 == lru.getHead());
         assertTrue(node == lru.getTail());
@@ -29,7 +29,7 @@ public class LruTest {
     @Test
     public void testRemove() throws Exception {
         Lru lru = mockLru(2);
-        Lru.Node node = new Lru.Node(null);
+        DirectValue node = new DirectValue(null, null, null);
         lru.insert(node);
         lru.remove(node);
         assertTrue(node != lru.getHead());
@@ -40,8 +40,8 @@ public class LruTest {
     @Test
     public void testPromoted() throws Exception {
         Lru lru = mockLru(2);
-        Lru.Node node = new Lru.Node(null);
-        Lru.Node node2 = new Lru.Node(null);
+        DirectValue node = new DirectValue(null, null, null);
+        DirectValue node2 = new DirectValue(null, null, null);
         lru.insert(node);
         lru.insert(node2);
         lru.promoted(node);
@@ -56,14 +56,14 @@ public class LruTest {
     @Test
     public void testPopTail() throws Exception {
         Lru lru = mockLru(5);
-        List<Lru.Node> nodes = lru.tails(10);
+        List<DirectValue> nodes = lru.tails(10);
         assertEquals(5, nodes.size());
     }
 
     private Lru mockLru(int size) {
         Lru lru = new Lru(promoteDelta);
         for (int i = 0; i < size; i++) {
-            lru.insert(new Lru.Node(null));
+            lru.insert(new DirectValue(null, null, null));
         }
         return lru;
     }

@@ -18,12 +18,10 @@ package net.dongliu.direct.allocator;
 
 import net.dongliu.direct.utils.UNSAFE;
 
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ReadOnlyBufferException;
+import java.util.Objects;
 
 /**
- * An empty {@link ByteBuf} whose capacity and maximum capacity are all {@code 0}.
+ * An empty {@link ByteBuf} whose size and maximum size are all {@code 0}.
  */
 public final class EmptyByteBuf extends ByteBuf {
 
@@ -34,12 +32,14 @@ public final class EmptyByteBuf extends ByteBuf {
     private final String str;
 
     public EmptyByteBuf(Allocator alloc) {
-        super(0);
-        if (alloc == null) {
-            throw new NullPointerException("alloc");
-        }
+        Objects.requireNonNull(alloc, "alloc should not be null");
         this.alloc = alloc;
         str = this.getClass().getSimpleName();
+    }
+
+    @Override
+    public int size() {
+        return 0;
     }
 
     @Override
@@ -48,18 +48,13 @@ public final class EmptyByteBuf extends ByteBuf {
     }
 
     @Override
-    public ByteBuf capacity(int newCapacity) {
-        throw new ReadOnlyBufferException();
-    }
-
-    @Override
     public Allocator alloc() {
         return alloc;
     }
 
     @Override
-    public int maxCapacity() {
-        return 0;
+    public byte get(int i) {
+        throw new ArrayIndexOutOfBoundsException();
     }
 
     @Override
@@ -94,7 +89,7 @@ public final class EmptyByteBuf extends ByteBuf {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof ByteBuf && ((ByteBuf) obj).capacity() == 0;
+        return obj instanceof ByteBuf && ((ByteBuf) obj).size() == 0;
     }
 
     @Override

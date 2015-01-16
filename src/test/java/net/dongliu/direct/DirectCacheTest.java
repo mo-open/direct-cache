@@ -1,6 +1,5 @@
 package net.dongliu.direct;
 
-import net.dongliu.direct.value.Value;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -22,7 +21,7 @@ public class DirectCacheTest {
     @Test
     public void testPut() {
         cache.set("test", "value");
-        String value = cache.get("test", String.class).getValue();
+        String value = cache.<String>get("test").getValue();
         assertEquals("value", value);
     }
 
@@ -38,9 +37,9 @@ public class DirectCacheTest {
     @Test
     public void testNull() {
         cache.set("test", null);
-        Value<String> value = cache.get("test", String.class);
+        Value<String> value = cache.get("test");
         assertNull(value.getValue());
-        assertNull(cache.get("test_1234", String.class));
+        assertNull(cache.get("test_1234"));
 
     }
 

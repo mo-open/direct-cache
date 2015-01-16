@@ -16,38 +16,25 @@
 
 package net.dongliu.direct.allocator;
 
+import net.dongliu.direct.exception.IllegalReferenceCountException;
 import net.dongliu.direct.utils.UNSAFE;
 
 class UnsafeByteBuf extends ReferenceCountedByteBuf {
 
-    private final Recycler.Handle recyclerHandle;
-
-    protected PoolChunk chunk;
-    protected long handle;
-    protected Memory memory;
-    protected int offset;
-    protected int length;
-    int maxLength;
+    PoolChunk chunk;
+    long handle;
+    // the real used memory size
+    int size;
+    // the total memory we have
+    int capacity;
+    //TODO: for cache, mostly not freed by the same thread, thread-local cache not work well
     Thread initThread;
     private long memoryAddress;
 
-    private static final Recycler<UnsafeByteBuf> RECYCLER = new Recycler<UnsafeByteBuf>() {
-        @Override
-        protected UnsafeByteBuf newObject(Handle handle) {
-            return new UnsafeByteBuf(handle, 0);
-        }
-    };
-
-    static UnsafeByteBuf newInstance(int maxCapacity) {
-        UnsafeByteBuf buf = RECYCLER.get();
+    static UnsafeByteBuf newInstance() {
+        UnsafeByteBuf buf = new UnsafeByteBuf();
         buf.setRefCnt(1);
-        buf.maxCapacity(maxCapacity);
         return buf;
-    }
-
-    protected UnsafeByteBuf(Recycler.Handle recyclerHandle, int maxCapacity) {
-        super(maxCapacity);
-        this.recyclerHandle = recyclerHandle;
     }
 
     void init(PoolChunk chunk, long handle, int offset, int length, int maxLength) {
@@ -56,12 +43,10 @@ class UnsafeByteBuf extends ReferenceCountedByteBuf {
 
         this.chunk = chunk;
         this.handle = handle;
-        memory = chunk.memory;
-        this.offset = offset;
-        this.length = length;
-        this.maxLength = maxLength;
+        this.size = length;
+        this.capacity = maxLength;
         initThread = Thread.currentThread();
-        initMemoryAddress();
+        this.memoryAddress = chunk.memory.getAddress() + offset;
     }
 
     void initUnpooled(PoolChunk chunk, int length) {
@@ -69,63 +54,19 @@ class UnsafeByteBuf extends ReferenceCountedByteBuf {
 
         this.chunk = chunk;
         handle = 0;
-        memory = chunk.memory;
-        offset = 0;
-        this.length = maxLength = length;
+        this.size = capacity = length;
         initThread = Thread.currentThread();
-        initMemoryAddress();
+        this.memoryAddress = chunk.memory.getAddress();
     }
 
-    private void initMemoryAddress() {
-        memoryAddress = memory.getAddress() + offset;
+    @Override
+    public final int size() {
+        return size;
     }
 
     @Override
     public final int capacity() {
-        return length;
-    }
-
-    @Override
-    public final ByteBuf capacity(int newCapacity) {
-        ensureAccessible();
-        alloc().getUsed().getAndAdd(-capacity());
-        ByteBuf buf = _capacity(newCapacity);
-        alloc().getUsed().getAndAdd(buf.capacity());
-        return this;
-    }
-
-    private ByteBuf _capacity(int newCapacity) {
-        // If the request capacity does not require reallocation, just update the length of the memory.
-        if (chunk.unpooled) {
-            if (newCapacity == length) {
-                return this;
-            }
-        } else {
-            if (newCapacity > length) {
-                if (newCapacity <= maxLength) {
-                    length = newCapacity;
-                    return this;
-                }
-            } else if (newCapacity < length) {
-                if (newCapacity > maxLength >>> 1) {
-                    if (maxLength <= 512) {
-                        if (newCapacity > maxLength - 16) {
-                            length = newCapacity;
-                            return this;
-                        }
-                    } else { // > 512 (i.e. >= 1024)
-                        length = newCapacity;
-                        return this;
-                    }
-                }
-            } else {
-                return this;
-            }
-        }
-
-        // Reallocation required.
-        chunk.arena.reallocate(this, newCapacity, true);
-        return this;
+        return capacity;
     }
 
     @Override
@@ -134,23 +75,19 @@ class UnsafeByteBuf extends ReferenceCountedByteBuf {
     }
 
     @Override
+    public byte get(int i) {
+        return UNSAFE.getByte(addr(i));
+    }
+
+    @Override
     protected final void deallocate() {
         if (handle >= 0) {
             alloc().getUsed().getAndAdd(-capacity());
             final long handle = this.handle;
             this.handle = -1;
-            memory = null;
             boolean sameThread = initThread == Thread.currentThread();
             initThread = null;
-            chunk.arena.free(chunk, handle, maxLength, sameThread);
-            recycle();
-        }
-    }
-
-    private void recycle() {
-        Recycler.Handle recyclerHandle = this.recyclerHandle;
-        if (recyclerHandle != null) {
-            ((Recycler<Object>) recycler()).recycle(this, recyclerHandle);
+            chunk.arena.free(chunk, handle, capacity, sameThread);
         }
     }
 
@@ -178,6 +115,27 @@ class UnsafeByteBuf extends ReferenceCountedByteBuf {
         return this;
     }
 
+    private void checkIndex(int index, int fieldLength) {
+        ensureAccessible();
+        if (fieldLength < 0) {
+            throw new IllegalArgumentException("length: " + fieldLength + " (expected: >= 0)");
+        }
+        if (index < 0 || index > size() - fieldLength) {
+            throw new IndexOutOfBoundsException(String.format(
+                    "index: %d, length: %d (expected: range(0, %d))", index, fieldLength, size()));
+        }
+    }
+
+    /**
+     * Should be called by every method that tries to access the buffers content to check
+     * if the buffer was released before.
+     */
+    protected final void ensureAccessible() {
+        if (refCnt() == 0) {
+            throw new IllegalReferenceCountException(0);
+        }
+    }
+
     @Override
     public long memoryAddress() {
         return memoryAddress;
@@ -187,11 +145,4 @@ class UnsafeByteBuf extends ReferenceCountedByteBuf {
         return memoryAddress + index;
     }
 
-    protected Recycler<?> recycler() {
-        return RECYCLER;
-    }
-
-    protected final int idx(int index) {
-        return offset + index;
-    }
 }

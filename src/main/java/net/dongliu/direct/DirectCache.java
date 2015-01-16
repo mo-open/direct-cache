@@ -1,18 +1,19 @@
 package net.dongliu.direct;
 
-import net.dongliu.direct.allocator.ByteBuf;
 import net.dongliu.direct.allocator.Allocator;
+import net.dongliu.direct.allocator.ByteBuf;
+import net.dongliu.direct.allocator.ByteBufInputStream;
 import net.dongliu.direct.exception.CacheException;
 import net.dongliu.direct.exception.DeSerializeException;
 import net.dongliu.direct.exception.SerializeException;
 import net.dongliu.direct.utils.Size;
-import net.dongliu.direct.value.BytesValue;
-import net.dongliu.direct.value.DirectValue;
-import net.dongliu.direct.value.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -55,20 +56,18 @@ public class DirectCache {
      *
      * @return null if not exists.
      */
-    public <V extends Serializable> Value<V> get(Object key, Class<V> clazz) {
-        BytesValue<V> value = _get(key);
+    public <V extends Serializable> Value<V> get(Object key) {
+        Value<InputStream> value = _get(key);
 
         if (value == null) {
             return null;
+        } else if (value.getValue() == null) {
+            return new Value<>(null, value.getType());
         }
 
-        if (value.getBytes() == null) {
-            return new Value<>(null);
-        }
-
-        try (InputStream in = new ByteArrayInputStream(value.getBytes())) {
-            V v = serializer.deSerialize(in, clazz);
-            return new Value<>(v);
+        try (InputStream in = value.getValue()) {
+            V v = (V) serializer.deSerialize(in, value.getType());
+            return new Value<>(v, value.getType());
         } catch (DeSerializeException | IOException e) {
             throw new CacheException("deSerialize value failed", e);
         }
@@ -79,18 +78,20 @@ public class DirectCache {
      *
      * @return null if not exists
      */
-    private <V extends Serializable> BytesValue<V> _get(Object key) {
+    private <V extends Serializable> Value<InputStream> _get(Object key) {
+        Value<InputStream> value = null;
         ReentrantReadWriteLock lock = lockFor(key);
         lock.readLock().lock();
-        BytesValue<V> value = null;
         try {
             DirectValue directValue = map.get(key);
             if (directValue == null) {
+                // not exist
                 return null;
             }
             if (!directValue.expired()) {
-                byte[] bytes = directValue.readValue();
-                value = new BytesValue<>(bytes);
+                InputStream in = directValue.getBuffer() == null ?
+                        null : new ByteBufInputStream(directValue.getBuffer());
+                value = new Value<>(in, directValue.getType());
             }
         } finally {
             lock.readLock().unlock();
@@ -131,7 +132,7 @@ public class DirectCache {
                 throw new CacheException("serialize value failed", e);
             }
         }
-        _set(key, bytes, expiry);
+        _set(key, bytes, value == null ? null : value.getClass(), expiry);
     }
 
     /**
@@ -140,8 +141,8 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @param value  the value
      */
-    private void _set(Object key, byte[] value, int expiry) {
-        DirectValue holder = store(key, value);
+    private void _set(Object key, byte[] value, Class clazz, int expiry) {
+        DirectValue holder = store(key, value, clazz);
         if (holder == null) {
             // direct evict
             return;
@@ -187,7 +188,7 @@ public class DirectCache {
             }
         }
 
-        return _add(key, bytes, expiry);
+        return _add(key, bytes, value == null ? null : value.getClass(), expiry);
     }
 
 
@@ -197,12 +198,12 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    private boolean _add(Object key, byte[] value, int expiry) {
+    private boolean _add(Object key, byte[] value, Class clazz, int expiry) {
         DirectValue oldDirectValue = map.get(key);
         if (oldDirectValue != null && !oldDirectValue.expired()) {
             return false;
         }
-        DirectValue holder = store(key, value);
+        DirectValue holder = store(key, value, clazz);
 
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
@@ -266,9 +267,9 @@ public class DirectCache {
         this.map.remove(key);
     }
 
-    private DirectValue store(Object key, byte[] bytes) {
+    private DirectValue store(Object key, byte[] bytes, Class clazz) {
         if (bytes == null) {
-            return new DirectValue(null, key);
+            return new DirectValue(key, null, clazz);
         }
 
         ByteBuf buffer;
@@ -283,7 +284,7 @@ public class DirectCache {
         }
         buffer.writeBytes(bytes);
 
-        return new DirectValue(buffer, key);
+        return new DirectValue(key, buffer, clazz);
     }
 
     /**
@@ -295,23 +296,23 @@ public class DirectCache {
 
 
     /**
-     * If the store is over capacity, evict elements until capacity is reached
+     * If the store is over size, evict elements until size is reached
      */
     private void evict(Object key) {
         int evict = MAX_EVICTION_NUM;
-        List<Lru.Node> candidates = map.evictCandidates(key, evict);
-        for (Lru.Node node : candidates) {
-            removeChosenElements(node.value);
+        List<DirectValue> candidates = map.evictCandidates(key, evict);
+        for (DirectValue value : candidates) {
+            removeChosenElements(value);
         }
     }
 
     /**
      * Removes the element chosen by the eviction policy
      */
-    private void removeChosenElements(DirectValue holder) {
+    private void removeChosenElements(DirectValue directValue) {
 
         // If the element is expired, remove
-        remove(holder.getKey());
+        remove(directValue.getKey());
     }
 
     private ReentrantReadWriteLock lockFor(Object key) {

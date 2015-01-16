@@ -15,8 +15,6 @@
  */
 package net.dongliu.direct;
 
-import net.dongliu.direct.value.DirectValue;
-
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -33,7 +31,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 class ConcurrentMap {
 
     /**
-     * The maximum capacity, used if a higher value is implicitly
+     * The maximum size, used if a higher value is implicitly
      * specified by either of the constructors with arguments.  MUST
      * be a power of two <= 1<<30 to ensure that entries are indexable
      * using ints.
@@ -230,53 +228,6 @@ class ConcurrentMap {
         return segmentFor(hash).containsKey(key, hash);
     }
 
-    public boolean containsValue(Object value) {
-        if (value == null)
-            throw new NullPointerException();
-
-        // See explanation of modCount use above
-
-        final Segment[] segments = this.segments;
-        int[] mc = new int[segments.length];
-
-        // Try a few times without locking
-        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
-            int sum = 0;
-            int mcsum = 0;
-            for (int i = 0; i < segments.length; ++i) {
-                int c = segments[i].count;
-                mcsum += mc[i] = segments[i].modCount;
-                if (segments[i].containsValue(value))
-                    return true;
-            }
-            boolean cleanSweep = true;
-            if (mcsum != 0) {
-                for (int i = 0; i < segments.length; ++i) {
-                    int c = segments[i].count;
-                    if (mc[i] != segments[i].modCount) {
-                        cleanSweep = false;
-                        break;
-                    }
-                }
-            }
-            if (cleanSweep)
-                return false;
-        }
-
-        // Resort to locking all segments
-        for (Segment segment : segments) segment.readLock().lock();
-        try {
-            for (Segment segment : segments) {
-                if (segment.containsValue(value)) {
-                    return true;
-                }
-            }
-        } finally {
-            for (Segment segment : segments) segment.readLock().unlock();
-        }
-        return false;
-    }
-
     public DirectValue put(Object key, DirectValue value) {
         int hash = hash(key.hashCode());
         return segmentFor(hash).put(key, hash, value, false);
@@ -292,14 +243,7 @@ class ConcurrentMap {
 
     public DirectValue remove(Object key) {
         int hash = hash(key.hashCode());
-        return segmentFor(hash).remove(key, hash, null);
-    }
-
-    public boolean remove(Object key, Object value) {
-        int hash = hash(key.hashCode());
-        if (value == null)
-            return false;
-        return segmentFor(hash).remove(key, hash, value) != null;
+        return segmentFor(hash).remove(key, hash);
     }
 
     public void clear() {
@@ -318,11 +262,10 @@ class ConcurrentMap {
     /**
      * get evict candidate entries
      */
-    public List<Lru.Node> evictCandidates(Object keyHint, int size) {
+    public List<DirectValue> evictCandidates(Object keyHint, int size) {
         int hash = hash(keyHint.hashCode());
         Segment segment = segmentFor(hash);
-        List<Lru.Node> candidates = segment.lru.tails(size);
-        return candidates;
+        return segment.lru.tails(size);
     }
 
     /**
@@ -358,7 +301,7 @@ class ConcurrentMap {
 
         /**
          * The table is rehashed when its size exceeds this threshold.
-         * (The value of this field is always <tt>(int)(capacity *
+         * (The value of this field is always <tt>(int)(size *
          * loadFactor)</tt>.)
          */
         int threshold;
@@ -384,9 +327,9 @@ class ConcurrentMap {
             setTable(new HashEntry[initialCapacity]);
         }
 
-        void postRemove(Lru.Node node) {
-            lru.remove(node);
-            node.value.release();
+        void postRemove(DirectValue value) {
+            lru.remove(value);
+            value.release();
         }
 
         void preInstall(Object key, DirectValue value) {
@@ -414,16 +357,15 @@ class ConcurrentMap {
          */
         protected HashEntry createHashEntry(Object key, int hash, HashEntry next,
                                             DirectValue value) {
-            Lru.Node node = new Lru.Node(value);
-            lru.insert(node);
-            return new HashEntry(key, hash, next, node);
+            lru.insert(value);
+            return new HashEntry(key, hash, next, value);
         }
 
         /**
          * used for rehash and remove copy
          */
         protected HashEntry relinkHashEntry(HashEntry e, HashEntry next) {
-            return new HashEntry(e.key, e.hash, next, e.node);
+            return new HashEntry(e.key, e.hash, next, e.value);
         }
 
         protected void clear() {
@@ -435,7 +377,7 @@ class ConcurrentMap {
                         HashEntry entry = tab[i];
                         tab[i] = null;
                         if (entry != null) {
-                            postRemove(entry.node);
+                            postRemove(entry.value);
                         }
                     }
                     ++modCount;
@@ -446,7 +388,7 @@ class ConcurrentMap {
             }
         }
 
-        DirectValue remove(Object key, int hash, Object value) {
+        DirectValue remove(Object key, int hash) {
             writeLock().lock();
             try {
                 int c = count - 1;
@@ -459,19 +401,16 @@ class ConcurrentMap {
 
                 DirectValue oldValue = null;
                 if (e != null) {
-                    DirectValue v = e.node.value;
-                    if (value == null || value.equals(v)) {
-                        oldValue = v;
-                        ++modCount;
-                        // All entries following removed node can stay in list, but all preceding ones need to be
-                        // cloned.
-                        HashEntry newFirst = e.next;
-                        for (HashEntry p = first; p != e; p = p.next)
-                            newFirst = relinkHashEntry(p, newFirst);
-                        tab[index] = newFirst;
-                        count = c; // write-volatile
-                        postRemove(e.node);
-                    }
+                    oldValue = e.value;
+                    ++modCount;
+                    // All entries following removed node can stay in list, but all preceding ones need to be
+                    // cloned.
+                    HashEntry newFirst = e.next;
+                    for (HashEntry p = first; p != e; p = p.next)
+                        newFirst = relinkHashEntry(p, newFirst);
+                    tab[index] = newFirst;
+                    count = c; // write-volatile
+                    postRemove(e.value);
                 }
                 return oldValue;
             } finally {
@@ -483,7 +422,7 @@ class ConcurrentMap {
             writeLock().lock();
             try {
                 int c = count;
-                if (c++ > threshold) // ensure capacity
+                if (c++ > threshold) // ensure size
                     rehash();
                 HashEntry[] tab = table;
                 int index = hash & (tab.length - 1);
@@ -494,12 +433,12 @@ class ConcurrentMap {
 
                 DirectValue oldValue;
                 if (e != null) {
-                    Lru.Node oldNode = e.node;
-                    oldValue = oldNode.value;
+                    oldValue = e.value;
                     if (!onlyIfAbsent) {
                         preInstall(key, value);
-                        oldNode.value = value;
-                        lru.promoted(oldNode);
+                        e.value = value;
+                        lru.remove(oldValue);
+                        lru.insert(value);
                         oldValue.release();
                     } else {
                         value.release();
@@ -526,8 +465,8 @@ class ConcurrentMap {
                     HashEntry e = getFirst(hash);
                     while (e != null) {
                         if (e.hash == hash && key.equals(e.key)) {
-                            lru.promoted(e.node);
-                            return e.node.value;
+                            lru.promoted(e.value);
+                            return e.value;
                         }
                         e = e.next;
                     }
@@ -547,25 +486,6 @@ class ConcurrentMap {
                         if (e.hash == hash && key.equals(e.key))
                             return true;
                         e = e.next;
-                    }
-                }
-                return false;
-            } finally {
-                readLock().unlock();
-            }
-        }
-
-        boolean containsValue(Object value) {
-            readLock().lock();
-            try {
-                if (count != 0) { // read-volatile
-                    HashEntry[] tab = table;
-                    for (HashEntry aTab : tab) {
-                        for (HashEntry e = aTab; e != null; e = e.next) {
-                            DirectValue v = e.node.value;
-                            if (value.equals(v))
-                                return true;
-                        }
                     }
                 }
                 return false;
@@ -628,13 +548,13 @@ class ConcurrentMap {
         public final int hash;
         public final HashEntry next;
 
-        public final Lru.Node node;
+        public volatile DirectValue value;
 
-        protected HashEntry(Object key, int hash, HashEntry next, Lru.Node node) {
+        protected HashEntry(Object key, int hash, HashEntry next, DirectValue value) {
             this.key = key;
             this.hash = hash;
             this.next = next;
-            this.node = node;
+            this.value = value;
         }
     }
 

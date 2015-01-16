@@ -1,6 +1,8 @@
-package net.dongliu.direct.value;
+package net.dongliu.direct;
 
 import net.dongliu.direct.allocator.ByteBuf;
+
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
  * interface of cache-value holder.
@@ -14,7 +16,12 @@ public class DirectValue {
     /**
      * the direct buffer to store value. null if value if null.
      */
-    public final ByteBuf buffer;
+    private final ByteBuf buffer;
+
+    /**
+     * the value's class
+     */
+    private final Class type;
 
     /**
      * The amount of time for the element to live, in seconds. 0 indicates unlimited.
@@ -28,8 +35,17 @@ public class DirectValue {
      */
     private volatile long created;
 
-    public DirectValue(ByteBuf buffer, Object key) {
+    // for lru
+    DirectValue successor;
+    DirectValue precursor;
+    private volatile long lastPromoted;
+
+    private static final AtomicLongFieldUpdater<DirectValue> updater
+            = AtomicLongFieldUpdater.newUpdater(DirectValue.class, "lastPromoted");
+
+    public DirectValue(Object key, ByteBuf buffer, Class type) {
         this.buffer = buffer;
+        this.type = type;
         this.created = System.currentTimeMillis();
         this.key = key;
     }
@@ -39,8 +55,7 @@ public class DirectValue {
     }
 
     public int size() {
-        //TODO: get size
-        return buffer.capacity();
+        return buffer.size();
     }
 
     public Object getKey() {
@@ -60,6 +75,14 @@ public class DirectValue {
         byte[] bytes = new byte[size()];
         buffer.readBytes(bytes);
         return bytes;
+    }
+
+    public ByteBuf getBuffer() {
+        return buffer;
+    }
+
+    public Class getType() {
+        return type;
     }
 
     public void release() {
@@ -87,5 +110,17 @@ public class DirectValue {
 
     public void expiry(int expiry) {
         this.expiry = expiry;
+    }
+
+    long getLastPromoted() {
+        return lastPromoted;
+    }
+
+    boolean compareAndSetLastPromoted(long expect, long update) {
+        return updater.compareAndSet(this, expect, update);
+    }
+
+    public void setLastPromoted(long lastPromoted) {
+        this.lastPromoted = lastPromoted;
     }
 }

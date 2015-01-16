@@ -1,10 +1,7 @@
 package net.dongliu.direct;
 
-import net.dongliu.direct.value.DirectValue;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -15,8 +12,8 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 class Lru {
 
-    private Node head;
-    private Node tail;
+    private DirectValue head;
+    private DirectValue tail;
 
     private Lock lock = new ReentrantLock();
 
@@ -36,17 +33,18 @@ class Lru {
     }
 
     /**
-     * insert one node
+     * insert one DirectValue
      */
-    void insert(Node node) {
+    void insert(DirectValue value) {
+        value.setLastPromoted(System.currentTimeMillis());
         lock.lock();
         try {
             if (head == null) {
-                head = tail = node;
+                head = tail = value;
             } else {
-                node.successor = head;
-                head.precursor = node;
-                head = node;
+                value.successor = head;
+                head.precursor = value;
+                head = value;
             }
         } finally {
             lock.unlock();
@@ -54,25 +52,25 @@ class Lru {
     }
 
     /**
-     * remove one node
+     * remove one DirectValue
      */
-    void remove(Node node) {
+    void remove(DirectValue DirectValue) {
         lock.lock();
         try {
             //head must not be null
-            if (node == head) {
-                head = node.successor;
-                if (node == tail) {
-                    tail = node.precursor;
+            if (DirectValue == head) {
+                head = DirectValue.successor;
+                if (DirectValue == tail) {
+                    tail = DirectValue.precursor;
                 } else {
-                    node.successor.precursor = null;
+                    DirectValue.successor.precursor = null;
                 }
-            } else if (node == tail) {
-                tail = node.precursor;
-                node.precursor.successor = null;
+            } else if (DirectValue == tail) {
+                tail = DirectValue.precursor;
+                DirectValue.precursor.successor = null;
             } else {
-                node.successor.precursor = node.precursor;
-                node.precursor.successor = node.successor;
+                DirectValue.successor.precursor = DirectValue.precursor;
+                DirectValue.precursor.successor = DirectValue.successor;
             }
         } finally {
             lock.unlock();
@@ -80,29 +78,29 @@ class Lru {
     }
 
     /**
-     * move node to head
+     * move DirectValue to head
      */
-    void promoted(Node node) {
+    void promoted(DirectValue DirectValue) {
         long now = System.currentTimeMillis();
-        long last = node.getLastPromoted();
+        long last = DirectValue.getLastPromoted();
         if (now < last + promoteDelta) {
             return;
         }
 
-        if (node.compareAndSetLastPromoted(last, now)) {
+        if (DirectValue.compareAndSetLastPromoted(last, now)) {
             lock.lock();
             try {
-                if (node == head) {
+                if (DirectValue == head) {
                     return;
                 }
-                head.precursor = node;
-                node.precursor.successor = node.successor;
-                if (node.successor != null) {
-                    node.successor.precursor = node.precursor;
+                head.precursor = DirectValue;
+                DirectValue.precursor.successor = DirectValue.successor;
+                if (DirectValue.successor != null) {
+                    DirectValue.successor.precursor = DirectValue.precursor;
                 }
-                node.successor = head;
-                node.precursor = null;
-                head = node;
+                DirectValue.successor = head;
+                DirectValue.precursor = null;
+                head = DirectValue;
             } finally {
                 lock.unlock();
             }
@@ -111,16 +109,16 @@ class Lru {
     }
 
     /**
-     * evict num node from list tail
+     * evict num DirectValue from list tail
      */
-    List<Node> tails(int num) {
-        List<Node> list = new ArrayList<>(num);
+    List<DirectValue> tails(int num) {
+        List<DirectValue> list = new ArrayList<>(num);
         lock.lock();
         try {
-            Node node = tail;
-            while (node != null) {
-                list.add(node);
-                node = node.precursor;
+            DirectValue DirectValue = tail;
+            while (DirectValue != null) {
+                list.add(DirectValue);
+                DirectValue = DirectValue.precursor;
             }
             return list;
         } finally {
@@ -128,39 +126,12 @@ class Lru {
         }
     }
 
-    Node getHead() {
+    DirectValue getHead() {
         return head;
     }
 
-    Node getTail() {
+    DirectValue getTail() {
         return tail;
-    }
-
-    static class Node {
-        private Node successor;
-        private Node precursor;
-        private volatile long lastPromoted;
-        volatile DirectValue value;
-
-        private static final AtomicLongFieldUpdater<Node> updater
-                = AtomicLongFieldUpdater.newUpdater(Node.class, "lastPromoted");
-
-        Node(DirectValue value) {
-            this.value = value;
-            this.lastPromoted = System.currentTimeMillis();
-        }
-
-        public long getLastPromoted() {
-            return lastPromoted;
-        }
-
-        public boolean compareAndSetLastPromoted(long expect, long update) {
-            return updater.compareAndSet(this, expect, update);
-        }
-
-        public DirectValue getValue() {
-            return value;
-        }
     }
 
 }

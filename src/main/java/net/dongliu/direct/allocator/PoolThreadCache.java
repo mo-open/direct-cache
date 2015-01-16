@@ -326,7 +326,7 @@ final class PoolThreadCache {
         }
 
         /**
-         * Init the {@link UnsafeByteBuf} using the provided chunk and handle with the capacity restrictions.
+         * Init the {@link UnsafeByteBuf} using the provided chunk and handle with the size restrictions.
          */
         protected abstract void initBuf(PoolChunk chunk, long handle,
                                         UnsafeByteBuf buf, int reqCapacity);

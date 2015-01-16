@@ -111,7 +111,7 @@ final class PoolChunk {
     private final byte[] depthMap;
     private final PoolSubpage[] subpages;
     /**
-     * Used to determine if the requested capacity is equal to or greater than pageSize.
+     * Used to determine if the requested size is equal to or greater than pageSize.
      */
     private final int subpageOverflowMask;
     private final int pageSize;
@@ -291,7 +291,7 @@ final class PoolChunk {
     /**
      * Allocate a run of pages (>=1)
      *
-     * @param normCapacity normalized capacity
+     * @param normCapacity normalized size
      * @return index in memoryMap
      */
     private long allocateRun(int normCapacity) {
@@ -308,7 +308,7 @@ final class PoolChunk {
      * Create/ initialize a new PoolSubpage of normCapacity
      * Any PoolSubpage created/ initialized here is added to subpage pool in the PoolArena that owns this PoolChunk
      *
-     * @param normCapacity normalized capacity
+     * @param normCapacity normalized size
      * @return index in memoryMap
      */
     private long allocateSubpage(int normCapacity) {
