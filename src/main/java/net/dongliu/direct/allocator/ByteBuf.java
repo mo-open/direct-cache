@@ -15,6 +15,9 @@
  */
 package net.dongliu.direct.allocator;
 
+import net.dongliu.direct.exception.IllegalReferenceCountException;
+import net.dongliu.direct.utils.UNSAFE;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -22,30 +25,73 @@ import java.nio.ByteBuffer;
  * This interface provides an abstract view for one or more primitive byte
  * arrays ({@code byte[]}) and {@linkplain ByteBuffer NIO buffers}.
  */
-public abstract class ByteBuf {
+public class ByteBuf extends ReferenceCounted<ByteBuf> {
 
-    protected ByteBuf() {
+    PoolChunk chunk;
+    long handle;
+    // the real used memory size
+    int size;
+    // the total memory we have
+    int capacity;
+    //TODO: for cache, mostly not freed by the same thread, thread-local cache not work well
+    Thread initThread;
+    private long memoryAddress;
+
+    static ByteBuf newInstance() {
+        ByteBuf buf = new ByteBuf();
+        buf.setRefCnt(1);
+        return buf;
+    }
+
+    void init(PoolChunk chunk, long handle, int offset, int length, int maxLength) {
+        assert handle >= 0;
+        assert chunk != null;
+
+        this.chunk = chunk;
+        this.handle = handle;
+        this.size = length;
+        this.capacity = maxLength;
+        initThread = Thread.currentThread();
+        this.memoryAddress = chunk.memory.getAddress() + offset;
+    }
+
+    void initUnpooled(PoolChunk chunk, int length) {
+        assert chunk != null;
+
+        this.chunk = chunk;
+        handle = 0;
+        this.size = capacity = length;
+        initThread = Thread.currentThread();
+        this.memoryAddress = chunk.memory.getAddress();
     }
 
     /**
      * Returns the number of bytes (octets) this buffer really have
      */
-    public abstract int size();
+    public final int size() {
+        return size;
+    }
 
     /**
      * Returns the number of bytes (octets) this buffer can contain.
      */
-    public abstract int capacity();
+    public final int capacity() {
+        return capacity;
+    }
 
     /**
      * Returns the {@link Allocator} which created this buffer.
      */
-    public abstract Allocator alloc();
+    public final Allocator alloc() {
+        return chunk.arena.parent;
+    }
 
     /**
      * get byte at index i
      */
-    public abstract byte get(int i);
+    public byte get(int i) {
+        return UNSAFE.getByte(addr(i));
+    }
 
     /**
      * Transfers this buffer's data to the specified destination starting at
@@ -62,7 +108,19 @@ public abstract class ByteBuf {
      *                                   if {@code dstIndex + length} is greater than
      *                                   {@code dst.length}
      */
-    public abstract ByteBuf getBytes(int index, byte[] dst, int dstIndex, int length);
+    public ByteBuf getBytes(int index, byte[] dst, int dstIndex, int length) {
+        checkIndex(index, length);
+        if (dst == null) {
+            throw new NullPointerException("dst");
+        }
+        if (dstIndex < 0 || dstIndex > dst.length - length) {
+            throw new IndexOutOfBoundsException("dstIndex: " + dstIndex);
+        }
+        if (length != 0) {
+            UNSAFE.copyMemory(addr(index), dst, dstIndex, length);
+        }
+        return this;
+    }
 
     /**
      * Transfers the specified source array's data to this buffer starting at
@@ -76,7 +134,24 @@ public abstract class ByteBuf {
      *                                   {@code this.size}, or
      *                                   if {@code srcIndex + length} is greater than {@code src.length}
      */
-    public abstract ByteBuf setBytes(int index, byte[] src, int srcIndex, int length);
+    public ByteBuf setBytes(int index, byte[] src, int srcIndex, int length) {
+        checkIndex(index, length);
+        if (length != 0) {
+            UNSAFE.copyMemory(src, srcIndex, addr(index), length);
+        }
+        return this;
+    }
+
+    private void checkIndex(int index, int fieldLength) {
+        ensureAccessible();
+        if (fieldLength < 0) {
+            throw new IllegalArgumentException("length: " + fieldLength + " (expected: >= 0)");
+        }
+        if (index < 0 || index > size() - fieldLength) {
+            throw new IndexOutOfBoundsException(String.format(
+                    "index: %d, length: %d (expected: range(0, %d))", index, fieldLength, size()));
+        }
+    }
 
     /**
      * Transfers this buffer's data to the specified destination starting at
@@ -103,41 +178,37 @@ public abstract class ByteBuf {
     }
 
     /**
+     * Should be called by every method that tries to access the buffers content to check
+     * if the buffer was released before.
+     */
+    private void ensureAccessible() {
+        if (refCnt() == 0) {
+            throw new IllegalReferenceCountException(0);
+        }
+    }
+
+    /**
      * Returns the low-level memory address that point to the first byte of ths backing data.
      *
      * @throws UnsupportedOperationException if this buffer does not support accessing the low-level memory address
      */
-    public abstract long memoryAddress();
+    public long memoryAddress() {
+        return memoryAddress;
+    }
 
-    /**
-     * Returns the reference count of this object.  If {@code 0}, it means this object has been deallocated.
-     */
-    public abstract int refCnt();
+    private long addr(int index) {
+        return memoryAddress + index;
+    }
 
-    /**
-     * Increases the reference count by {@code 1}.
-     */
-    public abstract ByteBuf retain();
-
-    /**
-     * Increases the reference count by the specified {@code increment}.
-     */
-    public abstract ByteBuf retain(int increment);
-
-    /**
-     * Decreases the reference count by {@code 1} and deallocates this object if the reference count reaches at
-     * {@code 0}.
-     *
-     * @return {@code true} if and only if the reference count became {@code 0} and this object has been deallocated
-     */
-    public abstract boolean release();
-
-    /**
-     * Decreases the reference count by the specified {@code decrement} and deallocates this object if the reference
-     * count reaches at {@code 0}.
-     *
-     * @return {@code true} if and only if the reference count became {@code 0} and this object has been deallocated
-     */
-    public abstract boolean release(int decrement);
-
+    @Override
+    protected final void deallocate() {
+        if (handle >= 0) {
+            alloc().getUsed().getAndAdd(-capacity());
+            final long handle = this.handle;
+            this.handle = -1;
+            boolean sameThread = initThread == Thread.currentThread();
+            initThread = null;
+            chunk.arena.free(chunk, handle, capacity, sameThread);
+        }
+    }
 }

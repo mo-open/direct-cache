@@ -40,9 +40,6 @@ abstract class PoolArena {
     private final PoolChunkList q075;
     private final PoolChunkList q100;
 
-    // TODO: Test if adding padding helps under contention
-    //private long pad0, pad1, pad2, pad3, pad4, pad5, pad6, pad7;
-
     protected PoolArena(Allocator parent, int pageSize, int maxOrder, int pageShifts, int chunkSize) {
         this.parent = parent;
         this.pageSize = pageSize;
@@ -88,8 +85,8 @@ abstract class PoolArena {
         return new PoolSubpage[size];
     }
 
-    UnsafeByteBuf allocate(PoolThreadCache cache, int reqCapacity) {
-        UnsafeByteBuf buf = newByteBuf();
+    ByteBuf allocate(PoolThreadCache cache, int reqCapacity) {
+        ByteBuf buf = newByteBuf();
         allocate(cache, buf, reqCapacity);
         return buf;
     }
@@ -118,7 +115,7 @@ abstract class PoolArena {
         return (normCapacity & 0xFFFFFE00) == 0;
     }
 
-    private void allocate(PoolThreadCache cache, UnsafeByteBuf buf, final int reqCapacity) {
+    private void allocate(PoolThreadCache cache, ByteBuf buf, final int reqCapacity) {
         final int normCapacity = normalizeCapacity(reqCapacity);
         if (isTinyOrSmall(normCapacity)) { // size < pageSize
             int tableIdx;
@@ -163,7 +160,7 @@ abstract class PoolArena {
         allocateNormal(buf, reqCapacity, normCapacity);
     }
 
-    private synchronized void allocateNormal(UnsafeByteBuf buf, int reqCapacity, int normCapacity) {
+    private synchronized void allocateNormal(ByteBuf buf, int reqCapacity, int normCapacity) {
         if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||
                 q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||
                 q075.allocate(buf, reqCapacity, normCapacity) || q100.allocate(buf, reqCapacity, normCapacity)) {
@@ -178,7 +175,7 @@ abstract class PoolArena {
         qInit.add(c);
     }
 
-    private void allocateHuge(UnsafeByteBuf buf, int reqCapacity) {
+    private void allocateHuge(ByteBuf buf, int reqCapacity) {
         buf.initUnpooled(newUnpooledChunk(reqCapacity), reqCapacity);
     }
 
@@ -258,7 +255,7 @@ abstract class PoolArena {
 
     protected abstract PoolChunk newUnpooledChunk(int capacity);
 
-    protected abstract UnsafeByteBuf newByteBuf();
+    protected abstract ByteBuf newByteBuf();
 
     protected abstract void memoryCopy(Memory src, int srcOffset, Memory dst,
                                        int dstOffset, int length);
@@ -358,8 +355,8 @@ abstract class PoolArena {
         }
 
         @Override
-        protected UnsafeByteBuf newByteBuf() {
-            return UnsafeByteBuf.newInstance();
+        protected ByteBuf newByteBuf() {
+            return ByteBuf.newInstance();
         }
 
         @Override

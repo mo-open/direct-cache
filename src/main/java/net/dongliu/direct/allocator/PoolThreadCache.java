@@ -128,25 +128,25 @@ final class PoolThreadCache {
     /**
      * Try to allocate a tiny buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
      */
-    boolean allocateTiny(PoolArena area, UnsafeByteBuf buf, int reqCapacity, int normCapacity) {
+    boolean allocateTiny(PoolArena area, ByteBuf buf, int reqCapacity, int normCapacity) {
         return allocate(cacheForTiny(area, normCapacity), buf, reqCapacity);
     }
 
     /**
      * Try to allocate a small buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
      */
-    boolean allocateSmall(PoolArena area, UnsafeByteBuf buf, int reqCapacity, int normCapacity) {
+    boolean allocateSmall(PoolArena area, ByteBuf buf, int reqCapacity, int normCapacity) {
         return allocate(cacheForSmall(area, normCapacity), buf, reqCapacity);
     }
 
     /**
      * Try to allocate a small buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
      */
-    boolean allocateNormal(PoolArena area, UnsafeByteBuf buf, int reqCapacity, int normCapacity) {
+    boolean allocateNormal(PoolArena area, ByteBuf buf, int reqCapacity, int normCapacity) {
         return allocate(cacheForNormal(area, normCapacity), buf, reqCapacity);
     }
 
-    private boolean allocate(MemoryRegionCache cache, UnsafeByteBuf buf, int reqCapacity) {
+    private boolean allocate(MemoryRegionCache cache, ByteBuf buf, int reqCapacity) {
         if (cache == null) {
             // no cache found so just return false here
             return false;
@@ -271,7 +271,7 @@ final class PoolThreadCache {
 
         @Override
         protected void initBuf(
-                PoolChunk chunk, long handle, UnsafeByteBuf buf, int reqCapacity) {
+                PoolChunk chunk, long handle, ByteBuf buf, int reqCapacity) {
             chunk.initBufWithSubpage(buf, handle, reqCapacity);
         }
     }
@@ -286,7 +286,7 @@ final class PoolThreadCache {
 
         @Override
         protected void initBuf(
-                PoolChunk chunk, long handle, UnsafeByteBuf buf, int reqCapacity) {
+                PoolChunk chunk, long handle, ByteBuf buf, int reqCapacity) {
             chunk.initBuf(buf, handle, reqCapacity);
         }
     }
@@ -326,10 +326,10 @@ final class PoolThreadCache {
         }
 
         /**
-         * Init the {@link UnsafeByteBuf} using the provided chunk and handle with the size restrictions.
+         * Init the {@link ByteBuf} using the provided chunk and handle with the size restrictions.
          */
         protected abstract void initBuf(PoolChunk chunk, long handle,
-                                        UnsafeByteBuf buf, int reqCapacity);
+                                        ByteBuf buf, int reqCapacity);
 
         /**
          * Add to cache if not already full.
@@ -351,7 +351,7 @@ final class PoolThreadCache {
         /**
          * Allocate something out of the cache if possible and remove the entry from the cache.
          */
-        public boolean allocate(UnsafeByteBuf buf, int reqCapacity) {
+        public boolean allocate(ByteBuf buf, int reqCapacity) {
             Entry entry = entries[head];
             if (entry.chunk == null) {
                 return false;

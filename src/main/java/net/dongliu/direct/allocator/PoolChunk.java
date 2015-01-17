@@ -358,7 +358,7 @@ final class PoolChunk {
         updateParentsFree(memoryMapIdx);
     }
 
-    void initBuf(UnsafeByteBuf buf, long handle, int reqCapacity) {
+    void initBuf(ByteBuf buf, long handle, int reqCapacity) {
         int memoryMapIdx = (int) handle;
         int bitmapIdx = (int) (handle >>> Integer.SIZE);
         if (bitmapIdx == 0) {
@@ -370,11 +370,11 @@ final class PoolChunk {
         }
     }
 
-    void initBufWithSubpage(UnsafeByteBuf buf, long handle, int reqCapacity) {
+    void initBufWithSubpage(ByteBuf buf, long handle, int reqCapacity) {
         initBufWithSubpage(buf, handle, (int) (handle >>> Integer.SIZE), reqCapacity);
     }
 
-    private void initBufWithSubpage(UnsafeByteBuf buf, long handle, int bitmapIdx, int reqCapacity) {
+    private void initBufWithSubpage(ByteBuf buf, long handle, int bitmapIdx, int reqCapacity) {
         assert bitmapIdx != 0;
 
         int memoryMapIdx = (int) handle;

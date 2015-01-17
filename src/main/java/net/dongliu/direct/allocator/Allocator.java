@@ -30,7 +30,6 @@ public class Allocator {
 
     private static final Logger logger = LoggerFactory.getLogger(Allocator.class);
 
-    private final ByteBuf emptyBuf;
     private static final int DEFAULT_NUM_DIRECT_ARENA;
     private static final int DEFAULT_PAGE_SIZE;
     private static final int DEFAULT_MAX_ORDER; // 8192 << 11 = 16 MiB per chunk
@@ -103,7 +102,6 @@ public class Allocator {
     public Allocator(int nDirectArena, int pageSize, int maxOrder,
                      long capacity, int tinyCacheSize, int smallCacheSize, int normalCacheSize) {
         this.capacity = capacity;
-        emptyBuf = new EmptyByteBuf(this);
         threadCache = new PoolThreadLocalCache();
         this.tinyCacheSize = tinyCacheSize;
         this.smallCacheSize = smallCacheSize;
@@ -161,9 +159,9 @@ public class Allocator {
      *
      * @return null if exceed max size
      */
-    public ByteBuf directBuffer(int capacity) {
-        if (capacity == 0) {
-            return emptyBuf;
+    public ByteBuf allocate(int capacity) {
+        if (capacity <= 0) {
+            throw new IllegalArgumentException("Capacity must be large then 0");
         }
         return newDirectBuffer(capacity);
     }
@@ -174,7 +172,7 @@ public class Allocator {
         }
         PoolThreadCache cache = threadCache.get();
         PoolArena directArena = cache.directArena;
-        UnsafeByteBuf buf = directArena.allocate(cache, capacity);
+        ByteBuf buf = directArena.allocate(cache, capacity);
         used.getAndAdd(buf.capacity());
         return buf;
     }

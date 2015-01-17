@@ -23,17 +23,19 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 /**
  * Abstract base class for {@link ByteBuf} implementations that count references.
  */
-public abstract class ReferenceCountedByteBuf extends ByteBuf {
+public abstract class ReferenceCounted<T extends ReferenceCounted> {
 
-    private static final AtomicIntegerFieldUpdater<ReferenceCountedByteBuf> refCntUpdater
-            = AtomicIntegerFieldUpdater.newUpdater(ReferenceCountedByteBuf.class, "refCnt");
+    private static final AtomicIntegerFieldUpdater<ReferenceCounted> refCntUpdater
+            = AtomicIntegerFieldUpdater.newUpdater(ReferenceCounted.class, "refCnt");
 
     private volatile int refCnt = 1;
 
-    protected ReferenceCountedByteBuf() {
+    protected ReferenceCounted() {
     }
 
-    @Override
+    /**
+     * Returns the reference count of this object.  If {@code 0}, it means this object has been deallocated.
+     */
     public final int refCnt() {
         return refCnt;
     }
@@ -45,8 +47,11 @@ public abstract class ReferenceCountedByteBuf extends ByteBuf {
         this.refCnt = refCnt;
     }
 
-    @Override
-    public ByteBuf retain() {
+
+    /**
+     * Increases the reference count by {@code 1}.
+     */
+    public T retain() {
         for (; ; ) {
             int refCnt = this.refCnt;
             if (refCnt == 0) {
@@ -59,11 +64,13 @@ public abstract class ReferenceCountedByteBuf extends ByteBuf {
                 break;
             }
         }
-        return this;
+        return (T) this;
     }
 
-    @Override
-    public ByteBuf retain(int increment) {
+    /**
+     * Increases the reference count by the specified {@code increment}.
+     */
+    public T retain(int increment) {
         if (increment <= 0) {
             throw new IllegalArgumentException("increment: " + increment + " (expected: > 0)");
         }
@@ -80,10 +87,15 @@ public abstract class ReferenceCountedByteBuf extends ByteBuf {
                 break;
             }
         }
-        return this;
+        return (T) this;
     }
 
-    @Override
+    /**
+     * Decreases the reference count by {@code 1} and deallocates this object if the reference count reaches at
+     * {@code 0}.
+     *
+     * @return {@code true} if and only if the reference count became {@code 0} and this object has been deallocated
+     */
     public final boolean release() {
         for (; ; ) {
             int refCnt = this.refCnt;
@@ -101,7 +113,12 @@ public abstract class ReferenceCountedByteBuf extends ByteBuf {
         }
     }
 
-    @Override
+    /**
+     * Decreases the reference count by the specified {@code decrement} and deallocates this object if the reference
+     * count reaches at {@code 0}.
+     *
+     * @return {@code true} if and only if the reference count became {@code 0} and this object has been deallocated
+     */
     public final boolean release(int decrement) {
         if (decrement <= 0) {
             throw new IllegalArgumentException("decrement: " + decrement + " (expected: > 0)");

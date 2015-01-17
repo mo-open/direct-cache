@@ -274,11 +274,11 @@ public class DirectCache {
         }
 
         ByteBuf buffer;
-        buffer = this.allocator.directBuffer(bytes.length);
+        buffer = this.allocator.allocate(bytes.length);
         if (buffer == null) {
             // cannot allocate memory, evict and try again
             evict(key);
-            buffer = this.allocator.directBuffer(bytes.length);
+            buffer = this.allocator.allocate(bytes.length);
         }
         if (buffer == null) {
             return null;

@@ -86,7 +86,7 @@ public class ConcurrentMapTest {
     }
 
     private ByteBuf newBuffer(byte[] bytes) {
-        ByteBuf buf = allocator.directBuffer(bytes.length);
+        ByteBuf buf = allocator.allocate(bytes.length);
         buf.writeBytes(bytes);
         return buf;
     }
