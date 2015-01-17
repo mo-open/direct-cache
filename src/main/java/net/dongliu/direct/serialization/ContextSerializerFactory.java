@@ -57,14 +57,14 @@ import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The classloader-specific Factory for returning serialization
  */
 public class ContextSerializerFactory {
-    private static final Logger log
-            = Logger.getLogger(ContextSerializerFactory.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(ContextSerializerFactory.class);
 
     private static Deserializer OBJECT_DESERIALIZER
             = new BasicDeserializer(BasicDeserializer.OBJECT);
@@ -189,7 +189,7 @@ public class ContextSerializerFactory {
 
             return ser;
         } catch (ClassNotFoundException e) {
-            log.log(Level.ALL, e.toString(), e);
+            log.debug(e.toString(), e);
         } catch (Exception e) {
             throw new HessianException(e);
         }
@@ -235,7 +235,7 @@ public class ContextSerializerFactory {
 
             return ser;
         } catch (ClassNotFoundException e) {
-            log.log(Level.ALL, e.toString(), e);
+            log.debug(e.toString(), e);
         } catch (Exception e) {
             throw new HessianException(e);
         }
@@ -266,7 +266,6 @@ public class ContextSerializerFactory {
         Map<Class, Class> classMap;
 
         classMap = new HashMap<>();
-        classMap.put(HessianRemoteObject.class, RemoteSerializer.class);
         classMap.put(File.class, StringValueSerializer.class);
         classMap.put(BigDecimal.class, StringValueSerializer.class);
         classMap.put(Locale.class, LocaleSerializer.class);

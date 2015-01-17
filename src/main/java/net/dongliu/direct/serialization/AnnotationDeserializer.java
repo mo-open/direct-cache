@@ -51,14 +51,14 @@ package net.dongliu.direct.serialization;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Deserializing a java annotation for known object types.
  */
 public class AnnotationDeserializer extends AbstractMapDeserializer {
-    private static final Logger log
-            = Logger.getLogger(AnnotationDeserializer.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(AnnotationDeserializer.class);
 
     private Class _annType;
 
@@ -70,12 +70,11 @@ public class AnnotationDeserializer extends AbstractMapDeserializer {
         return _annType;
     }
 
-    public Object readMap(AbstractHessianInput in)
-            throws IOException {
+    public Object readMap(AbstractHessianInput in) throws IOException {
         try {
             int ref = in.addRef(null);
 
-            HashMap<String, Object> valueMap = new HashMap<String, Object>(8);
+            HashMap<String, Object> valueMap = new HashMap<>(8);
 
             while (!in.isEnd()) {
                 String key = in.readString();
@@ -97,19 +96,15 @@ public class AnnotationDeserializer extends AbstractMapDeserializer {
         }
     }
 
-    public Object readObject(AbstractHessianInput in,
-                             Object[] fields)
-            throws IOException {
+    public Object readObject(AbstractHessianInput in, Object[] fields) throws IOException {
         String[] fieldNames = (String[]) fields;
 
         try {
             in.addRef(null);
 
-            HashMap<String, Object> valueMap = new HashMap<String, Object>(8);
+            HashMap<String, Object> valueMap = new HashMap<>(8);
 
-            for (int i = 0; i < fieldNames.length; i++) {
-                String name = fieldNames[i];
-
+            for (String name : fieldNames) {
                 valueMap.put(name, in.readObject());
             }
 

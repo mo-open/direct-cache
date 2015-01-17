@@ -48,18 +48,18 @@
 
 package net.dongliu.direct.serialization;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Serializing an object for known object types.
  */
 public class WriteReplaceSerializer extends AbstractSerializer {
-    private static final Logger log
-            = Logger.getLogger(WriteReplaceSerializer.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(WriteReplaceSerializer.class);
 
     private Object _writeReplaceFactory;
     private Method _writeReplace;
@@ -76,11 +76,8 @@ public class WriteReplaceSerializer extends AbstractSerializer {
     private void introspectWriteReplace(Class<?> cl, ClassLoader loader) {
         try {
             String className = cl.getName() + "HessianSerializer";
-
             Class<?> serializerClass = Class.forName(className, false, loader);
-
             Object serializerObject = serializerClass.newInstance();
-
             Method writeReplace = getWriteReplace(serializerClass, cl);
 
             if (writeReplace != null) {
@@ -89,7 +86,7 @@ public class WriteReplaceSerializer extends AbstractSerializer {
             }
         } catch (ClassNotFoundException e) {
         } catch (Exception e) {
-            log.log(Level.FINER, e.toString(), e);
+            log.debug("", e);
         }
 
         _writeReplace = getWriteReplace(cl);
@@ -122,7 +119,6 @@ public class WriteReplaceSerializer extends AbstractSerializer {
 
             for (int i = 0; i < methods.length; i++) {
                 Method method = methods[i];
-
                 if (method.getName().equals("writeReplace") &&
                         method.getParameterTypes().length == 0)
                     return method;
@@ -139,27 +135,21 @@ public class WriteReplaceSerializer extends AbstractSerializer {
 
         if (ref >= 0) {
             out.writeRef(ref);
-
             return;
         }
 
         try {
             Object repl;
-
             repl = writeReplace(obj);
 
             if (obj == repl) {
-                if (log.isLoggable(Level.FINE)) {
-                    log.fine(this + ": Hessian writeReplace error.  The writeReplace method (" + _writeReplace + ") must not return the same object: " + obj);
-                }
-
+                log.debug("{}: Hessian writeReplace error.  The writeReplace method ({}) must not return the same object: {}",
+                        this, _writeReplace, obj);
                 _baseSerializer.writeObject(obj, out);
-
                 return;
             }
 
             out.writeObject(repl);
-
             out.replaceRef(repl, obj);
         } catch (RuntimeException e) {
             throw e;

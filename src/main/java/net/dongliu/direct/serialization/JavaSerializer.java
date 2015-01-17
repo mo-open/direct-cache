@@ -56,14 +56,14 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Serializing an object for known object types.
  */
 public class JavaSerializer extends AbstractSerializer {
-    private static final Logger log
-            = Logger.getLogger(JavaSerializer.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(JavaSerializer.class);
 
     private static final WeakHashMap<Class<?>, SoftReference<JavaSerializer>> _serializerMap
             = new WeakHashMap<>();
@@ -153,9 +153,7 @@ public class JavaSerializer extends AbstractSerializer {
         for (; cl != null; cl = cl.getSuperclass()) {
             Method[] methods = cl.getDeclaredMethods();
 
-            for (int i = 0; i < methods.length; i++) {
-                Method method = methods[i];
-
+            for (Method method : methods) {
                 if (method.getName().equals("writeReplace")
                         && method.getParameterTypes().length == 0)
                     return method;
@@ -261,9 +259,7 @@ public class JavaSerializer extends AbstractSerializer {
             throws IOException {
         out.writeClassFieldLength(_fields.length);
 
-        for (int i = 0; i < _fields.length; i++) {
-            Field field = _fields[i];
-
+        for (Field field : _fields) {
             out.writeString(field.getName());
         }
     }
@@ -324,7 +320,7 @@ public class JavaSerializer extends AbstractSerializer {
             try {
                 value = field.get(obj);
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             try {
@@ -353,7 +349,7 @@ public class JavaSerializer extends AbstractSerializer {
             try {
                 value = field.getBoolean(obj);
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeBoolean(value);
@@ -370,7 +366,7 @@ public class JavaSerializer extends AbstractSerializer {
             try {
                 value = field.getInt(obj);
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeInt(value);
@@ -387,7 +383,7 @@ public class JavaSerializer extends AbstractSerializer {
             try {
                 value = field.getLong(obj);
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeLong(value);
@@ -404,7 +400,7 @@ public class JavaSerializer extends AbstractSerializer {
             try {
                 value = field.getDouble(obj);
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeDouble(value);
@@ -421,7 +417,7 @@ public class JavaSerializer extends AbstractSerializer {
             try {
                 value = (String) field.get(obj);
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeString(value);
@@ -438,7 +434,7 @@ public class JavaSerializer extends AbstractSerializer {
             try {
                 value = (java.util.Date) field.get(obj);
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             if (value == null)

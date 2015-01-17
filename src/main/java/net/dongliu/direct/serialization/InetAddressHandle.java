@@ -50,13 +50,14 @@ package net.dongliu.direct.serialization;
 
 import java.net.InetAddress;
 import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Handle for an InetAddress object.
  */
 public class InetAddressHandle implements java.io.Serializable, HessianHandle {
-    private static final Logger log = Logger.getLogger(InetAddressHandle.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(InetAddressHandle.class);
 
     private String hostName;
     private byte[] address;
@@ -70,7 +71,7 @@ public class InetAddressHandle implements java.io.Serializable, HessianHandle {
         try {
             return InetAddress.getByAddress(this.hostName, this.address);
         } catch (Exception e) {
-            log.log(Level.FINE, e.toString(), e);
+            log.debug(e.toString(), e);
 
             return null;
         }

@@ -48,20 +48,20 @@
 
 package net.dongliu.direct.serialization;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Serializing a Java annotation
  */
 public class AnnotationSerializer extends AbstractSerializer {
-    private static final Logger log
-            = Logger.getLogger(AnnotationSerializer.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(AnnotationSerializer.class);
 
     private static Object[] NULL_ARGS = new Object[0];
 
@@ -236,7 +236,7 @@ public class AnnotationSerializer extends AbstractSerializer {
             } catch (InvocationTargetException e) {
                 throw error(method, e.getCause());
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             try {
@@ -259,7 +259,7 @@ public class AnnotationSerializer extends AbstractSerializer {
             } catch (InvocationTargetException e) {
                 throw error(method, e.getCause());
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeBoolean(value);
@@ -278,7 +278,7 @@ public class AnnotationSerializer extends AbstractSerializer {
             } catch (InvocationTargetException e) {
                 throw error(method, e.getCause());
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeInt(value);
@@ -297,7 +297,7 @@ public class AnnotationSerializer extends AbstractSerializer {
             } catch (InvocationTargetException e) {
                 throw error(method, e.getCause());
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeLong(value);
@@ -316,7 +316,7 @@ public class AnnotationSerializer extends AbstractSerializer {
             } catch (InvocationTargetException e) {
                 throw error(method, e.getCause());
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeDouble(value);
@@ -335,7 +335,7 @@ public class AnnotationSerializer extends AbstractSerializer {
             } catch (InvocationTargetException e) {
                 throw error(method, e.getCause());
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             out.writeString(value);
@@ -354,7 +354,7 @@ public class AnnotationSerializer extends AbstractSerializer {
             } catch (InvocationTargetException e) {
                 throw error(method, e.getCause());
             } catch (IllegalAccessException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             if (value == null)

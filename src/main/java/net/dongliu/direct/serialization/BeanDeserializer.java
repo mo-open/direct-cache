@@ -68,15 +68,14 @@ public class BeanDeserializer extends AbstractMapDeserializer {
     public BeanDeserializer(Class cl) {
         _type = cl;
         _methodMap = getMethodMap(cl);
-
         _readResolve = getReadResolve(cl);
 
         Constructor[] constructors = cl.getConstructors();
         int bestLength = Integer.MAX_VALUE;
 
-        for (int i = 0; i < constructors.length; i++) {
-            if (constructors[i].getParameterTypes().length < bestLength) {
-                _constructor = constructors[i];
+        for (Constructor constructor : constructors) {
+            if (constructor.getParameterTypes().length < bestLength) {
+                _constructor = constructor;
                 bestLength = _constructor.getParameterTypes().length;
             }
         }
@@ -95,11 +94,9 @@ public class BeanDeserializer extends AbstractMapDeserializer {
         return _type;
     }
 
-    public Object readMap(AbstractHessianInput in)
-            throws IOException {
+    public Object readMap(AbstractHessianInput in) throws IOException {
         try {
             Object obj = instantiate();
-
             return readMap(in, obj);
         } catch (IOException e) {
             throw e;
@@ -108,27 +105,23 @@ public class BeanDeserializer extends AbstractMapDeserializer {
         }
     }
 
-    public Object readMap(AbstractHessianInput in, Object obj)
-            throws IOException {
+    public Object readMap(AbstractHessianInput in, Object obj) throws IOException {
         try {
             int ref = in.addRef(obj);
 
             while (!in.isEnd()) {
                 Object key = in.readObject();
-
                 Method method = (Method) _methodMap.get(key);
 
                 if (method != null) {
                     Object value = in.readObject(method.getParameterTypes()[0]);
-
-                    method.invoke(obj, new Object[]{value});
+                    method.invoke(obj, value);
                 } else {
                     Object value = in.readObject();
                 }
             }
 
             in.readMapEnd();
-
             Object resolve = resolve(obj);
 
             if (obj != resolve)
@@ -146,15 +139,14 @@ public class BeanDeserializer extends AbstractMapDeserializer {
         // if there's a readResolve method, call it
         try {
             if (_readResolve != null)
-                return _readResolve.invoke(obj, new Object[0]);
+                return _readResolve.invoke(obj);
         } catch (Exception e) {
         }
 
         return obj;
     }
 
-    protected Object instantiate()
-            throws Exception {
+    protected Object instantiate() throws Exception {
         return _constructor.newInstance(_constructorArgs);
     }
 
@@ -165,9 +157,7 @@ public class BeanDeserializer extends AbstractMapDeserializer {
         for (; cl != null; cl = cl.getSuperclass()) {
             Method[] methods = cl.getDeclaredMethods();
 
-            for (int i = 0; i < methods.length; i++) {
-                Method method = methods[i];
-
+            for (Method method : methods) {
                 if (method.getName().equals("readResolve") &&
                         method.getParameterTypes().length == 0)
                     return method;
@@ -186,9 +176,7 @@ public class BeanDeserializer extends AbstractMapDeserializer {
         for (; cl != null; cl = cl.getSuperclass()) {
             Method[] methods = cl.getDeclaredMethods();
 
-            for (int i = 0; i < methods.length; i++) {
-                Method method = methods[i];
-
+            for (Method method : methods) {
                 if (Modifier.isStatic(method.getModifiers()))
                     continue;
 
@@ -239,9 +227,7 @@ public class BeanDeserializer extends AbstractMapDeserializer {
     private Method findGetter(Method[] methods, String setterName, Class arg) {
         String getterName = "get" + setterName.substring(3);
 
-        for (int i = 0; i < methods.length; i++) {
-            Method method = methods[i];
-
+        for (Method method : methods) {
             if (!method.getName().equals(getterName))
                 continue;
 
@@ -266,19 +252,19 @@ public class BeanDeserializer extends AbstractMapDeserializer {
         else if (boolean.class.equals(cl))
             return Boolean.FALSE;
         else if (byte.class.equals(cl))
-            return Byte.valueOf((byte) 0);
+            return (byte) 0;
         else if (short.class.equals(cl))
-            return Short.valueOf((short) 0);
+            return (short) 0;
         else if (char.class.equals(cl))
-            return Character.valueOf((char) 0);
+            return (char) 0;
         else if (int.class.equals(cl))
-            return Integer.valueOf(0);
+            return 0;
         else if (long.class.equals(cl))
-            return Long.valueOf(0);
+            return (long) 0;
         else if (float.class.equals(cl))
-            return Double.valueOf(0);
+            return (double) 0;
         else if (double.class.equals(cl))
-            return Double.valueOf(0);
+            return (double) 0;
         else
             throw new UnsupportedOperationException();
     }

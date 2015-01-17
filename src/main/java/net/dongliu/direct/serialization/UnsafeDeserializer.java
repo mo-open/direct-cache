@@ -48,6 +48,8 @@
 
 package net.dongliu.direct.serialization;
 
+import net.dongliu.direct.utils.UNSAFE;
+import org.slf4j.LoggerFactory;
 import sun.misc.Unsafe;
 
 import java.io.IOException;
@@ -59,18 +61,17 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.HashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
 
 /**
  * Serializing an object for known object types.
  */
 public class UnsafeDeserializer extends AbstractMapDeserializer {
-    private static final Logger log = Logger.getLogger(JavaDeserializer.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(JavaDeserializer.class);
 
-    private static boolean _isEnabled;
     @SuppressWarnings("restriction")
-    private static Unsafe _unsafe;
+    private static Unsafe unsafe = UNSAFE.getUnsafe();
 
     private Class<?> _type;
     private HashMap<String, FieldDeserializer> _fieldMap;
@@ -85,10 +86,6 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         if (_readResolve != null) {
             _readResolve.setAccessible(true);
         }
-    }
-
-    public static boolean isEnabled() {
-        return _isEnabled;
     }
 
     @Override
@@ -107,9 +104,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             Object obj = instantiate();
 
             return readMap(in, obj);
-        } catch (IOException e) {
-            throw e;
-        } catch (RuntimeException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IOExceptionWrapper(_type.getName() + ":" + e.getMessage(), e);
@@ -138,9 +133,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             Object obj = instantiate();
 
             return readObject(in, obj, (FieldDeserializer[]) fields);
-        } catch (IOException e) {
-            throw e;
-        } catch (RuntimeException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IOExceptionWrapper(_type.getName() + ":" + e.getMessage(), e);
@@ -155,9 +148,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             Object obj = instantiate();
 
             return readObject(in, obj, fieldNames);
-        } catch (IOException e) {
-            throw e;
-        } catch (RuntimeException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IOExceptionWrapper(_type.getName() + ":" + e.getMessage(), e);
@@ -180,16 +171,13 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         return null;
     }
 
-    public Object readMap(AbstractHessianInput in, Object obj)
-            throws IOException {
+    public Object readMap(AbstractHessianInput in, Object obj) throws IOException {
         try {
             int ref = in.addRef(obj);
 
             while (!in.isEnd()) {
                 Object key = in.readObject();
-
-                FieldDeserializer deser = (FieldDeserializer) _fieldMap.get(key);
-
+                FieldDeserializer deser = _fieldMap.get(key);
                 if (deser != null)
                     deser.deserialize(in, obj);
                 else
@@ -197,7 +185,6 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             }
 
             in.readMapEnd();
-
             Object resolve = resolve(in, obj);
 
             if (obj != resolve)
@@ -211,19 +198,15 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         }
     }
 
-    public Object readObject(AbstractHessianInput in,
-                             Object obj,
-                             FieldDeserializer[] fields)
+    public Object readObject(AbstractHessianInput in, Object obj, FieldDeserializer[] fields)
             throws IOException {
         try {
             int ref = in.addRef(obj);
-
             for (FieldDeserializer reader : fields) {
                 reader.deserialize(in, obj);
             }
 
             Object resolve = resolve(in, obj);
-
             if (obj != resolve)
                 in.setRef(ref, resolve);
 
@@ -235,9 +218,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         }
     }
 
-    public Object readObject(AbstractHessianInput in,
-                             Object obj,
-                             String[] fieldNames)
+    public Object readObject(AbstractHessianInput in, Object obj, String[] fieldNames)
             throws IOException {
         try {
             int ref = in.addRef(obj);
@@ -264,8 +245,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         }
     }
 
-    protected Object resolve(AbstractHessianInput in, Object obj)
-            throws Exception {
+    protected Object resolve(AbstractHessianInput in, Object obj) throws Exception {
         // if there's a readResolve method, call it
         try {
             if (_readResolve != null)
@@ -282,15 +262,14 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
 
     @SuppressWarnings("restriction")
     protected Object instantiate() throws Exception {
-        return _unsafe.allocateInstance(_type);
+        return unsafe.allocateInstance(_type);
     }
 
     /**
      * Creates a map of the classes fields.
      */
     protected HashMap<String, FieldDeserializer> getFieldMap(Class<?> cl) {
-        HashMap<String, FieldDeserializer> fieldMap
-                = new HashMap<String, FieldDeserializer>();
+        HashMap<String, FieldDeserializer> fieldMap = new HashMap<>();
 
         for (; cl != null; cl = cl.getSuperclass()) {
             Field[] fields = cl.getDeclaredFields();
@@ -368,7 +347,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         ObjectFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
@@ -379,7 +358,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             try {
                 value = in.readObject(_field.getType());
 
-                _unsafe.putObject(obj, _offset, value);
+                unsafe.putObject(obj, _offset, value);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -393,7 +372,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         BooleanFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
@@ -403,8 +382,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
 
             try {
                 value = in.readBoolean();
-
-                _unsafe.putBoolean(obj, _offset, value);
+                unsafe.putBoolean(obj, _offset, value);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -418,18 +396,16 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         ByteFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
-        void deserialize(AbstractHessianInput in, Object obj)
-                throws IOException {
+        void deserialize(AbstractHessianInput in, Object obj) throws IOException {
             int value = 0;
 
             try {
                 value = in.readInt();
-
-                _unsafe.putByte(obj, _offset, (byte) value);
+                unsafe.putByte(obj, _offset, (byte) value);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -443,25 +419,22 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         CharFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
-        void deserialize(AbstractHessianInput in, Object obj)
-                throws IOException {
+        void deserialize(AbstractHessianInput in, Object obj) throws IOException {
             String value = null;
 
             try {
                 value = in.readString();
-
                 char ch;
-
                 if (value != null && value.length() > 0)
                     ch = value.charAt(0);
                 else
                     ch = 0;
 
-                _unsafe.putChar(obj, _offset, ch);
+                unsafe.putChar(obj, _offset, ch);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -475,18 +448,16 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         ShortFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
-        void deserialize(AbstractHessianInput in, Object obj)
-                throws IOException {
+        void deserialize(AbstractHessianInput in, Object obj) throws IOException {
             int value = 0;
 
             try {
                 value = in.readInt();
-
-                _unsafe.putShort(obj, _offset, (short) value);
+                unsafe.putShort(obj, _offset, (short) value);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -500,7 +471,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         IntFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
@@ -511,7 +482,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             try {
                 value = in.readInt();
 
-                _unsafe.putInt(obj, _offset, value);
+                unsafe.putInt(obj, _offset, value);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -525,7 +496,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         LongFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
@@ -536,7 +507,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             try {
                 value = in.readLong();
 
-                _unsafe.putLong(obj, _offset, value);
+                unsafe.putLong(obj, _offset, value);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -550,7 +521,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         FloatFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         void deserialize(AbstractHessianInput in, Object obj)
@@ -560,7 +531,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             try {
                 value = in.readDouble();
 
-                _unsafe.putFloat(obj, _offset, (float) value);
+                unsafe.putFloat(obj, _offset, (float) value);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -573,7 +544,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
 
         DoubleFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
@@ -584,7 +555,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             try {
                 value = in.readDouble();
 
-                _unsafe.putDouble(obj, _offset, value);
+                unsafe.putDouble(obj, _offset, value);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -598,7 +569,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         StringFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
@@ -609,7 +580,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             try {
                 value = in.readString();
 
-                _unsafe.putObject(obj, _offset, value);
+                unsafe.putObject(obj, _offset, value);
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
             }
@@ -623,7 +594,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         SqlDateFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
@@ -637,9 +608,9 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
                 if (date != null) {
                     value = new java.sql.Date(date.getTime());
 
-                    _unsafe.putObject(obj, _offset, value);
+                    unsafe.putObject(obj, _offset, value);
                 } else {
-                    _unsafe.putObject(obj, _offset, null);
+                    unsafe.putObject(obj, _offset, null);
                 }
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
@@ -654,12 +625,11 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         SqlTimestampFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
-        void deserialize(AbstractHessianInput in, Object obj)
-                throws IOException {
+        void deserialize(AbstractHessianInput in, Object obj) throws IOException {
             java.sql.Timestamp value = null;
 
             try {
@@ -668,9 +638,9 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
                 if (date != null) {
                     value = new java.sql.Timestamp(date.getTime());
 
-                    _unsafe.putObject(obj, _offset, value);
+                    unsafe.putObject(obj, _offset, value);
                 } else {
-                    _unsafe.putObject(obj, _offset, null);
+                    unsafe.putObject(obj, _offset, null);
                 }
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
@@ -685,7 +655,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         @SuppressWarnings("restriction")
         SqlTimeFieldDeserializer(Field field) {
             _field = field;
-            _offset = _unsafe.objectFieldOffset(_field);
+            _offset = unsafe.objectFieldOffset(_field);
         }
 
         @SuppressWarnings("restriction")
@@ -699,9 +669,9 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
                 if (date != null) {
                     value = new java.sql.Time(date.getTime());
 
-                    _unsafe.putObject(obj, _offset, value);
+                    unsafe.putObject(obj, _offset, value);
                 } else {
-                    _unsafe.putObject(obj, _offset, null);
+                    unsafe.putObject(obj, _offset, null);
                 }
             } catch (Exception e) {
                 logDeserializeError(_field, obj, value, e);
@@ -709,8 +679,7 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
         }
     }
 
-    static void logDeserializeError(Field field, Object obj, Object value,
-                                    Throwable e)
+    static void logDeserializeError(Field field, Object obj, Object value, Throwable e)
             throws IOException {
         String fieldName = (field.getDeclaringClass().getName()
                 + "." + field.getName());
@@ -727,32 +696,4 @@ public class UnsafeDeserializer extends AbstractMapDeserializer {
             throw new HessianFieldException(fieldName + ": " + field.getType().getName() + " cannot be assigned from null", e);
     }
 
-    static {
-        boolean isEnabled = false;
-
-        try {
-            Class<?> unsafe = Class.forName("sun.misc.Unsafe");
-            Field theUnsafe = null;
-            for (Field field : unsafe.getDeclaredFields()) {
-                if (field.getName().equals("theUnsafe"))
-                    theUnsafe = field;
-            }
-
-            if (theUnsafe != null) {
-                theUnsafe.setAccessible(true);
-                _unsafe = (Unsafe) theUnsafe.get(null);
-            }
-
-            isEnabled = _unsafe != null;
-
-            String unsafeProp = System.getProperty("com.caucho.hessian.unsafe");
-
-            if ("false".equals(unsafeProp))
-                isEnabled = false;
-        } catch (Throwable e) {
-            log.log(Level.FINER, e.toString(), e);
-        }
-
-        _isEnabled = isEnabled;
-    }
 }

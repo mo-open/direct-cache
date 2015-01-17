@@ -80,8 +80,7 @@ public class ArrayDeserializer extends AbstractListDeserializer {
     /**
      * Reads the array.
      */
-    public Object readList(AbstractHessianInput in, int length)
-            throws IOException {
+    public Object readList(AbstractHessianInput in, int length) throws IOException {
         if (length >= 0) {
             Object[] data = createArray(length);
 
@@ -124,8 +123,7 @@ public class ArrayDeserializer extends AbstractListDeserializer {
     /**
      * Reads the array.
      */
-    public Object readLengthList(AbstractHessianInput in, int length)
-            throws IOException {
+    public Object readLengthList(AbstractHessianInput in, int length) throws IOException {
         Object[] data = createArray(length);
 
         in.addRef(data);

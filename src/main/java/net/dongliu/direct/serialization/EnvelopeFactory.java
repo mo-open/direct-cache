@@ -48,9 +48,9 @@
 
 package net.dongliu.direct.serialization;
 
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EnvelopeFactory {
-    private static final Logger log
-            = Logger.getLogger(EnvelopeFactory.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(EnvelopeFactory.class);
 }

@@ -48,10 +48,12 @@
 
 package net.dongliu.direct.serialization;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Input stream for Hessian 2 streaming requests using WebSocket.
@@ -64,8 +66,7 @@ import java.util.logging.Logger;
  * </code>
  */
 public class Hessian2StreamingInput {
-    private static final Logger log
-            = Logger.getLogger(Hessian2StreamingInput.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(Hessian2StreamingInput.class);
 
     private StreamingInputStream _is;
     private Hessian2Input _in;
@@ -147,7 +148,7 @@ public class Hessian2StreamingInput {
             try {
                 return _is != null && _is.available() > 0;
             } catch (IOException e) {
-                log.log(Level.FINER, e.toString(), e);
+                log.debug(e.toString(), e);
 
                 return true;
             }

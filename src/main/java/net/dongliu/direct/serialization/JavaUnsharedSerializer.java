@@ -49,14 +49,14 @@
 package net.dongliu.direct.serialization;
 
 import java.io.IOException;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Serializing an object for known object types.
  */
 public class JavaUnsharedSerializer extends JavaSerializer {
-    private static final Logger log
-            = Logger.getLogger(JavaUnsharedSerializer.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(JavaUnsharedSerializer.class);
 
     public JavaUnsharedSerializer(Class<?> cl) {
         super(cl);

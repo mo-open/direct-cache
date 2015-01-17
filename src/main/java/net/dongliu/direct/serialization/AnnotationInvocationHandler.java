@@ -98,11 +98,7 @@ public class AnnotationInvocationHandler implements InvocationHandler {
             return false;
 
         Annotation ann = (Annotation) value;
-
-        if (!_annType.equals(ann.annotationType()))
-            return false;
-
-        return true;
+        return _annType.equals(ann.annotationType());
     }
 
     public String toString() {

@@ -154,38 +154,29 @@ public class BasicDeserializer extends AbstractDeserializer {
                 return null;
 
             case BOOLEAN:
-                return Boolean.valueOf(in.readBoolean());
-
+                return in.readBoolean();
             case BYTE:
-                return Byte.valueOf((byte) in.readInt());
-
+                return (byte) in.readInt();
             case SHORT:
-                return Short.valueOf((short) in.readInt());
-
+                return (short) in.readInt();
             case INTEGER:
-                return Integer.valueOf(in.readInt());
-
+                return in.readInt();
             case LONG:
-                return Long.valueOf(in.readLong());
-
+                return in.readLong();
             case FLOAT:
-                return Float.valueOf((float) in.readDouble());
-
+                return (float) in.readDouble();
             case DOUBLE:
-                return Double.valueOf(in.readDouble());
-
+                return in.readDouble();
             case STRING:
                 return in.readString();
-
             case OBJECT:
                 return in.readObject();
-
             case CHARACTER: {
                 String s = in.readString();
                 if (s == null || s.equals(""))
-                    return Character.valueOf((char) 0);
+                    return (char) 0;
                 else
-                    return Character.valueOf(s.charAt(0));
+                    return s.charAt(0);
             }
 
             case CHARACTER_OBJECT: {
@@ -193,18 +184,15 @@ public class BasicDeserializer extends AbstractDeserializer {
                 if (s == null || s.equals(""))
                     return null;
                 else
-                    return Character.valueOf(s.charAt(0));
+                    return s.charAt(0);
             }
 
             case DATE:
                 return new Date(in.readUTCDate());
-
             case NUMBER:
                 return in.readObject();
-
             case BYTE_ARRAY:
                 return in.readBytes();
-
             case CHARACTER_ARRAY: {
                 String s = in.readString();
 
@@ -284,7 +272,7 @@ public class BasicDeserializer extends AbstractDeserializer {
                     ArrayList list = new ArrayList();
 
                     while (!in.isEnd())
-                        list.add(Boolean.valueOf(in.readBoolean()));
+                        list.add(in.readBoolean());
 
                     in.readEnd();
 
@@ -293,7 +281,7 @@ public class BasicDeserializer extends AbstractDeserializer {
                     in.addRef(data);
 
                     for (int i = 0; i < data.length; i++)
-                        data[i] = ((Boolean) list.get(i)).booleanValue();
+                        data[i] = (Boolean) list.get(i);
 
                     return data;
                 }
@@ -315,13 +303,13 @@ public class BasicDeserializer extends AbstractDeserializer {
                     ArrayList list = new ArrayList();
 
                     while (!in.isEnd())
-                        list.add(Short.valueOf((short) in.readInt()));
+                        list.add((short) in.readInt());
 
                     in.readEnd();
 
                     short[] data = new short[list.size()];
                     for (int i = 0; i < data.length; i++)
-                        data[i] = ((Short) list.get(i)).shortValue();
+                        data[i] = (Short) list.get(i);
 
                     in.addRef(data);
 
@@ -345,14 +333,14 @@ public class BasicDeserializer extends AbstractDeserializer {
                     ArrayList list = new ArrayList();
 
                     while (!in.isEnd())
-                        list.add(Integer.valueOf(in.readInt()));
+                        list.add(in.readInt());
 
 
                     in.readEnd();
 
                     int[] data = new int[list.size()];
                     for (int i = 0; i < data.length; i++)
-                        data[i] = ((Integer) list.get(i)).intValue();
+                        data[i] = (Integer) list.get(i);
 
                     in.addRef(data);
 
@@ -376,13 +364,13 @@ public class BasicDeserializer extends AbstractDeserializer {
                     ArrayList list = new ArrayList();
 
                     while (!in.isEnd())
-                        list.add(Long.valueOf(in.readLong()));
+                        list.add(in.readLong());
 
                     in.readEnd();
 
                     long[] data = new long[list.size()];
                     for (int i = 0; i < data.length; i++)
-                        data[i] = ((Long) list.get(i)).longValue();
+                        data[i] = (Long) list.get(i);
 
                     in.addRef(data);
 
@@ -411,7 +399,7 @@ public class BasicDeserializer extends AbstractDeserializer {
 
                     float[] data = new float[list.size()];
                     for (int i = 0; i < data.length; i++)
-                        data[i] = ((Float) list.get(i)).floatValue();
+                        data[i] = (Float) list.get(i);
 
                     in.addRef(data);
 
@@ -434,14 +422,14 @@ public class BasicDeserializer extends AbstractDeserializer {
                     ArrayList list = new ArrayList();
 
                     while (!in.isEnd())
-                        list.add(new Double(in.readDouble()));
+                        list.add(in.readDouble());
 
                     in.readEnd();
 
                     double[] data = new double[list.size()];
                     in.addRef(data);
                     for (int i = 0; i < data.length; i++)
-                        data[i] = ((Double) list.get(i)).doubleValue();
+                        data[i] = (Double) list.get(i);
 
                     return data;
                 }

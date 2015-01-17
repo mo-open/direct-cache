@@ -53,14 +53,11 @@ import java.io.IOException;
 /**
  * Deserializes a string-valued object like BigDecimal.
  */
-abstract public class AbstractStringValueDeserializer
-        extends AbstractDeserializer {
-    abstract protected Object create(String value)
-            throws IOException;
+abstract public class AbstractStringValueDeserializer extends AbstractDeserializer {
+    abstract protected Object create(String value) throws IOException;
 
     @Override
-    public Object readMap(AbstractHessianInput in)
-            throws IOException {
+    public Object readMap(AbstractHessianInput in) throws IOException {
         String value = null;
 
         while (!in.isEnd()) {
@@ -73,30 +70,25 @@ abstract public class AbstractStringValueDeserializer
         }
 
         in.readMapEnd();
-
         Object object = create(value);
-
         in.addRef(object);
 
         return object;
     }
 
     @Override
-    public Object readObject(AbstractHessianInput in, Object[] fields)
-            throws IOException {
+    public Object readObject(AbstractHessianInput in, Object[] fields) throws IOException {
         String[] fieldNames = (String[]) fields;
-
         String value = null;
 
-        for (int i = 0; i < fieldNames.length; i++) {
-            if ("value".equals(fieldNames[i]))
+        for (String fieldName : fieldNames) {
+            if ("value".equals(fieldName))
                 value = in.readString();
             else
                 in.readObject();
         }
 
         Object object = create(value);
-
         in.addRef(object);
 
         return object;

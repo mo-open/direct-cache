@@ -56,14 +56,14 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Serializing an object for known object types.
  */
 public class BeanSerializer extends AbstractSerializer {
-    private static final Logger log
-            = Logger.getLogger(BeanSerializer.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(BeanSerializer.class);
 
     private static final Object[] NULL_ARGS = new Object[0];
     private Method[] _methods;
@@ -81,9 +81,7 @@ public class BeanSerializer extends AbstractSerializer {
         for (; cl != null; cl = cl.getSuperclass()) {
             Method[] methods = cl.getDeclaredMethods();
 
-            for (int i = 0; i < methods.length; i++) {
-                Method method = methods[i];
-
+            for (Method method : methods) {
                 if (Modifier.isStatic(method.getModifiers()))
                     continue;
 
@@ -162,7 +160,7 @@ public class BeanSerializer extends AbstractSerializer {
             }
         } catch (ClassNotFoundException e) {
         } catch (Exception e) {
-            log.log(Level.FINER, e.toString(), e);
+            log.debug(e.toString(), e);
         }
 
         _writeReplace = getWriteReplace(cl);
@@ -175,9 +173,7 @@ public class BeanSerializer extends AbstractSerializer {
         for (; cl != null; cl = cl.getSuperclass()) {
             Method[] methods = cl.getDeclaredMethods();
 
-            for (int i = 0; i < methods.length; i++) {
-                Method method = methods[i];
-
+            for (Method method : methods) {
                 if (method.getName().equals("writeReplace") &&
                         method.getParameterTypes().length == 0)
                     return method;
@@ -228,7 +224,7 @@ public class BeanSerializer extends AbstractSerializer {
                 return;
             }
         } catch (Exception e) {
-            log.log(Level.FINER, e.toString(), e);
+            log.debug(e.toString(), e);
         }
 
         int ref = out.writeObjectBegin(cl.getName());
@@ -243,7 +239,7 @@ public class BeanSerializer extends AbstractSerializer {
                 try {
                     value = _methods[i].invoke(obj, (Object[]) null);
                 } catch (Exception e) {
-                    log.log(Level.FINE, e.toString(), e);
+                    log.debug(e.toString(), e);
                 }
 
                 out.writeString(_names[i]);
@@ -256,20 +252,18 @@ public class BeanSerializer extends AbstractSerializer {
             if (ref == -1) {
                 out.writeInt(_names.length);
 
-                for (int i = 0; i < _names.length; i++)
-                    out.writeString(_names[i]);
+                for (String _name : _names) out.writeString(_name);
 
                 out.writeObjectBegin(cl.getName());
             }
 
-            for (int i = 0; i < _methods.length; i++) {
-                Method method = _methods[i];
+            for (Method method : _methods) {
                 Object value = null;
 
                 try {
-                    value = _methods[i].invoke(obj, (Object[]) null);
+                    value = method.invoke(obj, (Object[]) null);
                 } catch (Exception e) {
-                    log.log(Level.FINER, e.toString(), e);
+                    log.debug(e.toString(), e);
                 }
 
                 out.writeObject(value);
@@ -283,9 +277,7 @@ public class BeanSerializer extends AbstractSerializer {
     private Method findSetter(Method[] methods, String getterName, Class arg) {
         String setterName = "set" + getterName.substring(3);
 
-        for (int i = 0; i < methods.length; i++) {
-            Method method = methods[i];
-
+        for (Method method : methods) {
             if (!method.getName().equals(setterName))
                 continue;
 

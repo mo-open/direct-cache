@@ -50,14 +50,14 @@ package net.dongliu.direct.serialization;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Factory for creating HessianInput and HessianOutput streams.
  */
 public class HessianFactory {
-    public static final Logger log
-            = Logger.getLogger(HessianFactory.class.getName());
+    public static final Logger log = LoggerFactory.getLogger(HessianFactory.class);
 
     private SerializerFactory _serializerFactory;
     private SerializerFactory _defaultSerializerFactory;

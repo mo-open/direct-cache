@@ -54,7 +54,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Input stream for Hessian requests.
@@ -73,7 +74,7 @@ import java.util.logging.Logger;
  * </pre>
  */
 public class Hessian2Input extends AbstractHessianInput implements Hessian2Constants {
-    private static final Logger log = Logger.getLogger(Hessian2Input.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(Hessian2Input.class);
 
     private static final int END_OF_DATA = -2;
 
@@ -356,7 +357,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
                     sb.append((char) ch);
                 }
             } catch (IOException e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
             }
 
             throw error("expected hessian reply at " + codeName(tag) + "\n"
@@ -2926,17 +2927,6 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
     }
 
     /**
-     * Reads a remote object.
-     */
-    public Object readRemote()
-            throws IOException {
-        String type = readType();
-        String url = readString();
-
-        return resolveRemote(type, url);
-    }
-
-    /**
      * Reads a reference.
      */
     public Object readRef()
@@ -2984,8 +2974,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
     /**
      * Reads the end byte.
      */
-    public void readEnd()
-            throws IOException {
+    public void readEnd() throws IOException {
         int code = _offset < _length ? (_buffer[_offset++] & 0xff) : read();
 
         if (code == 'Z')
@@ -3024,7 +3013,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
     @Override
     public int addRef(Object ref) {
         if (_refs == null)
-            _refs = new ArrayList();
+            _refs = new ArrayList<>();
 
         _refs.add(ref);
 
@@ -3070,19 +3059,6 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
             _refs.clear();
 
         return readObject();
-    }
-
-    /**
-     * Resolves a remote object.
-     */
-    public Object resolveRemote(String type, String url)
-            throws IOException {
-        HessianRemoteResolver resolver = getRemoteResolver();
-
-        if (resolver != null)
-            return resolver.lookup(type, url);
-        else
-            return new HessianRemote(type, url);
     }
 
     /**
@@ -3651,7 +3627,7 @@ public class Hessian2Input extends AbstractHessianInput implements Hessian2Const
                     return error("expected " + expect
                             + " at 0x" + Integer.toHexString(ch & 0xff) + " null");
             } catch (Exception e) {
-                log.log(Level.FINE, e.toString(), e);
+                log.debug(e.toString(), e);
 
                 return error("expected " + expect
                         + " at 0x" + Integer.toHexString(ch & 0xff));

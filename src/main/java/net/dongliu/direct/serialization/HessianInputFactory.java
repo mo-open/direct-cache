@@ -50,11 +50,11 @@ package net.dongliu.direct.serialization;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HessianInputFactory {
-    public static final Logger log
-            = Logger.getLogger(HessianInputFactory.class.getName());
+    public static final Logger log = LoggerFactory.getLogger(HessianInputFactory.class);
 
     private HessianFactory _factory = new HessianFactory();
 
