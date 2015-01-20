@@ -57,17 +57,17 @@ public class DirectCache {
      * @return null if not exists.
      */
     public <V extends Serializable> Value<V> get(Object key) {
-        Value<InputStream> value = _get(key);
+        TypedValue<InputStream> value = _get(key);
 
         if (value == null) {
             return null;
         } else if (value.getValue() == null) {
-            return new Value<>(null, value.getType());
+            return new Value<>(null);
         }
 
         try (InputStream in = value.getValue()) {
             V v = (V) serializer.deSerialize(in, value.getType());
-            return new Value<>(v, value.getType());
+            return new Value<>(v);
         } catch (DeSerializeException | IOException e) {
             throw new CacheException("deSerialize value failed", e);
         }
@@ -78,8 +78,8 @@ public class DirectCache {
      *
      * @return null if not exists
      */
-    private <V extends Serializable> Value<InputStream> _get(Object key) {
-        Value<InputStream> value = null;
+    private <V extends Serializable> TypedValue<InputStream> _get(Object key) {
+        TypedValue<InputStream> value = null;
         ReentrantReadWriteLock lock = lockFor(key);
         lock.readLock().lock();
         try {
@@ -91,7 +91,7 @@ public class DirectCache {
             if (!directValue.expired()) {
                 InputStream in = directValue.getBuffer() == null ?
                         null : new ByteBufInputStream(directValue.getBuffer());
-                value = new Value<>(in, directValue.getType());
+                value = new TypedValue<>(in, directValue.getType());
             }
         } finally {
             lock.readLock().unlock();
