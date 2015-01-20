@@ -50,6 +50,9 @@ package net.dongliu.direct.serialization;
 
 import java.io.IOException;
 import java.lang.reflect.*;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.HashMap;
 
 /**
@@ -133,9 +136,7 @@ public class JavaDeserializer extends AbstractMapDeserializer {
             Object obj = instantiate();
 
             return readMap(in, obj);
-        } catch (IOException e) {
-            throw e;
-        } catch (RuntimeException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IOExceptionWrapper(_type.getName() + ":" + e.getMessage(), e);
@@ -165,9 +166,7 @@ public class JavaDeserializer extends AbstractMapDeserializer {
             Object obj = instantiate();
 
             return readObject(in, obj, (FieldDeserializer[]) fields);
-        } catch (IOException e) {
-            throw e;
-        } catch (RuntimeException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IOExceptionWrapper(_type.getName() + ":" + e.getMessage(), e);
@@ -182,9 +181,7 @@ public class JavaDeserializer extends AbstractMapDeserializer {
             Object obj = instantiate();
 
             return readObject(in, obj, fieldNames);
-        } catch (IOException e) {
-            throw e;
-        } catch (RuntimeException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IOExceptionWrapper(_type.getName() + ":" + e.getMessage(), e);
@@ -198,9 +195,7 @@ public class JavaDeserializer extends AbstractMapDeserializer {
         for (; cl != null; cl = cl.getSuperclass()) {
             Method[] methods = cl.getDeclaredMethods();
 
-            for (int i = 0; i < methods.length; i++) {
-                Method method = methods[i];
-
+            for (Method method : methods) {
                 if (method.getName().equals("readResolve")
                         && method.getParameterTypes().length == 0)
                     return method;
@@ -241,9 +236,7 @@ public class JavaDeserializer extends AbstractMapDeserializer {
         }
     }
 
-    private Object readObject(AbstractHessianInput in,
-                              Object obj,
-                              FieldDeserializer[] fields)
+    private Object readObject(AbstractHessianInput in, Object obj, FieldDeserializer[] fields)
             throws IOException {
         try {
             int ref = in.addRef(obj);
@@ -299,7 +292,7 @@ public class JavaDeserializer extends AbstractMapDeserializer {
         // if there's a readResolve method, call it
         try {
             if (_readResolve != null)
-                return _readResolve.invoke(obj, new Object[0]);
+                return _readResolve.invoke(obj);
         } catch (InvocationTargetException e) {
             if (e.getCause() instanceof Exception)
                 throw (Exception) e.getCause();
@@ -326,14 +319,11 @@ public class JavaDeserializer extends AbstractMapDeserializer {
      * Creates a map of the classes fields.
      */
     protected HashMap<String, FieldDeserializer> getFieldMap(Class cl) {
-        HashMap<String, FieldDeserializer> fieldMap
-                = new HashMap<String, FieldDeserializer>();
+        HashMap<String, FieldDeserializer> fieldMap = new HashMap<>();
 
         for (; cl != null; cl = cl.getSuperclass()) {
             Field[] fields = cl.getDeclaredFields();
-            for (int i = 0; i < fields.length; i++) {
-                Field field = fields[i];
-
+            for (Field field : fields) {
                 if (Modifier.isTransient(field.getModifiers())
                         || Modifier.isStatic(field.getModifiers()))
                     continue;
@@ -366,11 +356,11 @@ public class JavaDeserializer extends AbstractMapDeserializer {
                     deser = new DoubleFieldDeserializer(field);
                 } else if (boolean.class.equals(type)) {
                     deser = new BooleanFieldDeserializer(field);
-                } else if (java.sql.Date.class.equals(type)) {
+                } else if (Date.class.equals(type)) {
                     deser = new SqlDateFieldDeserializer(field);
-                } else if (java.sql.Timestamp.class.equals(type)) {
+                } else if (Timestamp.class.equals(type)) {
                     deser = new SqlTimestampFieldDeserializer(field);
-                } else if (java.sql.Time.class.equals(type)) {
+                } else if (Time.class.equals(type)) {
                     deser = new SqlTimeFieldDeserializer(field);
                 } else {
                     deser = new ObjectFieldDeserializer(field);
@@ -392,19 +382,19 @@ public class JavaDeserializer extends AbstractMapDeserializer {
         else if (boolean.class.equals(cl))
             return Boolean.FALSE;
         else if (byte.class.equals(cl))
-            return new Byte((byte) 0);
+            return (byte) 0;
         else if (short.class.equals(cl))
-            return new Short((short) 0);
+            return (short) 0;
         else if (char.class.equals(cl))
-            return new Character((char) 0);
+            return (char) 0;
         else if (int.class.equals(cl))
-            return Integer.valueOf(0);
+            return 0;
         else if (long.class.equals(cl))
-            return Long.valueOf(0);
+            return (long) 0;
         else if (float.class.equals(cl))
-            return Float.valueOf(0);
+            return (float) 0;
         else if (double.class.equals(cl))
-            return Double.valueOf(0);
+            return (double) 0;
         else
             throw new UnsupportedOperationException();
     }

@@ -21,8 +21,10 @@ public class DirectCacheTest {
     @Test
     public void testPut() {
         cache.set("test", "value");
-        String value = cache.<String>get("test").getValue();
-        assertEquals("value", value);
+        Value<String> value = cache.get("test");
+        assertTrue(value.present());
+        String str = value.getValue();
+        assertEquals("value", str);
     }
 
     @Test

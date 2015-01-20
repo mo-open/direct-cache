@@ -20,4 +20,11 @@ class Value<T> {
     public Class getType() {
         return type;
     }
+
+    /**
+     * if this value exist(getValue() != null)
+     */
+    public boolean present() {
+        return value != null;
+    }
 }
