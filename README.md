@@ -8,7 +8,7 @@ For maven users, add:
 <dependency>
     <groupId>net.dongliu</groupId>
     <artifactId>direct-cache</artifactId>
-    <version>0.4.8</version>
+    <version>0.4.10</version>
 </dependency>
 ```
 to your pom file.
@@ -23,7 +23,7 @@ Put and retrieve
 // add one entry
 cache.set("test", "value");
 // get value
-Value<String> value = cache.get("test");
+Value<String> value = cache.get("test", String.class);
 if (value != null) {
     String str = value.getValue();
 } else {

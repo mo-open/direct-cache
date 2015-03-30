@@ -1,6 +1,6 @@
 package net.dongliu.direct;
 
-import net.dongliu.direct.serialization.HessianSerializer;
+import net.dongliu.direct.DefaultSerializer;
 import sun.misc.VM;
 
 /**
@@ -15,7 +15,7 @@ public class DirectCacheBuilder {
      */
     private int concurrency = 128;
     private long maxMemory = VM.maxDirectMemory() * 2 / 3;
-    private Serializer serializer = new HessianSerializer();
+    private Serializer serializer = new DefaultSerializer();
 
     DirectCacheBuilder() {
     }

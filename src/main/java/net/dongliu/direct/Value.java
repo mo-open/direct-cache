@@ -1,7 +1,8 @@
 package net.dongliu.direct;
 
 /**
- * @param <T> the value type
+ * Cache value entry.
+ *
  * @author Dongliu
  */
 public class Value<T> {

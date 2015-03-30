@@ -19,11 +19,6 @@ class DirectValue {
     private final ByteBuf buffer;
 
     /**
-     * the value's class
-     */
-    private final Class type;
-
-    /**
      * The amount of time for the element to live, in seconds. 0 indicates unlimited.
      */
     private volatile int expiry = 0;
@@ -43,9 +38,8 @@ class DirectValue {
     private static final AtomicLongFieldUpdater<DirectValue> updater
             = AtomicLongFieldUpdater.newUpdater(DirectValue.class, "lastPromoted");
 
-    public DirectValue(Object key, ByteBuf buffer, Class type) {
+    public DirectValue(Object key, ByteBuf buffer) {
         this.buffer = buffer;
-        this.type = type;
         this.created = System.currentTimeMillis();
         this.key = key;
     }
@@ -79,10 +73,6 @@ class DirectValue {
 
     public ByteBuf getBuffer() {
         return buffer;
-    }
-
-    public Class getType() {
-        return type;
     }
 
     public void release() {

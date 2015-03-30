@@ -30,6 +30,8 @@ public class ByteBufInputStream extends InputStream {
      */
     protected int end;
 
+    private boolean closed = false;
+
     /**
      * Creates a ByteBufInputStream so that it  uses buf as its buffer array.
      */
@@ -111,7 +113,10 @@ public class ByteBufInputStream extends InputStream {
 
     @Override
     public void close() throws IOException {
-        buf.release();
+        if (!closed) {
+            buf.release();
+            closed = true;
+        }
     }
 
 }

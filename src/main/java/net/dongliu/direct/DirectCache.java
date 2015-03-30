@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -56,8 +55,8 @@ public class DirectCache {
      *
      * @return null if not exists.
      */
-    public <V extends Serializable> Value<V> get(Object key) {
-        TypedValue<InputStream> value = _get(key);
+    public <V> Value<V> get(Object key, Class<V> clazz) {
+        Value<InputStream> value = _get(key);
 
         if (value == null) {
             return null;
@@ -66,7 +65,7 @@ public class DirectCache {
         }
 
         try (InputStream in = value.getValue()) {
-            V v = (V) serializer.deSerialize(in, value.getType());
+            V v = serializer.deSerialize(in, clazz);
             return new Value<>(v);
         } catch (DeSerializeException | IOException e) {
             throw new CacheException("deSerialize value failed", e);
@@ -78,8 +77,8 @@ public class DirectCache {
      *
      * @return null if not exists
      */
-    private <V extends Serializable> TypedValue<InputStream> _get(Object key) {
-        TypedValue<InputStream> value = null;
+    private Value<InputStream> _get(Object key) {
+        Value<InputStream> value = null;
         ReentrantReadWriteLock lock = lockFor(key);
         lock.readLock().lock();
         try {
@@ -91,7 +90,7 @@ public class DirectCache {
             if (!directValue.expired()) {
                 InputStream in = directValue.getBuffer() == null ?
                         null : new ByteBufInputStream(directValue.getBuffer());
-                value = new TypedValue<>(in, directValue.getType());
+                value = new Value<>(in);
             }
         } finally {
             lock.readLock().unlock();
@@ -110,7 +109,7 @@ public class DirectCache {
      *
      * @param value cannot be null
      */
-    public <V extends Serializable> void set(Object key, V value) {
+    public <V> void set(Object key, V value) {
         set(key, value, 0);
     }
 
@@ -120,7 +119,7 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @param value  cannot be null
      */
-    public <V extends Serializable> void set(Object key, V value, int expiry) {
+    public <V> void set(Object key, V value, int expiry) {
         byte[] bytes;
         if (value == null) {
             bytes = null;
@@ -132,7 +131,7 @@ public class DirectCache {
                 throw new CacheException("Serialize value failed", e);
             }
         }
-        _set(key, bytes, value == null ? null : value.getClass(), expiry);
+        _set(key, bytes, expiry);
     }
 
     /**
@@ -141,8 +140,8 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @param value  the value
      */
-    private void _set(Object key, byte[] value, Class clazz, int expiry) {
-        DirectValue holder = store(key, value, clazz);
+    private void _set(Object key, byte[] value, int expiry) {
+        DirectValue holder = store(key, value);
         if (holder == null) {
             // direct evict
             logger.debug("Memory exceed capacity, direct evict occurred, key: {}", key);
@@ -160,7 +159,7 @@ public class DirectCache {
      *
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public <V extends Serializable> boolean add(Object key, V value) {
+    public <V> boolean add(Object key, V value) {
         return add(key, value, 0);
     }
 
@@ -170,7 +169,7 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    public <V extends Serializable> boolean add(Object key, V value, int expiry) {
+    public <V> boolean add(Object key, V value, int expiry) {
         // we call map.get twice here, to avoid unnecessary serialize, not good
         DirectValue oldDirectValue = map.get(key);
         if (oldDirectValue != null && !oldDirectValue.expired()) {
@@ -189,7 +188,7 @@ public class DirectCache {
             }
         }
 
-        return _add(key, bytes, value == null ? null : value.getClass(), expiry);
+        return _add(key, bytes, expiry);
     }
 
 
@@ -199,12 +198,12 @@ public class DirectCache {
      * @param expiry The amount of time for the element to live, in seconds.
      * @return true if the key is not in cache(even if put op is failed), false otherwise.
      */
-    private boolean _add(Object key, byte[] value, Class clazz, int expiry) {
+    private boolean _add(Object key, byte[] value, int expiry) {
         DirectValue oldDirectValue = map.get(key);
         if (oldDirectValue != null && !oldDirectValue.expired()) {
             return false;
         }
-        DirectValue holder = store(key, value, clazz);
+        DirectValue holder = store(key, value);
 
         ReentrantReadWriteLock lock = lockFor(key);
         lock.writeLock().lock();
@@ -224,6 +223,12 @@ public class DirectCache {
         }
     }
 
+    /**
+     * remove key from cache
+     */
+    public void remove(Object key) {
+        this.map.remove(key);
+    }
 
     /**
      * to see weather the key exists or not.if the entry is expired still return true.
@@ -261,16 +266,9 @@ public class DirectCache {
         return map.quickSize();
     }
 
-    /**
-     * remove key from cache
-     */
-    public void remove(Object key) {
-        this.map.remove(key);
-    }
-
-    private DirectValue store(Object key, byte[] bytes, Class clazz) {
+    private DirectValue store(Object key, byte[] bytes) {
         if (bytes == null) {
-            return new DirectValue(key, null, clazz);
+            return new DirectValue(key, null);
         }
 
         ByteBuf buffer;
@@ -285,7 +283,7 @@ public class DirectCache {
         }
         buffer.writeBytes(bytes);
 
-        return new DirectValue(key, buffer, clazz);
+        return new DirectValue(key, buffer);
     }
 
     /**
