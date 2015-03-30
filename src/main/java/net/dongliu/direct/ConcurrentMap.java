@@ -234,7 +234,7 @@ class ConcurrentMap {
     }
 
     /**
-     * if not absent, release directValue
+     * if not absent, return the direct value in cache
      */
     public DirectValue putIfAbsent(Object key, DirectValue value) {
         int hash = hash(key.hashCode());

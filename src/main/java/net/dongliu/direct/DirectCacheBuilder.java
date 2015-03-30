@@ -13,9 +13,9 @@ public class DirectCacheBuilder {
     /**
      * Cache concurrent map concurrent level
      */
-    private int concurrency = 256;
-    private long maxMemory = -1;
-    private Serializer serializer;
+    private int concurrency = 128;
+    private long maxMemory = VM.maxDirectMemory() * 2 / 3;
+    private Serializer serializer = new HessianSerializer();
 
     DirectCacheBuilder() {
     }
@@ -36,12 +36,6 @@ public class DirectCacheBuilder {
     }
 
     public DirectCache build() {
-        if (serializer == null) {
-            serializer = new HessianSerializer();
-        }
-        if (maxMemory < 0) {
-            maxMemory = VM.maxDirectMemory() * 2 / 3;
-        }
         return new DirectCache(maxMemory, concurrency, serializer);
     }
 }

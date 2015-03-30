@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  *
  * @author Dong Liu
  */
-public class DirectValue {
+class DirectValue {
 
     private final Object key;
 

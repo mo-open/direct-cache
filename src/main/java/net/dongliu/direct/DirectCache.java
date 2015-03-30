@@ -129,7 +129,7 @@ public class DirectCache {
                 serializer.serialize(value, bos);
                 bytes = bos.toByteArray();
             } catch (SerializeException | IOException e) {
-                throw new CacheException("serialize value failed", e);
+                throw new CacheException("Serialize value failed", e);
             }
         }
         _set(key, bytes, value == null ? null : value.getClass(), expiry);
@@ -145,7 +145,7 @@ public class DirectCache {
         DirectValue holder = store(key, value, clazz);
         if (holder == null) {
             // direct evict
-            logger.debug("memory exceed capacity, direct evict occurred, key: {}", key);
+            logger.debug("Memory exceed capacity, direct evict occurred, key: {}", key);
             return;
         }
         if (expiry > 0) {
@@ -185,7 +185,7 @@ public class DirectCache {
                 serializer.serialize(value, bos);
                 bytes = bos.toByteArray();
             } catch (SerializeException | IOException e) {
-                throw new CacheException("serialize value failed", e);
+                throw new CacheException("Serialize value failed", e);
             }
         }
 
@@ -302,7 +302,7 @@ public class DirectCache {
     private void evict(Object key) {
         int evict = MAX_EVICTION_NUM;
         List<DirectValue> candidates = map.evictCandidates(key, evict);
-        logger.debug("evict keys via lru, count: {}", candidates.size());
+        logger.debug("Evict keys via lru, count: {}", candidates.size());
         for (DirectValue value : candidates) {
             removeChosenElements(value);
         }
@@ -312,7 +312,6 @@ public class DirectCache {
      * Removes the element chosen by the eviction policy
      */
     private void removeChosenElements(DirectValue directValue) {
-
         // If the element is expired, remove
         remove(directValue.getKey());
     }
